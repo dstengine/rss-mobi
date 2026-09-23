@@ -1,0 +1,46 @@
+---
+// The form behind /c/new/ and /c/<id>/edit/. Markup only; the script in
+// src/scripts/collection-form.ts fills it and reads it back, so the two
+// pages differ only in what they do with the result.
+import { MAX_FEEDS, MAX_TITLE } from "../lib/collections.ts";
+
+interface Props {
+  submitLabel: string;
+  hidden?: boolean;
+}
+const { submitLabel, hidden = false } = Astro.props;
+---
+
+<form id="collection" class="collection-form" novalidate hidden={hidden}>
+  <label for="c-title">Title</label>
+  <input id="c-title" type="text" maxlength={MAX_TITLE} required placeholder="e.g. Web design reading" />
+
+  <h2>Feeds</h2>
+  <ul class="picked" id="c-feeds" aria-live="polite"></ul>
+  <p class="muted small" id="c-none">No feeds yet. Add some below, or use the filters on their own — say, every post tagged <em>css</em>.</p>
+
+  <label for="c-search">Add a feed <span class="hint">Search the directory by name, site or topic. Up to {MAX_FEEDS} feeds.</span></label>
+  <input id="c-search" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search RSS feeds…" />
+  <ul class="results" id="c-results"></ul>
+  <p><button type="button" class="button secondary" id="c-mine" hidden>Add the feeds I follow</button></p>
+
+  <details id="c-filters">
+    <summary>Narrow it down</summary>
+    <p class="muted small">Only posts that match every filter you fill in are kept. Separate several values with commas; any one of them matches.</p>
+    <label for="c-tags">Topics</label>
+    <input id="c-tags" type="text" placeholder="e.g. css, javascript" />
+    <label for="c-hosts">Sites</label>
+    <input id="c-hosts" type="text" placeholder="e.g. example.com" />
+    <label for="c-q">Posts that mention</label>
+    <input id="c-q" type="text" placeholder="e.g. accessibility" />
+    <label for="c-exclude">Leave out titles with <span class="hint">Words that drop a post when its title contains them.</span></label>
+    <input id="c-exclude" type="text" placeholder="e.g. sponsored, podcast" />
+    <label for="c-lang">Language <span class="hint">A two-letter code, like en or es. Empty for any.</span></label>
+    <input id="c-lang" type="text" maxlength="3" autocapitalize="none" spellcheck="false" />
+  </details>
+
+  <div id="c-error" class="notice bad" role="alert" hidden></div>
+  <div class="actions">
+    <button class="button" type="submit" id="c-submit">{submitLabel}</button>
+  </div>
+</form>

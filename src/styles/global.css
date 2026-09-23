@@ -155,6 +155,12 @@ code,
   font-size: 0.875rem;
 }
 
+/* `hidden` wins over any class that sets display — a button styled
+   inline-flex must still disappear when a script hides it. */
+[hidden] {
+  display: none !important;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -621,4 +627,219 @@ details.report summary {
   .cards.two {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+/* ---------------------------------------------------------------- reader */
+
+.button.small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 0.875rem;
+}
+
+/* A Follow button that is on reads as a state, not a call to action. */
+.button.follow[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.follow-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 14px;
+}
+
+.follow-row .small {
+  flex: 1 1 12rem;
+}
+
+/* A card with an action beside it: the card stays the link, the button
+   sits outside it. */
+.cards > li:has(> .follow) {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.linklike {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.linklike:hover {
+  text-decoration: underline;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 20px 0 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs [role="tab"] {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--muted);
+  font: 600 1rem/1 var(--font);
+  cursor: pointer;
+}
+
+.tabs [role="tab"][aria-selected="true"] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.tabs .n {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.875rem;
+}
+
+/* One row of feed chips that scrolls sideways on a phone rather than
+   pushing the posts below the fold. */
+.chips {
+  display: flex;
+  gap: 8px;
+  margin: 12px calc(-1 * var(--gutter)) 4px;
+  padding: 0 var(--gutter) 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chip {
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: 400 0.9375rem/1 var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.items .new {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.sub-list,
+.picked,
+.results {
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sub-list li,
+.picked li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.sub-list li > span {
+  display: grid;
+  min-width: 0;
+}
+
+.sub-list .meta,
+.picked .meta,
+.results .meta {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.picked li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "name remove" "host remove";
+  gap: 0 12px;
+}
+
+.picked li > span:first-child {
+  grid-area: name;
+  font-weight: 600;
+}
+
+.picked .meta {
+  grid-area: host;
+}
+
+.picked .remove {
+  grid-area: remove;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.results .result {
+  display: grid;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.results .result:hover {
+  border-color: var(--accent);
+}
+
+.collection-form details {
+  margin-top: 20px;
+}
+
+.collection-form summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.missing {
+  margin: 8px 0 0;
+  padding-left: 1.2rem;
 }

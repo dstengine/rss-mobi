@@ -18,13 +18,14 @@ export const site = {
       terms page says only what is true. */
   contact: "" as string,
   nav: [
-    { href: "/", label: "Feeds", title: "RSS feeds directory: newest feeds" },
     { href: "/tags/", label: "Topics", title: "Browse RSS feeds by topic" },
+    { href: "/reader/", label: "Reader", title: "Read the RSS feeds you follow on your phone" },
     { href: "/submit/", label: "Submit", title: "Submit an RSS feed to the directory" },
   ],
   footer: [
     { href: "/about/", label: "About", title: "About the rss.mobi RSS feeds directory" },
     { href: "/terms/", label: "Terms", title: "Terms for submitting and reading RSS feeds" },
+    { href: "/c/new/", label: "Combine feeds", title: "Combine several RSS feeds into one" },
     { href: "/api/v1/feeds", label: "API", title: "The RSS feeds directory as JSON" },
     // AGPL-3.0 §13: the people using the site are offered its source.
     { href: "https://github.com/dstengine/rss-mobi", label: "Source", title: "Source code of this RSS feeds directory, AGPL-3.0" },
@@ -43,6 +44,8 @@ export const COPY_UPDATED: Record<string, string> = {
   "/submit/": "2026-09-23",
   "/about/": "2026-09-23",
   "/terms/": "2026-09-23",
+  "/reader/": "2026-09-23",
+  "/c/new/": "2026-09-23",
 };
 
 export const copyDate = (path: string) => new Date(`${COPY_UPDATED[path] ?? "2026-09-23"}T00:00:00Z`);

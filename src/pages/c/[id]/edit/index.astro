@@ -1,0 +1,62 @@
+---
+// The owner's page for a collection. As with a feed's edit page, the token
+// is in the URL fragment, which browsers never send: the server renders
+// the same empty form for everyone and the script does the rest.
+import Base from "../../../../layouts/Base.astro";
+import CollectionForm from "../../../../components/CollectionForm.astro";
+import { policy } from "../../../../lib/policy.ts";
+import { NO_STORE } from "../../../../lib/http.ts";
+
+const id = String(Astro.params.id ?? "");
+if (!/^[a-z0-9x]{8}$/.test(id)) return Astro.rewrite("/404");
+const decision = policy({ type: "edit" });
+Astro.response.headers.set("Cache-Control", NO_STORE);
+// The edit link must not leak to the sites the page links to.
+Astro.response.headers.set("Referrer-Policy", "no-referrer");
+---
+
+<Base title="Edit your collection" description="Change the feeds, filters or title of a combined RSS feed on rss.mobi." robots={decision.robots} path={`/c/${id}/edit/`}>
+  <h1>Edit your collection</h1>
+  <p id="state" class="muted" role="status" data-id={id}>Checking your edit link…</p>
+  <p id="page-link" hidden><a href={`/c/${id}/`} title="The collection's public page and RSS feed">View the collection</a></p>
+  <CollectionForm submitLabel="Save" hidden />
+  <p class="small" role="status" aria-live="polite" id="saved"></p>
+</Base>
+
+<script>
+  import { mountForm } from "../../../../scripts/collection-form.ts";
+  import { track } from "../../../../scripts/track.ts";
+
+  const state = document.querySelector<HTMLElement>("#state")!;
+  const saved = document.querySelector<HTMLElement>("#saved")!;
+  const id = state.dataset.id!;
+  const token = decodeURIComponent(location.hash.slice(1));
+  const headers = { "Content-Type": "application/json", "X-Edit-Token": token };
+
+  async function load() {
+    if (!token) {
+      state.textContent = "This link is missing its key — the part after #. Use the full edit link you were given when you made the collection.";
+      return;
+    }
+    const res = await fetch(`/api/v1/collections/${id}/edit`, { headers });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      state.textContent = data.error ?? "This edit link could not be checked.";
+      return;
+    }
+    state.textContent = `Editing “${data.collection.title}”.`;
+    document.querySelector<HTMLElement>("#page-link")!.hidden = false;
+    mountForm({ title: data.collection.title, feeds: data.feeds, filters: data.collection.filters }, async (value) => {
+      saved.textContent = "";
+      const res = await fetch(`/api/v1/collections/${id}`, { method: "PUT", headers, body: JSON.stringify(value) });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) return out.error ?? "The changes could not be saved.";
+      state.textContent = `Editing “${out.collection.title}”.`;
+      saved.textContent = "Saved. The collection's page shows the change within a minute, its RSS feed within five.";
+      track("collection_save");
+      return null;
+    });
+  }
+
+  load();
+</script>

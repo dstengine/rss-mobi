@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 const base = (process.argv[2] ?? "https://rss.mobi").replace(/\/$/, "");
 const config = readFileSync(new URL("../src/site.config.ts", import.meta.url), "utf8");
 const keyword = config.match(/keyword:\s*"([^"]+)"/)[1];
-const NAMED = new Set(["/", "/tags/", "/submit/", "/about/", "/terms/"]);
+const NAMED = new Set(["/", "/tags/", "/reader/", "/c/new/", "/submit/", "/about/", "/terms/"]);
 const problems = [];
 const say = (where, what) => problems.push(`${where}: ${what}`);
 const has = (s) => s.toLowerCase().includes(keyword.toLowerCase());

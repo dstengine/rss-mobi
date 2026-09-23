@@ -1,11 +1,12 @@
 # rss.mobi
 
-[rss.mobi](https://rss.mobi/) is a directory of RSS feeds, with a mobile
-reader and a feed API on the way. Anyone can submit a feed: it is found
-from a site or feed address, read, and live straight away, with no account
-and no review queue. Each feed gets a page with its latest posts and
-one-tap links to follow it in Feedly, Inoreader, NetNewsWire or any other
-reader.
+[rss.mobi](https://rss.mobi/) is a directory of RSS feeds with a mobile
+reader and a feed API. Anyone can submit a feed: it is found from a site or
+feed address, read, and live straight away, with no account and no review
+queue. Each feed gets a page with its latest posts and one-tap links to
+follow it in Feedly, Inoreader, NetNewsWire or any other reader — or in
+the site's own reader, which keeps its list on the phone. Several feeds
+can be combined into one collection with its own RSS feed and OPML file.
 
 Astro (server output) on Vercel, MongoDB, Upstash Redis. Feeds are parsed
 from RSS 2.0, RSS 1.0 (RDF), Atom and JSON Feed.

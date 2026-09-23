@@ -1,0 +1,152 @@
+---
+// A collection's public page: its feeds, its posts and the addresses to
+// follow it by. Always noindex (policy "collection") — it is one person's
+// list under a title they chose, and a directory of those would be a
+// directory of thin pages.
+import Base from "../../../layouts/Base.astro";
+import FeedCard from "../../../components/FeedCard.astro";
+import ItemList from "../../../components/ItemList.astro";
+import { policy } from "../../../lib/policy.ts";
+import { cacheFor } from "../../../lib/http.ts";
+import { byId, collectionItems } from "../../../lib/collections.ts";
+import { cursorOf, parseCursor } from "../../../lib/filters.ts";
+import { feedsBySlugs, fmtDate } from "../../../lib/views.ts";
+import { site } from "../../../site.config.ts";
+
+const PAGE = 30;
+const c = await byId(String(Astro.params.id ?? ""));
+if (!c) return Astro.rewrite("/404");
+
+const before = parseCursor(Astro.url.searchParams.get("before"));
+const [list, items] = await Promise.all([feedsBySlugs(c.feeds), collectionItems(c, PAGE, before)]);
+const decision = policy({ type: "collection" });
+// Short: the owner expects to see an edit on the next load, not in five
+// minutes.
+Astro.response.headers.set("Cache-Control", cacheFor(60));
+
+const path = `/c/${c.id}/`;
+const rss = `${site.url}${path}rss.xml`;
+const enc = encodeURIComponent(rss);
+const readers = [
+  { name: "Feedly", href: `https://feedly.com/i/subscription/feed/${enc}` },
+  { name: "Inoreader", href: `https://www.inoreader.com/?add_feed=${enc}` },
+  { name: "NetNewsWire", href: `feed:${rss}` },
+];
+const f = c.filters;
+const narrowing = [
+  f.tags.length && `topics: ${f.tags.map((t) => t.replace(/-/g, " ")).join(", ")}`,
+  f.hosts.length && `sites: ${f.hosts.join(", ")}`,
+  f.q && `mentioning “${f.q}”`,
+  f.exclude.length && `leaving out titles with ${f.exclude.map((w) => `“${w}”`).join(", ")}`,
+  f.lang && `in ${f.lang.toUpperCase()}`,
+].filter(Boolean);
+const last = items.at(-1);
+const older = items.length === PAGE && last ? `${path}?before=${encodeURIComponent(cursorOf(last))}` : null;
+const count = `${list.length} ${list.length === 1 ? "feed" : "feeds"}`;
+---
+
+<Base
+  title={`${c.title} — combined RSS feed`}
+  description={`${c.title}: ${list.length ? `posts from ${count}` : "posts from the directory"} combined into one RSS feed on rss.mobi.`}
+  robots={decision.robots}
+  path={path}
+  alternate={{ href: rss, title: c.title }}
+>
+  <h1>{c.title}</h1>
+  <p class="muted">
+    A combined RSS feed{list.length > 0 && ` of ${count}`}{narrowing.length > 0 && <>, {narrowing.join("; ")}</>}. Updated {fmtDate(c.updatedAt)}.
+  </p>
+
+  <section class="subscribe" aria-labelledby="subscribe-h">
+    <h2 id="subscribe-h">Follow this collection</h2>
+    <div class="copy-row">
+      <label class="visually-hidden" for="rss-url">RSS feed address</label>
+      <input id="rss-url" type="text" readonly value={rss} />
+      <button class="button" type="button" data-copy="#rss-url">Copy</button>
+    </div>
+    <div class="readers">
+      {
+        readers.map((r) => (
+          <a
+            class="button secondary"
+            href={r.href}
+            rel="nofollow noopener"
+            data-reader={r.name}
+            title={r.href.startsWith("feed:") ? `Hands the feed to ${r.name} or whichever reader app this device uses` : `Opens ${r.name} with this feed ready to follow`}
+          >
+            {r.name}
+          </a>
+        ))
+      }
+      {
+        list.length > 0 && (
+          <button
+            type="button"
+            class="button secondary"
+            id="follow-all"
+            hidden
+            data-feeds={JSON.stringify(list.map((x) => ({ slug: x.slug, title: x.title, host: x.host, url: x.url })))}
+          >
+            Follow all {count} here
+          </button>
+        )
+      }
+    </div>
+    <p class="small muted" id="follow-note" role="status"></p>
+    <p class="small">
+      <a href={`${path}opml.xml`} title="The feeds in this collection as an OPML file, to import into any reader">Download as OPML</a>{" · "}
+      <a href="/c/new/" title="Combine RSS feeds into one feed of your own">Make your own</a>
+    </p>
+  </section>
+
+  <section>
+    <h2>{before ? "Older posts" : "Latest posts"}</h2>
+    {items.length ? <ItemList items={items} showFeed /> : <p class="muted">No posts yet. They appear as the feeds in it publish.</p>}
+    {
+      (older || before) && (
+        <nav class="pager" aria-label="Pages">
+          {before ? <a href={path} title="The newest posts in this collection">Newest</a> : <span />}
+          {older && <a href={older} title="Older posts in this collection">Older posts</a>}
+        </nav>
+      )
+    }
+  </section>
+
+  {
+    list.length > 0 && (
+      <section>
+        <h2>Feeds in this collection</h2>
+        <ul class="cards two">
+          {list.map((x) => (
+            <FeedCard feed={x} />
+          ))}
+        </ul>
+      </section>
+    )
+  }
+</Base>
+
+<script>
+  import { follow } from "../../../scripts/subs.ts";
+  import { track } from "../../../scripts/track.ts";
+  import { wireCopyButtons } from "../../../scripts/copy.ts";
+
+  wireCopyButtons(() => track("subscribe_copy", { label: "collection" }));
+  for (const a of document.querySelectorAll<HTMLAnchorElement>("[data-reader]")) {
+    a.addEventListener("click", () => track("subscribe_open", { label: a.dataset.reader }));
+  }
+
+  const all = document.querySelector<HTMLButtonElement>("#follow-all");
+  if (all) {
+    all.hidden = false;
+    all.addEventListener("click", () => {
+      const added = follow(...JSON.parse(all.dataset.feeds ?? "[]"));
+      const note = document.querySelector<HTMLElement>("#follow-note")!;
+      note.textContent = "";
+      const text = added ? `${added} ${added === 1 ? "feed" : "feeds"} added to your reader. ` : "You already follow all of these. ";
+      const a = Object.assign(document.createElement("a"), { href: "/reader/", title: "Read the feeds you follow", textContent: "Open the reader" });
+      note.append(text, a);
+      track("follow", { label: `collection:${added}` });
+    });
+  }
+</script>

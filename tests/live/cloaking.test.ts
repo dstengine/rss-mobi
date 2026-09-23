@@ -13,7 +13,7 @@ const GOOGLEBOT = "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) App
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
 
 async function pages(): Promise<string[]> {
-  const list = ["/", "/tags/", "/submit/", "/about/", "/terms/", "/search/?q=news"];
+  const list = ["/", "/tags/", "/reader/", "/c/new/", "/submit/", "/about/", "/terms/", "/search/?q=news"];
   const api = await (await fetch(`${BASE}/api/v1/feeds?limit=3`)).json();
   for (const f of api.feeds ?? []) {
     list.push(`/feed/${f.slug}/`);

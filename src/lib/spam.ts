@@ -21,6 +21,9 @@ const PATTERNS: RegExp[] = [
     a casino. */
 const ITEM_SHARE = 0.3;
 
+/** One line of text — a collection's title, say — against the same list. */
+export const looksLikeSpam = (text: string): boolean => PATTERNS.some((p) => p.test(text));
+
 export function spamReason(feed: Pick<ParsedFeed, "title" | "description" | "items">, host: string): string | null {
   const head = `${feed.title} ${feed.description} ${host}`;
   if (PATTERNS.some((p) => p.test(head))) return "The feed's title or description looks like spam.";

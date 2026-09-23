@@ -2,6 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import Favicon from "../../components/Favicon.astro";
 import ItemList from "../../components/ItemList.astro";
+import FollowButton from "../../components/FollowButton.astro";
 import { site } from "../../site.config.ts";
 import { policy, relFor } from "../../lib/policy.ts";
 import { cacheFor } from "../../lib/http.ts";
@@ -110,6 +111,10 @@ const jsonLd = [
 
   <section class="subscribe" aria-labelledby="subscribe-h">
     <h2 id="subscribe-h">Subscribe</h2>
+    <div class="follow-row">
+      <FollowButton feed={feed} />
+      <span class="small muted">in the <a href="/reader/" title="Read the RSS feeds you follow on this phone">reader on this device</a> — no account. Or use any reader:</span>
+    </div>
     <div class="copy-row">
       <label class="visually-hidden" for="feed-url">Feed address</label>
       <input id="feed-url" type="text" readonly value={feed.url} />

@@ -79,3 +79,21 @@ export function toSearch(f: Filters): string {
   if (f.limit !== LIMIT_DEFAULT) p.set("limit", String(f.limit));
   return p.toString();
 }
+
+/** Where the next page of items starts: the last item's date and id. The
+    date alone is not enough — a feed that gives no dates stores a whole
+    batch under one timestamp, and a cursor on the date would skip all but
+    the first of them. */
+export interface Cursor {
+  at: Date;
+  id: string;
+}
+
+export const cursorOf = (it: { publishedAt: Date | string; id: string }) => `${new Date(it.publishedAt).toISOString()}_${it.id}`;
+
+export function parseCursor(s: string | null | undefined): Cursor | undefined {
+  const m = (s ?? "").match(/^(\d{4}-\d\d-\d\dT[\d:.]+Z)_([a-f0-9]{24})$/);
+  if (!m) return undefined;
+  const at = new Date(m[1]);
+  return Number.isNaN(at.getTime()) ? undefined : { at, id: m[2] };
+}
