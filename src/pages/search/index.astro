@@ -1,0 +1,49 @@
+---
+import Base from "../../layouts/Base.astro";
+import FeedCard from "../../components/FeedCard.astro";
+import { policy } from "../../lib/policy.ts";
+import { cacheFor } from "../../lib/http.ts";
+import { searchFeeds } from "../../lib/views.ts";
+
+const q = (Astro.url.searchParams.get("q") ?? "").trim().slice(0, 100);
+const results = q ? await searchFeeds(q) : [];
+// Search results are never indexed: every query would be a thin page of
+// its own. Cached briefly so a popular query costs one lookup.
+const decision = policy({ type: "search" });
+Astro.response.headers.set("Cache-Control", cacheFor(120));
+---
+
+<Base
+  title={q ? `“${q}” — search RSS feeds` : "Search RSS feeds"}
+  description="Search the rss.mobi directory of RSS feeds by site, title or topic."
+  robots={decision.robots}
+  path="/search/"
+>
+  <h1>Search RSS feeds</h1>
+  <form class="search" action="/search/" method="get" role="search">
+    <label class="visually-hidden" for="q">Search RSS feeds</label>
+    <input id="q" name="q" type="search" value={q} placeholder="A site, a title, a topic…" autocomplete="off" enterkeyhint="search" />
+    <button class="button" type="submit">Search</button>
+  </form>
+  {
+    q &&
+      (results.length ? (
+        <>
+          <p class="muted small">
+            {results.length} {results.length === 1 ? "feed" : "feeds"} found.
+          </p>
+          <ul class="cards">
+            {results.map((f) => (
+              <FeedCard feed={f} />
+            ))}
+          </ul>
+        </>
+      ) : (
+        <div class="notice">
+          <p>
+            No feed matches “{q}”. If it is a site you know has a feed, <a href="/submit/" title="Submit an RSS feed to the directory">submit it</a>.
+          </p>
+        </div>
+      ))
+  }
+</Base>

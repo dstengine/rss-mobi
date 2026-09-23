@@ -1,0 +1,10 @@
+{
+  "version": "https://jsonfeed.org/version/1.1",
+  "title": "JSON Example",
+  "home_page_url": "https://json.example.com/",
+  "language": "es-MX",
+  "items": [
+    { "id": "1", "url": "https://json.example.com/1", "title": "Uno", "content_text": "Texto", "date_published": "2026-09-21T12:00:00Z", "tags": ["Noticias"] },
+    { "id": "2", "content_text": "no url, dropped" }
+  ]
+}

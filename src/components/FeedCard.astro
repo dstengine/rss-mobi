@@ -1,0 +1,23 @@
+---
+// A feed in a list. The whole card is the link, so nothing inside it
+// underlines on hover (DESIGN.md).
+import Favicon from "./Favicon.astro";
+import type { PublicFeed } from "../lib/views.ts";
+
+interface Props {
+  feed: PublicFeed;
+}
+const { feed } = Astro.props;
+const count = `${feed.itemCount} ${feed.itemCount === 1 ? "post" : "posts"}`;
+---
+
+<li>
+  <a class="feed-card" href={`/feed/${feed.slug}/`} title={`${feed.title}: RSS feed from ${feed.host}`}>
+    <Favicon title={feed.title} image={feed.image} />
+    <span>
+      <span class="title">{feed.title}</span>
+      <span class="meta">{feed.host} · {count}</span>
+      {feed.description && <span class="desc">{feed.description}</span>}
+    </span>
+  </a>
+</li>

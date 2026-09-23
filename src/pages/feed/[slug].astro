@@ -1,0 +1,210 @@
+---
+import Base from "../../layouts/Base.astro";
+import Favicon from "../../components/Favicon.astro";
+import ItemList from "../../components/ItemList.astro";
+import { site } from "../../site.config.ts";
+import { policy, relFor } from "../../lib/policy.ts";
+import { cacheFor } from "../../lib/http.ts";
+import { assign, EXPERIMENTS } from "../../lib/experiments.ts";
+import { clip } from "../../lib/feeds/url.ts";
+import { feedBySlug, feedItems, fmtDate } from "../../lib/views.ts";
+
+const slug = String(Astro.params.slug ?? "");
+const feed = /^[a-z0-9-]{1,80}$/.test(slug) ? await feedBySlug(slug) : null;
+
+if (!feed) return Astro.rewrite("/404");
+if (feed.status === "hidden") {
+  // Taken out of the directory by its owner or by us. 410 tells a crawler
+  // the page is gone on purpose and will not be back.
+  return Astro.rewrite("/gone");
+}
+
+const items = await feedItems(slug, 20);
+const decision = policy({ type: "feed", feed });
+Astro.response.headers.set("Cache-Control", cacheFor(300));
+
+const path = `/feed/${feed.slug}/`;
+// A page experiment: the URL decides the variant, so one page shows one
+// title to everyone, crawlers included.
+const titleVariant = assign(EXPERIMENTS["feed-title-v1"], path);
+const title = titleVariant === "subscribe" ? `Subscribe to ${feed.title} — RSS feed` : `${feed.title} RSS feed`;
+const tail = " Subscribe in any reader, from the rss.mobi directory of RSS feeds.";
+const lead = feed.description ? clip(feed.description, 155 - tail.length) : `Latest posts from ${feed.host}.`;
+const description = `${/[.!?…]$/.test(lead) ? lead : `${lead}.`}${tail}`;
+
+const enc = encodeURIComponent(feed.url);
+const readers = [
+  { name: "Feedly", href: `https://feedly.com/i/subscription/feed/${enc}` },
+  { name: "Inoreader", href: `https://www.inoreader.com/?add_feed=${enc}` },
+  { name: "NetNewsWire", href: `feed:${feed.url}` },
+];
+const type = feed.format === "atom" ? "application/atom+xml" : feed.format === "json" ? "application/feed+json" : "application/rss+xml";
+const siteRel = relFor(feed.linkMode ?? "ugc");
+
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: `${feed.title} RSS feed`,
+    url: `${site.url}${path}`,
+    description,
+    inLanguage: feed.lang || undefined,
+    dateModified: new Date(feed.updatedAt).toISOString(),
+    about: { "@type": "WebSite", name: feed.title, url: feed.siteUrl || undefined },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "RSS feeds", item: `${site.url}/` },
+      ...(feed.tags[0] ? [{ "@type": "ListItem", position: 2, name: feed.tags[0].replace(/-/g, " "), item: `${site.url}/tag/${feed.tags[0]}/` }] : []),
+      { "@type": "ListItem", position: feed.tags[0] ? 3 : 2, name: feed.title },
+    ],
+  },
+];
+---
+
+<Base title={title} description={description} robots={decision.robots} path={path} jsonLd={jsonLd} alternate={{ href: feed.url, title: feed.title, type }}>
+  <div class="feed-head">
+    <Favicon title={feed.title} image={feed.image} />
+    <div>
+      <h1>{feed.title}</h1>
+      <p class="muted">
+        {
+          feed.siteUrl ? (
+            <a href={feed.siteUrl} rel={siteRel ?? undefined} title={`Visit ${feed.host}, the site behind this RSS feed`}>
+              {feed.host}
+            </a>
+          ) : (
+            feed.host
+          )
+        }
+        {feed.lang && ` · ${feed.lang.toUpperCase()}`}
+      </p>
+    </div>
+  </div>
+
+  {
+    feed.status === "disabled" && (
+      <div class="notice bad">
+        <p>This feed stopped answering, so it is no longer checked. The posts below are the last ones it published.</p>
+      </div>
+    )
+  }
+
+  {feed.description && <p>{feed.description}</p>}
+
+  {
+    feed.tags.length > 0 && (
+      <ul class="tags">
+        {feed.tags.map((t) => (
+          <li>
+            <a class="tag" href={`/tag/${t}/`} title={`More ${t.replace(/-/g, " ")} RSS feeds`}>
+              {t.replace(/-/g, " ")}
+            </a>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  <section class="subscribe" aria-labelledby="subscribe-h">
+    <h2 id="subscribe-h">Subscribe</h2>
+    <div class="copy-row">
+      <label class="visually-hidden" for="feed-url">Feed address</label>
+      <input id="feed-url" type="text" readonly value={feed.url} />
+      <button class="button" type="button" data-copy="#feed-url">Copy</button>
+    </div>
+    <div class="readers">
+      {
+        readers.map((r) => (
+          <a
+            class="button secondary"
+            href={r.href}
+            rel="nofollow noopener"
+            data-reader={r.name}
+            title={r.href.startsWith("feed:") ? `Hands the feed to ${r.name} or whichever reader app this device uses` : `Opens ${r.name} with this feed ready to follow`}
+          >
+            {r.name}
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section>
+    <h2>Latest posts</h2>
+    {items.length ? <ItemList items={items} feed={feed} /> : <p class="muted">Nothing published yet.</p>}
+  </section>
+
+  <p class="muted small">
+    In the directory since {fmtDate(feed.createdAt)}{feed.lastFetchAt && <> · last checked {fmtDate(feed.lastFetchAt)}</>} · {feed.format.toUpperCase()}
+  </p>
+
+  <details class="report">
+    <summary>Report a problem with this feed</summary>
+    <form id="report" data-slug={feed.slug}>
+      <label for="reason">What is wrong?</label>
+      <select id="reason" name="reason" required>
+        <option value="spam">Spam or scam</option>
+        <option value="adult">Adult content</option>
+        <option value="copyright">It republishes someone else's work</option>
+        <option value="owner">I own this site and want it removed</option>
+        <option value="broken">The feed is broken</option>
+        <option value="other">Something else</option>
+      </select>
+      <label for="note">Details <span class="hint">Optional. Do not include personal data.</span></label>
+      <textarea id="note" name="note" maxlength="1000"></textarea>
+      <p><button class="button secondary" type="submit">Send report</button></p>
+      <p class="muted small" role="status" aria-live="polite"></p>
+    </form>
+  </details>
+</Base>
+
+<script>
+  import { track } from "../../scripts/track.ts";
+
+  for (const b of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
+    b.addEventListener("click", async () => {
+      const input = document.querySelector<HTMLInputElement>(b.dataset.copy!);
+      if (!input) return;
+      try {
+        await navigator.clipboard.writeText(input.value);
+      } catch {
+        input.select();
+        document.execCommand("copy");
+      }
+      b.textContent = "Copied";
+      setTimeout(() => (b.textContent = "Copy"), 2000);
+      track("subscribe_copy");
+    });
+  }
+
+  for (const a of document.querySelectorAll<HTMLAnchorElement>("[data-reader]")) {
+    a.addEventListener("click", () => track("subscribe_open", { label: a.dataset.reader }));
+  }
+
+  const form = document.querySelector<HTMLFormElement>("#report");
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const status = form.querySelector<HTMLElement>("[role=status]")!;
+    const button = form.querySelector<HTMLButtonElement>("button")!;
+    button.disabled = true;
+    const data = new FormData(form);
+    try {
+      const res = await fetch("/api/v1/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feed: form.dataset.slug, reason: data.get("reason"), note: data.get("note") }),
+      });
+      const out = await res.json().catch(() => ({}));
+      status.textContent = res.ok ? "Thank you. The report has been sent." : (out.error ?? "The report could not be sent.");
+      if (res.ok) form.reset();
+      track("report");
+    } catch {
+      status.textContent = "The report could not be sent. Check your connection.";
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>

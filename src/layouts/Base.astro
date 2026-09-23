@@ -1,0 +1,106 @@
+---
+// The one layout. Everything a crawler reads about a page — title,
+// description, canonical, robots — arrives as a prop, and robots always
+// comes from policy(): this file renders a decision, it never makes one.
+import "../styles/global.css";
+import { site } from "../site.config.ts";
+import type { Robots } from "../lib/types.ts";
+
+interface Props {
+  /** The page's own part of the title; the suffix is added here. */
+  title?: string;
+  /** A complete title, for the one page that names the site itself. */
+  fullTitle?: string;
+  description: string;
+  robots: Robots;
+  /** Canonical path, e.g. "/feed/example/". Defaults to the request path. */
+  path?: string;
+  jsonLd?: object | object[];
+  /** A feed a reader app can discover from this page. */
+  alternate?: { href: string; title: string; type?: string };
+  ogType?: string;
+}
+
+const { title, fullTitle, description, robots, jsonLd, alternate, ogType = "website" } = Astro.props;
+const path = Astro.props.path ?? Astro.url.pathname;
+const canonical = new URL(path, site.url).toString();
+const pageTitle = fullTitle ?? (title ? `${title} · ${site.titleSuffix}` : site.titleSuffix);
+const current = Astro.url.pathname;
+const isCurrent = (href: string) => (href === "/" ? current === "/" : current.startsWith(href));
+const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content={robots} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141210" media="(prefers-color-scheme: dark)" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="twitter:card" content="summary" />
+    {alternate && <link rel="alternate" type={alternate.type ?? "application/rss+xml"} href={alternate.href} title={alternate.title} />}
+    {ld.map((o) => <script type="application/ld+json" set:html={JSON.stringify(o).replace(/</g, "\\u003c")} />)}
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="wordmark" href="/" title={`${site.titleSuffix}: find and follow ${site.keyword}`}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"
+            ><rect width="24" height="24" rx="6" fill="currentColor"></rect><circle cx="7" cy="17" r="2" fill="var(--surface)"></circle><path
+              fill="var(--surface)"
+              d="M5 10a9 9 0 0 1 9 9h-2.5A6.5 6.5 0 0 0 5 12.5zM5 5a14 14 0 0 1 14 14h-2.5A11.5 11.5 0 0 0 5 7.5z"></path></svg
+          >
+          {site.name}
+        </a>
+        <nav aria-label="Main">
+          <ul class="nav">
+            {
+              site.nav.map((n) => (
+                <li>
+                  <a href={n.href} title={n.title} aria-current={isCurrent(n.href) ? "page" : undefined}>
+                    {n.label}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <div class="wrap">
+        <slot />
+      </div>
+    </main>
+    <footer class="site-footer">
+      <div class="wrap">
+        <ul>
+          {
+            site.footer.map((n) => (
+              <li>
+                <a href={n.href} title={n.title}>
+                  {n.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+        <p>{site.name} — a directory of {site.keyword}, readable on a phone. Excerpts belong to their publishers; every entry links to its source.</p>
+      </div>
+    </footer>
+    <script>
+      import { track } from "../scripts/track.ts";
+      track("view");
+    </script>
+  </body>
+</html>

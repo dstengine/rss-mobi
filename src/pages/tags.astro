@@ -1,0 +1,34 @@
+---
+import Base from "../layouts/Base.astro";
+import { policy } from "../lib/policy.ts";
+import { cacheFor } from "../lib/http.ts";
+import { tagStats } from "../lib/views.ts";
+
+const tags = await tagStats(500);
+const decision = policy({ type: "tags" });
+Astro.response.headers.set("Cache-Control", cacheFor(600));
+const top = tags.slice(0, 3).map((t) => t.tag.replace(/-/g, " "));
+const description = top.length
+  ? `Browse RSS feeds by topic: ${tags.length} topics, from ${top.join(", ")} and more. Every topic lists its feeds and their latest posts.`
+  : "Browse RSS feeds by topic. Every topic lists its feeds and their latest posts.";
+---
+
+<Base title="RSS feeds by topic" description={description} robots={decision.robots} path="/tags/">
+  <h1>RSS feeds by topic</h1>
+  <p class="lede">Every topic that feeds in the directory carry, busiest first.</p>
+  {
+    tags.length ? (
+      <ul class="tags">
+        {tags.map((t) => (
+          <li>
+            <a class="tag" href={`/tag/${t.tag}/`} title={`${t.tag.replace(/-/g, " ")} RSS feeds`}>
+              {t.tag.replace(/-/g, " ")} <span class="n">{t.feeds}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p class="muted">No topics yet — they appear as feeds are submitted.</p>
+    )
+  }
+</Base>

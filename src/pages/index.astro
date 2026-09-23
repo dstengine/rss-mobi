@@ -1,0 +1,106 @@
+---
+import Base from "../layouts/Base.astro";
+import FeedCard from "../components/FeedCard.astro";
+import { site } from "../site.config.ts";
+import { policy } from "../lib/policy.ts";
+import { cacheFor } from "../lib/http.ts";
+import { recentFeeds, tagStats, listedCount } from "../lib/views.ts";
+
+const [feeds, tags, total] = await Promise.all([recentFeeds(30), tagStats(24), listedCount()]);
+const decision = policy({ type: "home" });
+Astro.response.headers.set("Cache-Control", cacheFor(300));
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: site.name,
+  alternateName: site.titleSuffix,
+  url: `${site.url}/`,
+  description: site.description,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: { "@type": "EntryPoint", urlTemplate: `${site.url}/search/?q={search_term_string}` },
+    "query-input": "required name=search_term_string",
+  },
+};
+---
+
+<Base
+  fullTitle={`${site.titleSuffix} — find, follow and submit RSS feeds`}
+  description={site.description}
+  robots={decision.robots}
+  path="/"
+  jsonLd={jsonLd}
+>
+  <h1>RSS Feeds Directory</h1>
+  <p class="lede">
+    Find RSS feeds by topic, follow them from your phone in any reader, and add your own site in one step. No account, no sign-up.
+  </p>
+
+  <form class="search" action="/search/" method="get" role="search">
+    <label class="visually-hidden" for="q">Search RSS feeds</label>
+    <input id="q" name="q" type="search" placeholder="Search feeds: a site, a topic…" autocomplete="off" enterkeyhint="search" />
+    <button class="button" type="submit">Search</button>
+  </form>
+
+  <div class="actions">
+    <a class="button secondary" href="/submit/" title="Submit an RSS feed to the directory">Submit a feed</a>
+    <a class="button secondary" href="/tags/" title="Browse RSS feeds by topic">Browse topics</a>
+  </div>
+
+  {
+    tags.length > 0 && (
+      <section>
+        <h2>Popular topics</h2>
+        <ul class="tags">
+          {tags.map((t) => (
+            <li>
+              <a class="tag" href={`/tag/${t.tag}/`} title={`${t.tag.replace(/-/g, " ")} RSS feeds`}>
+                {t.tag.replace(/-/g, " ")} <span class="n">{t.feeds}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
+  <section>
+    <h2>Newest RSS feeds</h2>
+    {
+      feeds.length > 0 ? (
+        <>
+          <p class="muted small">
+            {total} {total === 1 ? "feed" : "feeds"} in the directory, newest first.
+          </p>
+          <ul class="cards two">
+            {feeds.map((f) => (
+              <FeedCard feed={f} />
+            ))}
+          </ul>
+        </>
+      ) : (
+        <div class="notice">
+          <p>
+            The directory has just opened. <a href="/submit/" title="Submit an RSS feed to the directory">Submit the first feed</a> — it goes
+            live as soon as it is read.
+          </p>
+        </div>
+      )
+    }
+  </section>
+
+  <section class="prose">
+    <h2>What this is</h2>
+    <p>
+      rss.mobi keeps a list of RSS feeds that anyone can add to and anyone can read. Each feed gets a page with its address, its latest
+      posts and one-tap links to open it in Feedly, Inoreader, NetNewsWire or any other reader.
+    </p>
+    <p>
+      Feeds are checked every hour. A feed that stops answering is retired on its own; one that turns out to be spam is removed. See <a
+        href="/about/"
+        title="About the rss.mobi RSS feeds directory">how the directory works</a
+      >.
+    </p>
+  </section>
+</Base>

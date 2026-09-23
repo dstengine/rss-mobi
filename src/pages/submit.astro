@@ -1,0 +1,246 @@
+---
+import Base from "../layouts/Base.astro";
+import { policy } from "../lib/policy.ts";
+import { cacheFor } from "../lib/http.ts";
+import { MAX_TAGS } from "../lib/catalog.ts";
+
+const decision = policy({ type: "static" });
+Astro.response.headers.set("Cache-Control", cacheFor(3600));
+---
+
+<Base
+  title="Submit an RSS feed"
+  description="Submit your RSS feed to a free directory of RSS feeds: paste a site or feed address, pick up to five topics, and its page goes live at once. No account."
+  robots={decision.robots}
+  path="/submit/"
+>
+  <h1>Submit to the RSS feeds directory</h1>
+  <p class="lede">
+    Paste a site address or a feed address. The feed is found, read and published straight away — no account and no review queue.
+  </p>
+
+  <form id="find" novalidate>
+    <label for="url">Site or feed address</label>
+    <input id="url" name="url" type="url" inputmode="url" required placeholder="https://example.com" autocomplete="url" spellcheck="false" />
+    <div id="one-step-tags" hidden>
+      <label for="tags-1">Topics <span class="hint">Up to {MAX_TAGS}, separated by commas.</span></label>
+      <input id="tags-1" type="text" placeholder="e.g. web development, design" />
+    </div>
+    <p><button class="button" type="submit" id="find-button">Find the feed</button></p>
+  </form>
+
+  <div id="error" class="notice bad" role="alert" hidden></div>
+
+  <div id="preview" class="preview step" hidden>
+    <h2 id="p-title" style="margin-top:0"></h2>
+    <p class="muted small" id="p-meta"></p>
+    <div id="p-alt" hidden>
+      <label for="alt">This site has several feeds</label>
+      <select id="alt"></select>
+    </div>
+    <p class="small" style="margin:12px 0 0"><strong>Latest posts</strong></p>
+    <ol id="p-items"></ol>
+    <form id="publish">
+      <label for="tags">Topics <span class="hint">Up to {MAX_TAGS}, separated by commas. The feed's own categories are added after yours.</span></label>
+      <input id="tags" type="text" placeholder="e.g. web development, design" />
+      <div class="actions">
+        <button class="button" type="submit" id="publish-button">Publish</button>
+        <button class="button secondary" type="button" id="back">Change address</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="done" class="step" hidden>
+    <div class="notice ok">
+      <p><strong>Published.</strong> <a id="d-link" href="/" title="The new feed's page">Open its page</a></p>
+    </div>
+    <h2>Your edit link</h2>
+    <p>
+      Keep this link: it is the only way to change the feed's topics or take it down. It is shown once, and it cannot be recovered or sent
+      again.
+    </p>
+    <div class="copy-row">
+      <label class="visually-hidden" for="edit-url">Edit link</label>
+      <input id="edit-url" type="text" readonly />
+      <button class="button" type="button" data-copy="#edit-url">Copy</button>
+    </div>
+  </div>
+
+  <section class="prose">
+    <h2>What happens next</h2>
+    <ul>
+      <li>The feed gets its own page with a subscribe box and its latest posts, and appears under the topics you chose.</li>
+      <li>It is checked every hour. New posts show up on their own; nothing needs resubmitting.</li>
+      <li>A page opens to search engines once the feed has a few posts and has answered a few checks in a row.</li>
+    </ul>
+    <h2>What is not accepted</h2>
+    <ul>
+      <li>Gambling, adult, pharmacy and link-selling feeds, and anything built to game search results.</li>
+      <li>Feeds with no posts yet. Submit once something is published.</li>
+      <li>Addresses behind a login, on a private network, or larger than 5 MB.</li>
+    </ul>
+    <p>
+      Submitting a feed means you agree to the <a href="/terms/" title="Terms for submitting and reading RSS feeds">terms</a>: its title,
+      links and short excerpts are shown here, always linking back to the source.
+    </p>
+  </section>
+</Base>
+
+<script>
+  import { track, variant } from "../scripts/track.ts";
+
+  const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
+  const findForm = $<HTMLFormElement>("#find");
+  const urlInput = $<HTMLInputElement>("#url");
+  const findButton = $<HTMLButtonElement>("#find-button");
+  const errorBox = $("#error");
+  const preview = $("#preview");
+  const publishForm = $<HTMLFormElement>("#publish");
+  const publishButton = $<HTMLButtonElement>("#publish-button");
+  const done = $("#done");
+
+  const v = variant("submit-steps-v1");
+  const exp = { "submit-steps-v1": v };
+  const oneStep = v === "one-step";
+  if (oneStep) {
+    $("#one-step-tags").hidden = false;
+    findButton.textContent = "Publish";
+  }
+
+  let feedUrl = "";
+
+  const splitTags = (s: string) =>
+    s
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 5);
+
+  function showError(message: string, existing?: string) {
+    errorBox.textContent = message;
+    if (existing) {
+      errorBox.append(" ");
+      const a = document.createElement("a");
+      a.href = `/feed/${existing}/`;
+      a.title = "The feed's page in the directory";
+      a.textContent = "See its page.";
+      errorBox.append(a);
+    }
+    errorBox.hidden = false;
+  }
+
+  async function call(path: string, body: unknown) {
+    const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({ error: "Something went wrong. Try again." }));
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  function busy(button: HTMLButtonElement, on: boolean, label: string) {
+    button.disabled = on;
+    button.textContent = label;
+  }
+
+  async function discover(address: string) {
+    busy(findButton, true, "Looking…");
+    errorBox.hidden = true;
+    const r = await call("/api/v1/discover", { url: address });
+    busy(findButton, false, "Find the feed");
+    if (!r.ok) {
+      showError(r.data.error, r.data.existing);
+      track("submit_error", { label: String(r.status), exp });
+      return;
+    }
+    const d = r.data;
+    if (d.existing) {
+      showError("That feed is already in the directory.", d.existing);
+      return;
+    }
+    feedUrl = d.feedUrl;
+    $("#p-title").textContent = d.title;
+    $("#p-meta").textContent = `${d.host} · ${d.format.toUpperCase()} · ${d.feedUrl}`;
+    const list = $("#p-items");
+    list.replaceChildren(
+      ...d.items.map((it: { title: string }) => {
+        const li = document.createElement("li");
+        li.textContent = it.title;
+        return li;
+      }),
+    );
+    const alt = $<HTMLSelectElement>("#alt");
+    $("#p-alt").hidden = d.alternates.length < 2;
+    alt.replaceChildren(
+      ...d.alternates.map((a: { url: string; title: string }) => {
+        const o = document.createElement("option");
+        o.value = a.url;
+        o.textContent = a.title ? `${a.title} — ${a.url}` : a.url;
+        o.selected = a.url === d.feedUrl;
+        return o;
+      }),
+    );
+    findForm.hidden = true;
+    preview.hidden = false;
+    $<HTMLInputElement>("#tags").focus();
+    track("submit_preview", { exp });
+  }
+
+  async function publish(address: string, tags: string[], button: HTMLButtonElement, label: string) {
+    busy(button, true, "Publishing…");
+    errorBox.hidden = true;
+    const r = await call("/api/v1/feeds", { url: address, tags });
+    busy(button, false, label);
+    if (!r.ok) {
+      showError(r.data.error, r.data.existing);
+      track("submit_error", { label: String(r.status), exp });
+      return;
+    }
+    findForm.hidden = true;
+    preview.hidden = true;
+    const link = $<HTMLAnchorElement>("#d-link");
+    link.href = `/feed/${r.data.feed.slug}/`;
+    link.textContent = `Open the page for ${r.data.feed.title}`;
+    $<HTMLInputElement>("#edit-url").value = r.data.editUrl;
+    done.hidden = false;
+    done.scrollIntoView({ behavior: "smooth", block: "start" });
+    track("submit_success", { exp });
+  }
+
+  findForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const address = urlInput.value.trim();
+    if (!address) {
+      showError("Paste a site or feed address first.");
+      return;
+    }
+    track("submit_start", { exp });
+    if (oneStep) publish(address, splitTags($<HTMLInputElement>("#tags-1").value), findButton, "Publish");
+    else discover(address);
+  });
+
+  $<HTMLSelectElement>("#alt").addEventListener("change", (e) => discover((e.target as HTMLSelectElement).value));
+
+  publishForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    publish(feedUrl, splitTags($<HTMLInputElement>("#tags").value), publishButton, "Publish");
+  });
+
+  $("#back").addEventListener("click", () => {
+    preview.hidden = true;
+    findForm.hidden = false;
+    errorBox.hidden = true;
+    urlInput.focus();
+  });
+
+  for (const b of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
+    b.addEventListener("click", async () => {
+      const input = document.querySelector<HTMLInputElement>(b.dataset.copy!)!;
+      try {
+        await navigator.clipboard.writeText(input.value);
+      } catch {
+        input.select();
+        document.execCommand("copy");
+      }
+      b.textContent = "Copied";
+      setTimeout(() => (b.textContent = "Copy"), 2000);
+    });
+  }
+</script>

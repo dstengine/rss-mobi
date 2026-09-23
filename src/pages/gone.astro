@@ -1,0 +1,16 @@
+---
+// Where a removed feed's page is rewritten to. 410, not 404: the page
+// existed and was taken down on purpose, which lets a crawler drop it at
+// once instead of retrying for weeks.
+import Base from "../layouts/Base.astro";
+import { policy } from "../lib/policy.ts";
+
+Astro.response.status = 410;
+Astro.response.headers.set("Cache-Control", "public, max-age=0, s-maxage=3600");
+---
+
+<Base title="Feed removed" description="This feed has been removed from the rss.mobi directory of RSS feeds." robots={policy({ type: "search" }).robots}>
+  <h1>This feed has been removed</h1>
+  <p>Its owner or the directory took it out of the catalogue. Its posts are no longer shown here.</p>
+  <p><a class="button" href="/" title="RSS feeds directory: newest feeds">Browse other feeds</a></p>
+</Base>

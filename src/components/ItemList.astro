@@ -1,0 +1,57 @@
+---
+// A list of posts. Each links to its original, marked the way policy()
+// says: a followed link when we stand in for an original the index has
+// not seen, ugc otherwise.
+import { linkTo } from "../lib/policy.ts";
+import { fmtDate, type PublicItem } from "../lib/views.ts";
+import type { FeedDoc } from "../lib/types.ts";
+
+interface Props {
+  items: PublicItem[];
+  feed?: Pick<FeedDoc, "linkMode">;
+  /** Show which feed each post came from (tag pages mix feeds). */
+  showFeed?: boolean;
+}
+const { items, feed, showFeed = false } = Astro.props;
+---
+
+<ol class="items">
+  {
+    items.map((it) => {
+      const link = linkTo(it, feed);
+      return (
+        <li>
+          <h3>
+            {link.mode === "none" ? (
+              it.title
+            ) : (
+              <a href={it.url} rel={link.rel ?? undefined} title={`Read “${it.title}” on ${it.host}`} data-outbound>
+                {it.title}
+              </a>
+            )}
+          </h3>
+          <span class="meta">
+            <time datetime={new Date(it.publishedAt).toISOString()}>{fmtDate(it.publishedAt)}</time>
+            {" · "}
+            {showFeed ? (
+              <a href={`/feed/${it.feedSlug}/`} title={`The ${it.host} RSS feed`}>
+                {it.host}
+              </a>
+            ) : (
+              it.host
+            )}
+            {it.author && ` · ${it.author}`}
+          </span>
+          {it.excerpt && it.excerpt !== it.title && <p>{it.excerpt}</p>}
+        </li>
+      );
+    })
+  }
+</ol>
+<script>
+  import { track } from "../scripts/track.ts";
+  document.addEventListener("click", (e) => {
+    const a = (e.target as Element | null)?.closest?.("a[data-outbound]") as HTMLAnchorElement | null;
+    if (a) track("outbound", { label: a.hostname });
+  });
+</script>

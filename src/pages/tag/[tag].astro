@@ -1,0 +1,75 @@
+---
+import Base from "../../layouts/Base.astro";
+import FeedCard from "../../components/FeedCard.astro";
+import ItemList from "../../components/ItemList.astro";
+import { site } from "../../site.config.ts";
+import { policy } from "../../lib/policy.ts";
+import { cacheFor } from "../../lib/http.ts";
+import { tag as normalise } from "../../lib/feeds/parse.ts";
+import { feedsByTag, itemsByTag, tagStat } from "../../lib/views.ts";
+
+const raw = decodeURIComponent(String(Astro.params.tag ?? ""));
+const t = normalise(raw);
+if (!t) return Astro.rewrite("/404");
+// One spelling per topic: /tag/Web%20Dev/ and /tag/web-dev/ are one page.
+if (t !== raw) return Astro.redirect(`/tag/${t}/`, 301);
+
+const stat = await tagStat(t);
+if (!stat) return Astro.rewrite("/404");
+const [feeds, items] = await Promise.all([feedsByTag(t, 50), itemsByTag(t, 20)]);
+const decision = policy({ type: "tag", feeds: stat.feeds, hosts: stat.hosts });
+Astro.response.headers.set("Cache-Control", cacheFor(300));
+
+const label = t.replace(/-/g, " ");
+const Label = label.charAt(0).toUpperCase() + label.slice(1);
+const path = `/tag/${t}/`;
+const n = stat.feeds;
+const description = `${n} ${label} RSS ${n === 1 ? "feed" : "feeds"} from ${stat.hosts} ${stat.hosts === 1 ? "site" : "sites"}, with their latest posts. Follow any of these RSS feeds on your phone — no account needed.`;
+
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: `${Label} RSS feeds`,
+    url: `${site.url}${path}`,
+    description,
+    dateModified: stat.updatedAt.toISOString(),
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: feeds.length,
+      itemListElement: feeds.slice(0, 20).map((f, i) => ({ "@type": "ListItem", position: i + 1, url: `${site.url}/feed/${f.slug}/`, name: f.title })),
+    },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "RSS feeds", item: `${site.url}/` },
+      { "@type": "ListItem", position: 2, name: "Topics", item: `${site.url}/tags/` },
+      { "@type": "ListItem", position: 3, name: Label },
+    ],
+  },
+];
+---
+
+<Base title={`${Label} RSS feeds`} description={description} robots={decision.robots} path={path} jsonLd={jsonLd}>
+  <p class="muted small"><a href="/tags/" title="Browse RSS feeds by topic">Topics</a> /</p>
+  <h1>{Label} RSS feeds</h1>
+  <p class="lede">
+    {n} {n === 1 ? "feed" : "feeds"} from {stat.hosts} {stat.hosts === 1 ? "site" : "sites"} tagged “{label}”. Open one to subscribe, or read the newest posts
+    below.
+  </p>
+
+  <ul class="cards two">
+    {feeds.map((f) => <FeedCard feed={f} />)}
+  </ul>
+
+  {
+    items.length > 0 && (
+      <section>
+        <h2>Latest {label} posts</h2>
+        <ItemList items={items} showFeed />
+      </section>
+    )
+  }
+</Base>

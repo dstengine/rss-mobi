@@ -1,0 +1,47 @@
+name: backup
+# Nightly: mongodump → age → R2, then prune archives older than 30 days
+# except the newest. Prune runs only if the upload succeeded, so a failing
+# backup never deletes anything.
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+concurrency: backup
+jobs:
+  backup:
+    # Off until R2 and the age key exist: repository variable BACKUP_ENABLED=true.
+    if: vars.BACKUP_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: sudo apt-get install -yq age
+      - name: Dump, encrypt, upload
+        env:
+          MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
+          AGE_PUBLIC_KEY: ${{ secrets.AGE_PUBLIC_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          name="rssmobi-$(date -u +%Y-%m-%dT%H-%M-%SZ).archive.gz.age"
+          # mongodump from the official image, so the tools match the
+          # server's major version without tracking a .deb download URL.
+          docker run --rm mongo:8 mongodump --uri="$MONGODB_CONNECTION_STRING" --db=rssmobi --gzip --archive --quiet \
+            | age -r "$AGE_PUBLIC_KEY" > "$name"
+          node scripts/backup.mjs upload "$name"
+          node scripts/backup.mjs prune
+      - name: Alert
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="$TELEGRAM_CHAT_ID" \
+            --data-urlencode text="rss.mobi: nightly backup FAILED — ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

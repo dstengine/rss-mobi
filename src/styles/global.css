@@ -1,0 +1,624 @@
+/* rss.mobi — one stylesheet, phone first.
+   Colours are tokens on :root and redefined for dark mode; nothing below
+   names a colour directly. Rules from ~/mind/ai/dubai/DESIGN.md apply: a
+   card that is itself a link never underlines on hover, and a short link
+   row spells out its 44px tap target. */
+
+:root {
+  --bg: #fbfaf8;
+  --surface: #ffffff;
+  --text: #1c1a17;
+  --muted: #6b6560;
+  --line: #e7e2dc;
+  --accent: #c2410c;
+  --accent-strong: #9a3412;
+  --accent-soft: #fff1e8;
+  --on-accent: #ffffff;
+  --ok: #15803d;
+  --ok-soft: #ecfdf3;
+  --bad: #b42318;
+  --bad-soft: #fef3f2;
+  --focus: #2563eb;
+  --shadow: 0 1px 2px rgb(28 26 23 / 6%), 0 2px 8px rgb(28 26 23 / 4%);
+  --radius: 12px;
+  --gutter: 16px;
+  --measure: 44rem;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141210;
+    --surface: #1d1a17;
+    --text: #efeae4;
+    --muted: #a39b93;
+    --line: #34302b;
+    --accent: #fb923c;
+    --accent-strong: #fdba74;
+    --accent-soft: #2b1d12;
+    --on-accent: #1a0f06;
+    --ok: #4ade80;
+    --ok-soft: #10261a;
+    --bad: #f97066;
+    --bad-soft: #2c1513;
+    --focus: #60a5fa;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #141210;
+  --surface: #1d1a17;
+  --text: #efeae4;
+  --muted: #a39b93;
+  --line: #34302b;
+  --accent: #fb923c;
+  --accent-strong: #fdba74;
+  --accent-soft: #2b1d12;
+  --on-accent: #1a0f06;
+  --ok: #4ade80;
+  --ok-soft: #10261a;
+  --bad: #f97066;
+  --bad-soft: #2c1513;
+  --focus: #60a5fa;
+  --shadow: none;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 1rem/1.55 var(--font);
+  overflow-wrap: anywhere;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  text-underline-offset: 0.18em;
+}
+
+/* :where keeps this at the specificity of a bare `a`, so any card class
+   that sets text-decoration: none wins in both states without saying
+   anything about hover. */
+a:where(:hover, :focus-visible) {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.5rem;
+}
+
+h1 {
+  font-size: clamp(1.6rem, 5vw, 2.2rem);
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin-top: 2rem;
+}
+
+h3 {
+  font-size: 1rem;
+}
+
+p {
+  margin: 0 0 1rem;
+}
+
+code,
+.mono {
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+.wrap {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.875rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- header */
+
+.site-header {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.site-header .wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.wordmark svg {
+  width: 22px;
+  height: 22px;
+  color: var(--accent);
+  flex: none;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.nav a[aria-current="page"] {
+  color: var(--accent);
+}
+
+.nav a:hover {
+  background: var(--accent-soft);
+}
+
+main {
+  padding: 24px 0 48px;
+}
+
+/* ---------------------------------------------------------------- footer */
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding: 16px 0 32px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.site-footer ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.site-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------------ hero */
+
+.lede {
+  font-size: 1.1rem;
+  color: var(--muted);
+  max-width: 36rem;
+}
+
+.search {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+/* ----------------------------------------------------------------- forms */
+
+input[type="text"],
+input[type="url"],
+input[type="search"],
+textarea,
+select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin: 16px 0 6px;
+}
+
+.hint {
+  display: block;
+  font-weight: 400;
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 600 1rem/1 var(--font);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.button:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.button.secondary {
+  background: transparent;
+  color: var(--accent);
+}
+
+.button.secondary:hover {
+  background: var(--accent-soft);
+}
+
+.button[disabled] {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.notice {
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.notice.ok {
+  background: var(--ok-soft);
+  border-color: var(--ok);
+}
+
+.notice.bad {
+  background: var(--bad-soft);
+  border-color: var(--bad);
+}
+
+.notice > :last-child {
+  margin-bottom: 0;
+}
+
+.copy-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.copy-row input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+}
+
+/* ----------------------------------------------------------------- cards */
+
+.cards {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feed-card {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.feed-card:hover {
+  border-color: var(--accent);
+}
+
+.feed-card .title {
+  display: block;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.feed-card .meta {
+  display: block;
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin-top: 2px;
+}
+
+.feed-card .desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 4px;
+  font-size: 0.9375rem;
+}
+
+.favicon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  text-transform: uppercase;
+  overflow: hidden;
+}
+
+.favicon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ------------------------------------------------------------------ tags */
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+
+.tag:hover {
+  border-color: var(--accent);
+}
+
+.tag .n {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+/* ----------------------------------------------------------------- items */
+
+.items {
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.items li {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.items li:last-child {
+  border-bottom: 0;
+}
+
+.items h3 {
+  font-size: 1.0625rem;
+  margin: 0 0 4px;
+}
+
+.items h3 a {
+  color: var(--text);
+}
+
+.items p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.items .meta {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+/* ------------------------------------------------------------ feed head */
+
+.feed-head {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.feed-head .favicon {
+  width: 56px;
+  height: 56px;
+  font-size: 1.4rem;
+}
+
+.feed-head h1 {
+  margin-bottom: 4px;
+}
+
+.subscribe {
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.subscribe h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.readers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+details.report {
+  margin-top: 32px;
+}
+
+details.report summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* ----------------------------------------------------------------- prose */
+
+.prose {
+  max-width: 38rem;
+}
+
+.prose li {
+  margin-bottom: 0.4rem;
+}
+
+.pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.step[hidden] {
+  display: none;
+}
+
+.preview {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.preview ol {
+  margin: 8px 0 0;
+  padding-left: 1.2rem;
+}
+
+.preview li {
+  margin-bottom: 4px;
+}
+
+@media (min-width: 640px) {
+  .cards.two {
+    grid-template-columns: 1fr 1fr;
+  }
+}

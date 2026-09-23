@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="fr">
+  <title type="html">Atom &lt;Feed&gt;</title>
+  <subtitle>Sub</subtitle>
+  <link href="https://atom.example.net/feed.xml" rel="self"/>
+  <link href="https://atom.example.net/" rel="alternate" type="text/html"/>
+  <id>urn:uuid:1</id>
+  <updated>2026-09-22T00:00:00Z</updated>
+  <entry>
+    <title>Entrée</title>
+    <link href="/posts/entree" />
+    <id>urn:uuid:2</id>
+    <updated>2026-09-22T00:00:00Z</updated>
+    <summary type="html">&lt;p&gt;Résumé&lt;/p&gt;</summary>
+    <author><name>Zoé</name></author>
+    <category term="Cuisine"/>
+  </entry>
+</feed>

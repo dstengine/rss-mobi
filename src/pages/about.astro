@@ -1,0 +1,56 @@
+---
+import Base from "../layouts/Base.astro";
+import { policy } from "../lib/policy.ts";
+import { cacheFor } from "../lib/http.ts";
+import { UA } from "../lib/feeds/get.ts";
+
+const decision = policy({ type: "static" });
+Astro.response.headers.set("Cache-Control", cacheFor(3600));
+---
+
+<Base
+  title="About rss.mobi"
+  description="How the rss.mobi directory of RSS feeds works: who can add a feed, how often feeds are checked, what is shown, and how to take a feed down."
+  robots={decision.robots}
+  path="/about/"
+>
+  <div class="prose">
+    <h1>About this RSS feeds directory</h1>
+    <p class="lede">
+      rss.mobi is a public list of RSS feeds, built to be read on a phone. Anyone can add a feed, and anyone can find one and follow it in the
+      reader they already use.
+    </p>
+
+    <h2>Adding a feed</h2>
+    <p>
+      Paste a site or feed address on the <a href="/submit/" title="Submit an RSS feed to the directory">submit page</a>. RSS 2.0, RSS 1.0,
+      Atom and JSON Feed are all read. There is no account and no review queue: a feed that can be read, has at least one post and is not spam
+      is published at once. Whoever submits it gets a private edit link to change its topics or take it down.
+    </p>
+
+    <h2>What is shown</h2>
+    <p>
+      The feed's title, description and the latest posts it publishes: each post's title, a short excerpt, its date and a link to the original.
+      Full articles are not copied. Posts older than ninety days drop out.
+    </p>
+
+    <h2>How feeds are checked</h2>
+    <p>
+      Every feed is fetched about once an hour by a crawler that identifies itself as <code>{UA}</code>. It sends the ETag and Last-Modified the
+      site gave last time, so an unchanged feed costs a 304 and nothing else. A feed that fails is tried less and less often, and after ten
+      failures in a row it is retired.
+    </p>
+
+    <h2>Taking a feed down</h2>
+    <p>
+      If you run a site and do not want its feed here, open the feed's page and use <strong>Report a problem → I own this site</strong>. You can
+      also block the user agent above; a feed that keeps refusing is retired on its own.
+    </p>
+
+    <h2>For developers</h2>
+    <p>
+      The directory is available as JSON at <a href="/api/v1/feeds" title="The RSS feeds directory as JSON"><code>/api/v1/feeds</code></a>, and
+      each feed at <code>/api/v1/feeds/&lt;slug&gt;</code>. No key is needed to read.
+    </p>
+  </div>
+</Base>

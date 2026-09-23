@@ -1,0 +1,98 @@
+---
+// The owner's page. The server knows nothing about the token here — it is
+// in the URL fragment, which browsers never send — so this page renders
+// the same empty form for everyone and the script does the rest.
+import Base from "../../../layouts/Base.astro";
+import { policy } from "../../../lib/policy.ts";
+import { MAX_TAGS } from "../../../lib/catalog.ts";
+import { NO_STORE } from "../../../lib/http.ts";
+
+const slug = String(Astro.params.slug ?? "");
+if (!/^[a-z0-9-]{1,80}$/.test(slug)) return Astro.rewrite("/404");
+const decision = policy({ type: "edit" });
+Astro.response.headers.set("Cache-Control", NO_STORE);
+// The edit link must not leak to the sites the page links to.
+Astro.response.headers.set("Referrer-Policy", "no-referrer");
+---
+
+<Base title="Edit your feed" description="Change the topics of a feed in the rss.mobi directory of RSS feeds, or take it down." robots={decision.robots} path={`/f/${slug}/edit/`}>
+  <h1>Edit your feed</h1>
+  <p id="state" class="muted" role="status">Checking your edit link…</p>
+
+  <form id="edit" data-slug={slug} hidden>
+    <p><a id="page-link" href={`/feed/${slug}/`} title="The feed's public page">View the public page</a></p>
+    <label for="tags">Topics <span class="hint">Up to {MAX_TAGS}, separated by commas.</span></label>
+    <input id="tags" type="text" />
+
+    <label><input id="nofollow" type="checkbox" /> Mark links to my site nofollow</label>
+    <span class="hint">By default links are followed while your post is not yet in Google, and marked user content after that.</span>
+
+    <label><input id="hidden" type="checkbox" /> Take this feed out of the directory</label>
+    <span class="hint">Its page stops working and its posts are no longer shown. Untick to bring it back.</span>
+
+    <div class="actions">
+      <button class="button" type="submit">Save</button>
+    </div>
+    <p class="small" role="status" aria-live="polite" id="saved"></p>
+  </form>
+</Base>
+
+<script>
+  import { track } from "../../../scripts/track.ts";
+
+  const form = document.querySelector<HTMLFormElement>("#edit")!;
+  const state = document.querySelector<HTMLElement>("#state")!;
+  const saved = document.querySelector<HTMLElement>("#saved")!;
+  const slug = form.dataset.slug!;
+  const token = decodeURIComponent(location.hash.slice(1));
+  const headers = { "Content-Type": "application/json", "X-Edit-Token": token };
+  const $ = (id: string) => document.querySelector<HTMLInputElement>(id)!;
+
+  function fill(feed: { title: string; tags: string[]; status: string; linkMode: string | null }) {
+    state.textContent = `Editing “${feed.title}”.`;
+    $("#tags").value = feed.tags.join(", ");
+    $("#nofollow").checked = feed.linkMode === "nofollow";
+    $("#hidden").checked = feed.status === "hidden";
+    $("#hidden").disabled = feed.status === "disabled";
+    if (feed.status === "disabled") state.textContent += " It stopped answering and is no longer checked.";
+  }
+
+  async function load() {
+    if (!token) {
+      state.textContent = "This link is missing its key — the part after #. Use the full edit link you were given when you submitted the feed.";
+      return;
+    }
+    const res = await fetch(`/api/v1/feeds/${slug}/edit`, { headers });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      state.textContent = data.error ?? "This edit link could not be checked.";
+      return;
+    }
+    fill(data.feed);
+    form.hidden = false;
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    saved.textContent = "Saving…";
+    const res = await fetch(`/api/v1/feeds/${slug}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        tags: $("#tags").value.split(",").map((t) => t.trim()).filter(Boolean),
+        nofollow: $("#nofollow").checked,
+        hidden: $("#hidden").checked,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      fill(data.feed);
+      saved.textContent = "Saved. The public page shows the change within five minutes.";
+      track("edit_save");
+    } else {
+      saved.textContent = data.error ?? "Could not save.";
+    }
+  });
+
+  load();
+</script>
