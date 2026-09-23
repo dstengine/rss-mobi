@@ -17,7 +17,13 @@ npm test             # unit tests, no services needed
 npm run test:live    # RSS_MOBI_BASE=… — same HTML for Googlebot and a phone
 npm run migrate      # create indexes (idempotent); `-- rssmobi_test` for another db
 npm run build
+node --env-file=.env scripts/migrate.mjs rssmobi   # the same, against Atlas
 ```
+
+`.env.local` wins over `.env`; a script aimed at production needs
+`node --env-file=.env`, or it quietly runs against the local database.
+Atlas: org, project and cluster `rss-mobi` (M0, us-east-1); the app user
+`rssmobi-app` has `readWrite` on `rssmobi` only.
 
 Local MongoDB: `docker start rss-mobi-mongo7` (port 27018). It is `mongo:7`
 on purpose — MongoDB 8 refuses to start on Docker Desktop's Linux 6.19

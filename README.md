@@ -32,6 +32,19 @@ Production secrets live in `.env` (never committed; see `.env.example`) and
 are copied to Vercel and GitHub by `scripts/sync-secrets.sh`, which never
 prints a value.
 
+The database is MongoDB Atlas: organisation, project and cluster are all
+named `rss-mobi` (free M0, AWS us-east-1). The app connects as
+`rssmobi-app`, which can read and write the `rssmobi` database and nothing
+else. The access list is `0.0.0.0/0` because neither Vercel nor GitHub
+Actions has fixed addresses, so the password is the whole defence.
+
+`.env.local` wins over `.env`, so a local script run plainly talks to the
+local database. To aim one at Atlas, load `.env` first:
+
+```
+node --env-file=.env scripts/migrate.mjs rssmobi
+```
+
 ## Jobs
 
 `.github/workflows/cron.yml` calls `/api/v1/cron/*` every 15 minutes with
@@ -59,6 +72,9 @@ node scripts/backup.mjs list                      # or use a file from iCloud
 scripts/restore.sh rssmobi-2026-09-23T02-00-05Z.archive.gz.age rssmobi_restore_test
 ```
 
+`rssmobi-app` cannot write `rssmobi_restore_test` on Atlas, so the test
+restore goes to the local database: pass
+`mongodb://127.0.0.1:27018/?directConnection=true` as the third argument.
 Compare document counts between `rssmobi` and `rssmobi_restore_test`, then
 restore into the live name only if that is really what is wanted. Drop the
 test database afterwards — deliberately, by hand.
