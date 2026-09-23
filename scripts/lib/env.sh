@@ -1,4 +1,4 @@
-# Loads KEY=value lines from an env file into the environment, without
+# Loads KEY=value lines from an env file into the environment (bash only), without
 # handing them to the shell. `. ./.env` would: the Atlas connection string
 # carries `&` and `?`, and sourcing it runs the tail as background jobs and
 # leaves the variable empty. Surrounding quotes are dropped; nothing is

@@ -15,3 +15,7 @@
   `GET /api/v1/feeds/<slug>/edit`, `POST /api/v1/discover`,
   `POST /api/v1/report`, `POST /api/v1/events`, `POST /api/v1/cron/fetch`.
 - Anonymous events for experiments; two experiments drafted, both off.
+- Live at https://rss.mobi on Vercel, `www` 308 to the apex; MongoDB Atlas
+  (free M0, us-east-1) with an app user limited to the `rssmobi` database.
+- Scheduler in the public `dstengine/rss-mobi-cron` (source in `cron/`),
+  every 15 minutes, with a monthly keepalive against GitHub's 60-day pause.
