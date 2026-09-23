@@ -1,9 +1,11 @@
 // The read side: what pages and the public API show. Every function here
 // returns public fields only — an edit hash or a submitter's IP hash must
 // never reach a template, so they are stripped at the query, not later.
-import type { Filter } from "mongodb";
+import { ObjectId, type Filter } from "mongodb";
 import { feeds, items } from "./db.ts";
 import { cached } from "./cache.ts";
+import { toQuery, type Cursor, type Filters } from "./filters.ts";
+import { linkTo } from "./policy.ts";
 import type { FeedDoc, ItemDoc } from "./types.ts";
 
 export type PublicFeed = Pick<
@@ -96,6 +98,22 @@ export async function feedItems(slug: string, limit = 20): Promise<PublicItem[]>
     .limit(limit)
     .toArray();
   return rows.map(toItem);
+}
+
+/** Items matching `f`, newest first, starting after `after`. */
+export async function itemsFor(f: Filters, after?: Cursor): Promise<PublicItem[]> {
+  const q = toQuery(f);
+  if (after) q.$or = [{ publishedAt: { $lt: after.at } }, { publishedAt: after.at, _id: { $lt: new ObjectId(after.id) } }];
+  const rows = await (await items()).find(q, { projection: ITEM_FIELDS }).sort({ publishedAt: -1, _id: -1 }).limit(f.limit).toArray();
+  return rows.map(toItem);
+}
+
+/** Listed feeds among `slugs`, in the order given. */
+export async function feedsBySlugs(slugs: string[]): Promise<PublicFeed[]> {
+  if (!slugs.length) return [];
+  const rows = await (await feeds()).find<PublicFeed>({ ...LISTED, slug: { $in: slugs } }, { projection: FEED_FIELDS }).toArray();
+  const by = new Map(rows.map((f) => [f.slug, f]));
+  return slugs.map((s) => by.get(s)).filter((f): f is PublicFeed => !!f);
 }
 
 export interface TagStat {
@@ -197,6 +215,7 @@ export function feedJson(f: PublicFeed) {
 }
 
 export function itemJson(it: PublicItem) {
+  const link = linkTo(it);
   return {
     id: it.id,
     feed: it.feedSlug,
@@ -209,5 +228,9 @@ export function itemJson(it: PublicItem) {
     tags: it.tags,
     lang: it.lang,
     publishedAt: it.publishedAt,
+    /** How rss.mobi links to the original, from policy(): `rel` is null
+        for a plain link, and mode "none" means the address is shown as
+        text. The reader renders links from this, not a rule of its own. */
+    link: { mode: link.mode, rel: link.rel },
   };
 }

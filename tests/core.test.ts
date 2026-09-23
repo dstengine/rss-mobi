@@ -203,8 +203,9 @@ describe("catalog helpers", () => {
   test("tags: bookkeeping categories are not topics", () => {
     for (const t of ["Uncategorized", "Articles", "links", "Resource", "Featured Posts", "blog_posts"]) assert.equal(topic(t), "", t);
     for (const t of ["news", "video", "podcast", "RSS", "CSS", "web development"]) assert.notEqual(topic(t), "", t);
-    // Filters keep every word: excluding sponsored posts must still work.
+    // Filters keep every word: a dropped one would widen ?tag= to everything.
     assert.equal(tag("Sponsored"), "sponsored");
+    assert.deepEqual(parseFilters(new URLSearchParams("tag=links")).tags, ["links"]);
   });
 
   test("tags: a site's own name is not a topic", () => {

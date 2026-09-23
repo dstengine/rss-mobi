@@ -79,13 +79,20 @@ export interface ItemDoc {
   updatedAt: Date;
 }
 
+/** The filters a collection keeps. Feeds are stored beside them, and a
+    date or a page size means nothing for a list that is read for years. */
+export type SavedFilters = Pick<import("./filters.ts").Filters, "tags" | "lang" | "hosts" | "q" | "exclude">;
+
 export interface CollectionDoc {
   _id: ObjectId;
+  /** Public, short, unguessable: the collection's URL is /c/<id>/. */
   id: string;
   editHash: string;
   title: string;
+  /** Feed slugs, in the order the owner put them. */
   feeds: string[];
-  filters: import("./filters.ts").Filters;
+  filters: SavedFilters;
+  createdIpHash?: string;
   createdAt: Date;
   updatedAt: Date;
 }

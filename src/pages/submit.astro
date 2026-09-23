@@ -109,6 +109,11 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
 
   let feedUrl = "";
 
+  // The reader links here with ?url= for feeds an imported OPML file had
+  // and the directory did not.
+  const prefill = new URLSearchParams(location.search).get("url");
+  if (prefill && /^https?:\/\//i.test(prefill)) urlInput.value = prefill;
+
   const splitTags = (s: string) =>
     s
       .split(",")

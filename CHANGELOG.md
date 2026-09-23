@@ -1,6 +1,24 @@
 # Changelog
 
-## Unreleased — v0.1 (slice 1: catalogue and submission)
+## Unreleased — v0.2 (slice 2: reader and collections)
+
+- The reader at `/reader/`: follow feeds with no account, the list kept in
+  the browser; newest posts from all of them in one list, one feed at a
+  time, "load more" and "new since last visit"; OPML import (feeds the
+  directory lacks are offered for submission) and export. Follow buttons
+  on feed pages; installable to the home screen (web app manifest).
+- Collections: `/c/new/` combines feeds and filters (topics, sites, words
+  to require or leave out, language) into one list with a page, an RSS
+  feed (`/c/<id>/rss.xml`) and an OPML file (`/c/<id>/opml.xml`); changed
+  later through an edit link, like a feed.
+- API v1: `GET /api/v1/items` with the shared filters and cursor paging,
+  `POST /api/v1/lookup`, `POST /api/v1/collections`,
+  `GET/PUT /api/v1/collections/<id>`, `GET /api/v1/collections/<id>/edit`.
+  Items carry `link: {mode, rel}` from `policy()`.
+- Navigation: Topics, Reader, Submit; "Combine feeds" on the front page
+  and in the footer. `/submit/?url=` fills in the address.
+
+## v0.1 — 23 Sep 2026 (slice 1: catalogue and submission)
 
 - Feed submission with discovery from any site or feed address: RSS 2.0,
   RSS 1.0, Atom and JSON Feed; SSRF-safe fetching; spam and blocklist

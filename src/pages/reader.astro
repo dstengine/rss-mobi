@@ -1,0 +1,345 @@
+---
+// The reader. What it shows depends on this browser's list of followed
+// feeds, which lives in localStorage — so the server renders one page for
+// everyone (the tool, a starter set of feeds, how it works) and the script
+// fills in the rest. A crawler sees exactly what a first-time visitor sees.
+import Base from "../layouts/Base.astro";
+import FeedCard from "../components/FeedCard.astro";
+import FollowButton from "../components/FollowButton.astro";
+import { site } from "../site.config.ts";
+import { policy } from "../lib/policy.ts";
+import { cacheFor } from "../lib/http.ts";
+import { recentFeeds } from "../lib/views.ts";
+
+const starters = await recentFeeds(8);
+const decision = policy({ type: "static" });
+Astro.response.headers.set("Cache-Control", cacheFor(300));
+
+const description = "A free RSS reader for your phone: follow RSS feeds from the directory, read the newest posts in one list, import and export OPML. No account.";
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: `${site.name} reader`,
+  url: `${site.url}/reader/`,
+  description,
+  applicationCategory: "NewsApplication",
+  operatingSystem: "Any",
+  browserRequirements: "A web browser",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+};
+---
+
+<Base title="Read RSS feeds on your phone" description={description} robots={decision.robots} path="/reader/" jsonLd={jsonLd}>
+  <h1>Read RSS feeds on your phone</h1>
+  <p class="lede">Follow feeds from the directory and read their newest posts in one list. Your list stays on this device — no account, nothing to sign up for.</p>
+
+  <div class="tabs" role="tablist" aria-label="Reader">
+    <button type="button" role="tab" id="tab-latest" aria-controls="panel-latest" aria-selected="true">Latest</button>
+    <button type="button" role="tab" id="tab-following" aria-controls="panel-following" aria-selected="false" tabindex="-1">
+      Following <span class="n" id="sub-count"></span>
+    </button>
+  </div>
+
+  <section id="panel-latest" role="tabpanel" aria-labelledby="tab-latest">
+    <div id="reading" hidden>
+      <div class="chips" id="chips" role="group" aria-label="Show one feed"></div>
+      <ol class="items" id="items" aria-live="polite"></ol>
+      <p class="muted" id="reader-state" role="status"></p>
+      <p><button type="button" class="button secondary" id="more" hidden>Load more</button></p>
+    </div>
+
+    <div id="empty">
+      <div class="notice" id="empty-note">
+        <p>
+          You are not following any feeds yet. Tap <strong>Follow</strong> on a few below, or on any feed's page, and their posts collect here. Already
+          use a reader? <button type="button" class="linklike" data-goto="following">Import your OPML file</button>.
+        </p>
+      </div>
+      {
+        starters.length > 0 && (
+          <>
+            <h2>Start with these RSS feeds</h2>
+            <ul class="cards">
+              {starters.map((f) => (
+                <FeedCard feed={f}>
+                  <FollowButton feed={f} class="button secondary" />
+                </FeedCard>
+              ))}
+            </ul>
+          </>
+        )
+      }
+      <p><a href="/tags/" title="Browse RSS feeds by topic to find more to follow">Browse all topics</a></p>
+    </div>
+  </section>
+
+  <section id="panel-following" role="tabpanel" aria-labelledby="tab-following" hidden>
+    <ul class="sub-list" id="sub-list"></ul>
+    <p class="muted" id="no-subs">Nothing followed yet.</p>
+
+    <div class="actions" id="sub-actions" hidden>
+      <button type="button" class="button secondary" id="export">Export OPML</button>
+      <a class="button secondary" id="combine" href="/c/new/" title="Turn the feeds you follow into one RSS feed with its own address">Combine into one feed</a>
+    </div>
+
+    <h2>Import from another reader</h2>
+    <p class="small muted">Export an OPML file from Feedly, Inoreader, NetNewsWire or any other reader, then choose it here. Feeds already in the directory are followed at once.</p>
+    <label for="opml">OPML file</label>
+    <input id="opml" type="file" accept=".opml,.xml,text/xml,text/x-opml,application/xml" />
+    <div id="import-result" class="notice" role="status" hidden></div>
+  </section>
+
+  <section class="prose">
+    <h2>How this RSS reader works</h2>
+    <ul>
+      <li>Following a feed adds it to a list kept in this browser. Nothing is sent to us but the list of feeds to fetch, and nothing identifies you.</li>
+      <li>Posts arrive as the directory checks each feed, about once an hour. Tap a title to read the post on the publisher's site.</li>
+      <li>To move your list to another phone or another app, export it as OPML — the file every reader imports.</li>
+      <li>On a phone, use your browser's <em>Add to Home Screen</em> to open the reader like an app.</li>
+    </ul>
+  </section>
+</Base>
+
+<script>
+  import { track } from "../scripts/track.ts";
+  import { follow, lastSeen, markSeen, subs, unfollow, MAX_SUBS, type Sub } from "../scripts/subs.ts";
+  import { parseOpml, toOpml } from "../lib/opml.ts";
+
+  interface Item {
+    id: string;
+    feed: string;
+    title: string;
+    url: string;
+    host: string;
+    excerpt: string;
+    author: string | null;
+    publishedAt: string;
+    link: { mode: string; rel: string | null };
+  }
+
+  const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector<T>(s)!;
+  const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> = {}, ...kids: (Node | string)[]) => {
+    const e = Object.assign(document.createElement(tag), props);
+    e.append(...kids);
+    return e;
+  };
+  const date = (s: string) => new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(s));
+
+  /* ------------------------------------------------------------ tabs */
+
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>("[role=tab]")];
+  function show(which: "latest" | "following") {
+    for (const t of tabs) {
+      const on = t.id === `tab-${which}`;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+      $(`#${t.getAttribute("aria-controls")}`).hidden = !on;
+    }
+  }
+  for (const t of tabs) t.addEventListener("click", () => show(t.id === "tab-latest" ? "latest" : "following"));
+  for (const b of document.querySelectorAll<HTMLElement>("[data-goto]")) b.addEventListener("click", () => show(b.dataset.goto as "following"));
+
+  /* ---------------------------------------------------------- reading */
+
+  let only: string | null = null;
+  let next: string | null = null;
+  let seen = lastSeen();
+  let newest = 0;
+  // Each first-page load gets a number; an answer that arrives after a
+  // newer request was made is dropped, so following two feeds in quick
+  // succession shows both rather than whichever answered last.
+  let generation = 0;
+
+  function itemNode(it: Item, names: Map<string, string>) {
+    const title = it.link.mode === "none" ? it.title : el("a", { href: it.url, title: `Read “${it.title}” on ${it.host}` }, it.title);
+    if (title instanceof HTMLAnchorElement) {
+      if (it.link.rel) title.rel = it.link.rel;
+      title.addEventListener("click", () => track("outbound", { label: it.host }));
+    }
+    const at = new Date(it.publishedAt).getTime();
+    const meta = el(
+      "span",
+      { className: "meta" },
+      el("time", { dateTime: it.publishedAt }, date(it.publishedAt)),
+      " · ",
+      el("a", { href: `/feed/${it.feed}/`, title: `The ${names.get(it.feed) ?? it.host} RSS feed` }, names.get(it.feed) ?? it.host),
+      it.author ? ` · ${it.author}` : "",
+    );
+    const li = el("li", {}, el("h3", {}, title), meta);
+    if (seen && at > seen) li.prepend(el("span", { className: "new" }, "New"));
+    if (it.excerpt && it.excerpt !== it.title) li.append(el("p", {}, it.excerpt));
+    return li;
+  }
+
+  async function load(url: string, replace: boolean) {
+    const mine = replace ? ++generation : generation;
+    const state = $("#reader-state");
+    const more = $<HTMLButtonElement>("#more");
+    state.textContent = replace ? "Loading…" : "";
+    more.disabled = true;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(String(res.status));
+      const data: { items: Item[]; next: string | null } = await res.json();
+      if (mine !== generation) return;
+      const names = new Map(subs().map((s) => [s.slug, s.title]));
+      const list = $("#items");
+      if (replace) list.replaceChildren();
+      list.append(...data.items.map((it) => itemNode(it, names)));
+      for (const it of data.items) newest = Math.max(newest, new Date(it.publishedAt).getTime());
+      next = data.next;
+      more.hidden = !next;
+      state.textContent = list.childElementCount ? "" : "No posts yet from the feeds you follow. They are checked about once an hour.";
+      if (!replace) track("reader_more");
+    } catch {
+      if (mine === generation) state.textContent = "Posts could not be loaded. Check your connection and try again.";
+    } finally {
+      if (mine === generation) more.disabled = false;
+    }
+  }
+
+  function firstPage() {
+    const list = subs();
+    const slugs = only ? [only] : list.map((s) => s.slug).sort();
+    const url = `/api/v1/items?${new URLSearchParams({ feed: slugs.join(","), limit: "30" })}`;
+    return load(url, true).then(() => {
+      // Posts newer than this visit's newest are "new" next time, not now.
+      if (!only && newest) markSeen(newest);
+    });
+  }
+
+  function chips(list: Sub[]) {
+    const box = $("#chips");
+    const chip = (label: string, slug: string | null) => {
+      const b = el("button", { type: "button", className: "chip" }, label);
+      b.setAttribute("aria-pressed", String(only === slug));
+      b.addEventListener("click", () => {
+        only = slug;
+        chips(subs());
+        firstPage();
+      });
+      return b;
+    };
+    box.replaceChildren(chip("All", null), ...list.map((s) => chip(s.title, s.slug)));
+    box.hidden = list.length < 2;
+  }
+
+  $("#more").addEventListener("click", () => next && load(next, false));
+
+  /* -------------------------------------------------------- following */
+
+  function following(list: Sub[]) {
+    $("#sub-count").textContent = list.length ? String(list.length) : "";
+    $("#no-subs").hidden = list.length > 0;
+    $("#sub-actions").hidden = list.length === 0;
+    $<HTMLAnchorElement>("#combine").href = `/c/new/?${new URLSearchParams({ feeds: list.map((s) => s.slug).join(",") })}`;
+    $("#sub-list").replaceChildren(
+      ...list.map((s) => {
+        const b = el("button", { type: "button", className: "button secondary small", title: `Stop following ${s.title}` }, "Unfollow");
+        b.addEventListener("click", () => {
+          unfollow(s.slug);
+          track("unfollow");
+        });
+        return el(
+          "li",
+          {},
+          el("span", {}, el("a", { href: `/feed/${s.slug}/`, title: `The ${s.title} RSS feed and its latest posts` }, s.title), el("span", { className: "meta" }, s.host)),
+          b,
+        );
+      }),
+    );
+  }
+
+  $("#export").addEventListener("click", () => {
+    const xml = toOpml("Feeds followed on rss.mobi", subs().map((s) => ({ title: s.title, url: s.url })));
+    const a = el("a", { href: URL.createObjectURL(new Blob([xml], { type: "text/x-opml" })), download: "rss-mobi-following.opml" });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+    track("opml_export");
+  });
+
+  $<HTMLInputElement>("#opml").addEventListener("change", async (e) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const box = $("#import-result");
+    if (!file) return;
+    box.hidden = false;
+    box.className = "notice";
+    box.textContent = "Reading the file…";
+    const feeds = parseOpml(await file.text());
+    if (!feeds.length) {
+      box.className = "notice bad";
+      box.textContent = "No feeds found in that file. Is it an OPML export?";
+      return;
+    }
+    const found: Sub[] = [];
+    const missing: string[] = [];
+    try {
+      for (let i = 0; i < feeds.length && i < 1_000; i += 200) {
+        const res = await fetch("/api/v1/lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls: feeds.slice(i, i + 200).map((f) => f.url) }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        for (const f of data.found) found.push({ slug: f.feed.slug, title: f.feed.title, host: f.feed.host, url: f.feed.url });
+        missing.push(...data.missing);
+      }
+    } catch (err) {
+      box.className = "notice bad";
+      box.textContent = (err as Error).message || "The file could not be checked against the directory. Try again.";
+      return;
+    }
+    const added = follow(...found);
+    track("opml_import", { label: `${found.length}/${feeds.length}` });
+    box.className = "notice ok";
+    const full = subs().length >= MAX_SUBS ? ` The reader holds up to ${MAX_SUBS} feeds.` : "";
+    box.replaceChildren(el("p", {}, `${feeds.length} feeds in the file: ${found.length} in the directory, ${added} newly followed.${full}`));
+    if (missing.length) {
+      const titles = new Map(feeds.map((f) => [f.url, f.title]));
+      box.append(
+        el("p", {}, missing.length === 1 ? "1 is not in the directory yet. Add it and it can be followed here too:" : `${missing.length} are not in the directory yet. Add them and they can be followed here too:`),
+        el(
+          "ul",
+          { className: "missing" },
+          ...missing.slice(0, 50).map((u) =>
+            el(
+              "li",
+              {},
+              el("a", { href: `/submit/?${new URLSearchParams({ url: u })}`, title: `Submit ${titles.get(u) ?? u} to the directory of RSS feeds` }, titles.get(u) ?? u),
+            ),
+          ),
+        ),
+      );
+    }
+    input.value = "";
+  });
+
+  /* ------------------------------------------------------------ start */
+
+  // Someone who arrives with nothing followed keeps the starter feeds in
+  // view for the whole visit, so following three of them takes three taps
+  // rather than a hunt for where the list went after the first.
+  const startedEmpty = subs().length === 0;
+
+  function render() {
+    const list = subs();
+    if (only && !list.some((s) => s.slug === only)) only = null;
+    $("#empty").hidden = list.length > 0 && !startedEmpty;
+    $("#empty-note").hidden = list.length > 0;
+    $("#reading").hidden = list.length === 0;
+    following(list);
+    if (list.length) {
+      chips(list);
+      firstPage();
+    }
+  }
+
+  window.addEventListener("rssmobi:subs", render);
+  window.addEventListener("storage", (e) => e.key === "rssmobi:subs" && render());
+  if (location.hash === "#following") show("following");
+  render();
+</script>

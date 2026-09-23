@@ -1,0 +1,20 @@
+---
+// Follow a feed in the reader on this device. Rendered hidden and the same
+// for everyone; the script shows it and sets its state from localStorage,
+// so the cached HTML never depends on who is looking.
+import type { PublicFeed } from "../lib/views.ts";
+
+interface Props {
+  feed: Pick<PublicFeed, "slug" | "title" | "host" | "url">;
+  class?: string;
+}
+const { feed, class: cls = "button" } = Astro.props;
+---
+
+<button type="button" class={`${cls} follow`} data-follow={feed.slug} data-title={feed.title} data-host={feed.host} data-url={feed.url} aria-pressed="false" hidden>
+  Follow
+</button>
+<script>
+  import { wireFollowButtons } from "../scripts/subs.ts";
+  wireFollowButtons();
+</script>

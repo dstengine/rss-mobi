@@ -17,6 +17,13 @@ const NAMES = new Set([
   "submit_success",
   "submit_error",
   "edit_save",
+  "follow",
+  "unfollow",
+  "reader_more",
+  "opml_import",
+  "opml_export",
+  "collection_create",
+  "collection_save",
 ]);
 
 const NO_CONTENT = () => new Response(null, { status: 204, headers: { "Cache-Control": "private, no-store" } });

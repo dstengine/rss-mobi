@@ -9,7 +9,7 @@ import { recentFeeds, tagStats } from "./views.ts";
 import { copyDate, site } from "../site.config.ts";
 
 export const FEEDS_PER_FILE = 5_000;
-const STATIC = ["/submit/", "/about/", "/terms/"];
+const STATIC = ["/c/new/", "/submit/", "/about/", "/terms/"];
 
 const loc = (path: string) => `${site.url}${path}`;
 
@@ -20,6 +20,8 @@ export async function pageEntries(): Promise<Entry[]> {
   return [
     { loc: loc("/"), lastmod: newest([copyDate("/"), ...listed.map((f) => f.updatedAt)]) },
     { loc: loc("/tags/"), lastmod: newest([copyDate("/tags/"), ...tags.map((t) => t.updatedAt)]) },
+    // The reader's starter list is the eight newest feeds.
+    { loc: loc("/reader/"), lastmod: newest([copyDate("/reader/"), ...listed.slice(0, 8).map((f) => f.updatedAt)]) },
     ...STATIC.map((p) => ({ loc: loc(p), lastmod: copyDate(p) })),
   ];
 }

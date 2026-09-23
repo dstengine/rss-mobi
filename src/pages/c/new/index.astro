@@ -1,0 +1,93 @@
+---
+// Creating a collection. Indexable, unlike the collections themselves:
+// this is a tool people search for, and every collection it makes is
+// somebody's own list with nothing to rank. `?feeds=` and `?tag=` start
+// the form off (the reader links here with the feeds it follows); the
+// canonical URL leaves them out.
+import Base from "../../../layouts/Base.astro";
+import CollectionForm from "../../../components/CollectionForm.astro";
+import { policy } from "../../../lib/policy.ts";
+import { cacheFor } from "../../../lib/http.ts";
+import { parseFilters } from "../../../lib/filters.ts";
+import { feedsBySlugs } from "../../../lib/views.ts";
+
+const f = parseFilters(Astro.url.searchParams);
+const start = await feedsBySlugs(f.feeds);
+const initial = {
+  feeds: start.map((x) => ({ slug: x.slug, title: x.title, host: x.host })),
+  filters: { tags: f.tags },
+};
+const decision = policy({ type: "static" });
+Astro.response.headers.set("Cache-Control", cacheFor(3600));
+---
+
+<Base
+  title="Combine RSS feeds into one feed"
+  description="Combine several RSS feeds into one: pick feeds from the directory, filter by topic or word, and follow a single RSS feed anywhere. Free, no account."
+  robots={decision.robots}
+  path="/c/new/"
+>
+  <h1>Combine RSS feeds into one</h1>
+  <p class="lede">Pick feeds from the directory, narrow them down if you like, and get one RSS feed with its own address — for any reader, or to share. No account.</p>
+
+  <div data-initial={JSON.stringify(initial)} id="initial"></div>
+  <CollectionForm submitLabel="Create the collection" hidden />
+  <noscript><p class="notice">Building a collection needs JavaScript. The finished feed works in any reader without it.</p></noscript>
+
+  <div id="done" class="step" hidden>
+    <div class="notice ok">
+      <p><strong>Created.</strong> <a id="d-page" href="/" title="The new collection's page, with its posts">Open the collection</a></p>
+    </div>
+    <h2>Its RSS feed</h2>
+    <p>Paste this into any reader. It updates as the feeds in it publish.</p>
+    <div class="copy-row">
+      <label class="visually-hidden" for="d-rss">RSS feed address</label>
+      <input id="d-rss" type="text" readonly />
+      <button class="button" type="button" data-copy="#d-rss">Copy</button>
+    </div>
+    <h2>Your edit link</h2>
+    <p>Keep this link: it is the only way to change the collection later. It is shown once, and it cannot be recovered or sent again.</p>
+    <div class="copy-row">
+      <label class="visually-hidden" for="d-edit">Edit link</label>
+      <input id="d-edit" type="text" readonly />
+      <button class="button" type="button" data-copy="#d-edit">Copy</button>
+    </div>
+  </div>
+
+  <section class="prose">
+    <h2>What a combined feed is for</h2>
+    <ul>
+      <li>One address for a reading list: a team's blogs, a topic's best sources, a newsletter's links.</li>
+      <li>Filters trim the noise — keep one topic, leave out titles with words like "sponsored", or keep one language.</li>
+      <li>Each post in the combined RSS feed links to its original and names the feed it came from.</li>
+      <li>The collection gets a page, an RSS feed and an OPML file. Anyone with the address can read them; only the edit link changes them.</li>
+    </ul>
+  </section>
+</Base>
+
+<script>
+  import { mountForm } from "../../../scripts/collection-form.ts";
+  import { track } from "../../../scripts/track.ts";
+  import { wireCopyButtons } from "../../../scripts/copy.ts";
+
+  const initial = JSON.parse(document.querySelector<HTMLElement>("#initial")!.dataset.initial ?? "{}");
+
+  mountForm(initial, async (value) => {
+    const res = await fetch("/api/v1/collections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value) });
+    const data = await res.json().catch(() => ({ error: "Something went wrong. Try again." }));
+    if (!res.ok) return data.error ?? "The collection could not be saved.";
+    document.querySelector<HTMLFormElement>("#collection")!.hidden = true;
+    const page = document.querySelector<HTMLAnchorElement>("#d-page")!;
+    page.href = `/c/${data.collection.id}/`;
+    page.textContent = `Open “${data.collection.title}”`;
+    document.querySelector<HTMLInputElement>("#d-rss")!.value = data.collection.rss;
+    document.querySelector<HTMLInputElement>("#d-edit")!.value = data.editUrl;
+    const done = document.querySelector<HTMLElement>("#done")!;
+    done.hidden = false;
+    done.scrollIntoView({ behavior: "smooth", block: "start" });
+    track("collection_create", { label: String(value.feeds.length) });
+    return null;
+  });
+
+  wireCopyButtons();
+</script>

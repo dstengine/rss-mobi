@@ -53,8 +53,9 @@ kernel (SERVER-121912). `.env.local` points at it and wins over `.env`.
   (`src/lib/feeds/parse.ts`). `topic()` drops `STOP_TAGS` — words like
   "uncategorized" and "links" that describe the CMS, not the subject — and
   a feed's categories also lose the site's own name. Filters keep every
-  word, so `exclude=sponsored` works. A new stop word needs
-  `scripts/retag.mjs` run against production.
+  word: one dropped in silence would widen `?tag=links` to the whole
+  directory. A new stop word needs `scripts/retag.mjs` run against
+  production.
 - **Budgets are constants** in `src/lib/budget.ts` (`LIMITS`), reserved
   before the paid call. Never read a budget from the environment.
 - **Secrets** live in `.env` (gitignored), never in the repo, never
@@ -66,6 +67,17 @@ kernel (SERVER-121912). `.env.local` points at it and wins over `.env`.
   livestreams only.
 - **Edit tokens travel in the URL fragment** and the `X-Edit-Token`
   header, and are stored as sha256 hashes. Never put one in a query string.
+- **The reader keeps nothing on the server.** Subscriptions live in the
+  browser's localStorage (`src/scripts/subs.ts`); the server sees only the
+  list of feeds to fetch. Anything that depends on them — Follow state,
+  the reader's list — is drawn by a script over HTML that is the same for
+  everyone, so the CDN can cache it and crawlers see what a first visit
+  sees. Remote text goes into the page with `textContent`, never
+  `innerHTML`.
+- **A collection is feeds AND filters**, stored through the same
+  `parseFilters` as a query string (`src/lib/collections.ts`), so a saved
+  collection means what the same URL would. Collection pages are
+  `noindex`; `/c/new/`, the tool that makes them, is indexable.
 - **POST endpoints need a JSON content type.** Astro's origin check refuses
   form-typed and untyped cross-site POSTs; the cron workflow
   (`.github/workflows/cron.yml`) sends `Content-Type: application/json`.
