@@ -17,5 +17,7 @@
 - Anonymous events for experiments; two experiments drafted, both off.
 - Live at https://rss.mobi on Vercel, `www` 308 to the apex; MongoDB Atlas
   (free M0, us-east-1) with an app user limited to the `rssmobi` database.
-- Scheduler in the public `dstengine/rss-mobi-cron` (source in `cron/`),
-  every 15 minutes, with a monthly keepalive against GitHub's 60-day pause.
+- Scheduled jobs from GitHub Actions (`.github/workflows/cron.yml`) every
+  15 minutes, with a monthly keepalive against GitHub's 60-day pause.
+- Source published under the AGPL-3.0, linked from every page's footer;
+  security reports through GitHub's private vulnerability reporting.

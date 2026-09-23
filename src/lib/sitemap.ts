@@ -1,10 +1,10 @@
 // Sitemap fields, the same way the DST network sets them.
 //
-// `changefreqFor` and `priorityFor` are copied from
-// ~/dst/dst_draft/tools/sitemap.mjs with the same thresholds, so every site
+// `changefreqFor` and `priorityFor` are copied from tools/sitemap.mjs in
+// https://github.com/dstengine/dst with the same thresholds, so every site
 // the group runs answers a crawler the same way. The difference is where
 // lastmod comes from: there it is git history, here it is each document's
-// own updatedAt — the per-page date ~/dst/CLAUDE.md asks for.
+// own updatedAt — a per-page date, never the date of the file it came from.
 
 const DAY = 24 * 60 * 60 * 1000;
 

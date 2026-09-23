@@ -1,20 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Install: cp scripts/mobi.rss.backup-pull.plist ~/Library/LaunchAgents/
-              launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/mobi.rss.backup-pull.plist -->
+<!-- A template: launchd wants absolute paths. Install from the repository root:
+       sed -e "s|__REPO__|$PWD|g" -e "s|__HOME__|$HOME|g" -e "s|__NODE__|$(command -v node)|g" \
+         scripts/mobi.rss.backup-pull.plist > ~/Library/LaunchAgents/mobi.rss.backup-pull.plist
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/mobi.rss.backup-pull.plist -->
 <plist version="1.0">
 <dict>
   <key>Label</key><string>mobi.rss.backup-pull</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/opt/homebrew/bin/node</string>
-    <string>/Users/vvm/dst/rss.mobi/scripts/backup-pull.mjs</string>
+    <string>__NODE__</string>
+    <string>__REPO__/scripts/backup-pull.mjs</string>
   </array>
   <!-- 06:30 local, after the 02:00 UTC backup has landed. A day missed
        while the Mac slept runs at wake. -->
   <key>StartCalendarInterval</key>
   <dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>30</integer></dict>
-  <key>StandardOutPath</key><string>/Users/vvm/Library/Logs/rss-mobi-backup-pull.log</string>
-  <key>StandardErrorPath</key><string>/Users/vvm/Library/Logs/rss-mobi-backup-pull.log</string>
+  <key>StandardOutPath</key><string>__HOME__/Library/Logs/rss-mobi-backup-pull.log</string>
+  <key>StandardErrorPath</key><string>__HOME__/Library/Logs/rss-mobi-backup-pull.log</string>
 </dict>
 </plist>

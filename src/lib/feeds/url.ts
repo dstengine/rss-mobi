@@ -1,7 +1,7 @@
 // URL and text helpers shared by ingestion, dedupe and the index checks.
 //
-// `canonical`, `key` and `unescape` are copied from
-// ~/dst/dst_draft/tools/events-scan.mjs, where they have been deduping event
+// `canonical`, `key` and `unescape` are copied from tools/events-scan.mjs in
+// https://github.com/dstengine/dst, where they have been deduping event
 // listings since August 2026. They are copied, not imported: this is a
 // separate repository, and a shared package between the two would couple a
 // product's deploys to a local tool's refactors.

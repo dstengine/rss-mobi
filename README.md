@@ -1,17 +1,29 @@
 # rss.mobi
 
-A directory of RSS feeds, a mobile reader and a feed API. Anyone can submit
-a feed; it is live as soon as it is read. Astro (server output) on Vercel,
-MongoDB Atlas, Upstash Redis.
+[rss.mobi](https://rss.mobi/) is a directory of RSS feeds, with a mobile
+reader and a feed API on the way. Anyone can submit a feed: it is found
+from a site or feed address, read, and live straight away, with no account
+and no review queue. Each feed gets a page with its latest posts and
+one-tap links to follow it in Feedly, Inoreader, NetNewsWire or any other
+reader.
 
-Rules for working on it: [`AGENTS.md`](AGENTS.md). Decisions:
-[`docs/decisions/`](docs/decisions/). What changed: [`CHANGELOG.md`](CHANGELOG.md).
+Astro (server output) on Vercel, MongoDB, Upstash Redis. Feeds are parsed
+from RSS 2.0, RSS 1.0 (RDF), Atom and JSON Feed.
+
+- What changed: [`CHANGELOG.md`](CHANGELOG.md)
+- Why it is built this way: [`docs/decisions/`](docs/decisions/)
+- Rules for working on the code, for people and agents alike:
+  [`AGENTS.md`](AGENTS.md)
+- Running it in production: [`docs/operations.md`](docs/operations.md)
 
 ## Run it
 
+Node 24 and Docker. MongoDB 7 runs locally; 8 refuses to start on some
+Docker Desktop kernels.
+
 ```
-docker start rss-mobi-mongo7 || docker run -d --name rss-mobi-mongo7 \
-  -p 127.0.0.1:27018:27017 -v rss-mobi-mongo7:/data/db mongo:7
+docker run -d --name rss-mobi-mongo7 -p 127.0.0.1:27018:27017 \
+  -v rss-mobi-mongo7:/data/db mongo:7
 cat > .env.local <<'X'
 MONGODB_CONNECTION_STRING=mongodb://127.0.0.1:27018/?directConnection=true
 MONGODB_DB=rssmobi_dev
@@ -22,60 +34,35 @@ npm run migrate
 npm run dev            # http://localhost:4340
 ```
 
-Poll feeds by hand: `curl -X POST localhost:4340/api/v1/cron/fetch -H
-"Authorization: Bearer dev-cron-secret-0123456789" -H "Content-Type:
-application/json" -d '{}'`.
-
-## Configuration
-
-Production secrets live in `.env` (never committed; see `.env.example`) and
-are copied to Vercel and GitHub by `scripts/sync-secrets.sh`, which never
-prints a value.
-
-The database is MongoDB Atlas: organisation, project and cluster are all
-named `rss-mobi` (free M0, AWS us-east-1). The app connects as
-`rssmobi-app`, which can read and write the `rssmobi` database and nothing
-else. The access list is `0.0.0.0/0` because neither Vercel nor GitHub
-Actions has fixed addresses, so the password is the whole defence.
-
-`.env.local` wins over `.env`, so a local script run plainly talks to the
-local database. To aim one at Atlas, load `.env` first:
+Submit a feed at `/submit/`, then poll by hand:
 
 ```
-node --env-file=.env scripts/migrate.mjs rssmobi
+curl -X POST localhost:4340/api/v1/cron/fetch \
+  -H "Authorization: Bearer dev-cron-secret-0123456789" \
+  -H "Content-Type: application/json" -d '{}'
 ```
 
-## Jobs
-
-The public repository `dstengine/rss-mobi-cron` calls `/api/v1/cron/*`
-every 15 minutes with `CRON_SECRET` (why public: ADR 0003). Its files live
-in `cron/` here; `scripts/publish-cron.sh` pushes them. `.github/workflows/backup.yml` backs the database up every
-night.
-
-## Backups and restore
-
-Nightly at 02:00 UTC: `mongodump --gzip --archive`, encrypted with
-[age](https://age-encryption.org) to the public key in `AGE_PUBLIC_KEY`,
-uploaded to the R2 bucket `rss-mobi-backups`. After a successful upload,
-archives older than 30 days are deleted — **except the newest**, whatever
-its age. A copy lands in iCloud Drive (`Backups/rss.mobi/`) each morning
-through `scripts/backup-pull.mjs` and the LaunchAgent
-`scripts/mobi.rss.backup-pull.plist`, under the same rule.
-
-The private key is `~/.config/rss-mobi/age.key`, with a copy in the
-owner's password manager. Without it the archives cannot be read.
-
-To restore — always into a new database first:
+## Test
 
 ```
-brew install age mongodb-database-tools
-node scripts/backup.mjs list                      # or use a file from iCloud
-scripts/restore.sh rssmobi-2026-09-23T02-00-05Z.archive.gz.age rssmobi_restore_test
+npm test                                      # unit tests, no services needed
+RSS_MOBI_BASE=http://localhost:4340 npm run test:live
+npm run seo -- http://localhost:4340          # titles, sitemaps, robots
 ```
 
-`rssmobi-app` cannot write `rssmobi_restore_test` on Atlas, so the test
-restore goes to the local database: pass
-`mongodb://127.0.0.1:27018/?directConnection=true` as the third argument.
-Compare document counts between `rssmobi` and `rssmobi_restore_test`, then
-restore into the live name only if that is really what is wanted. Drop the
-test database afterwards — deliberately, by hand.
+`test:live` fetches every page type as Googlebot and as a phone and fails
+if the HTML differs: nothing here may show a crawler something else than a
+reader.
+
+## Contributing
+
+Issues and pull requests are welcome. Code, comments and docs are in
+English. A change is ready when `npm test` passes, `npm run seo` is clean
+and `CHANGELOG.md` says what changed; `AGENTS.md` lists the rules that are
+easy to break. Security problems: see [`SECURITY.md`](SECURITY.md), not a
+public issue.
+
+## Licence
+
+[GNU Affero General Public License v3.0](LICENSE). If you run a modified
+version as a service, its users are entitled to its source.

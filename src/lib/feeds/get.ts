@@ -7,7 +7,7 @@
 // refused — including after a redirect, which is how that check is usually
 // walked around. Redirects are followed by hand for exactly that reason.
 //
-// The shape follows `get()` in ~/dst/dst_draft/tools/events-scan.mjs (a
+// The shape follows `get()` in tools/events-scan.mjs of dstengine/dst (a
 // pause per host, a user agent that says who we are, a timeout), plus the
 // conditional GET a poller needs so an unchanged feed costs a 304.
 import { lookup } from "node:dns/promises";

@@ -1,13 +1,13 @@
 # rss.mobi — notes for agents
 
 A directory of RSS feeds, a mobile reader and a feed API, in one Astro SSR
-app on Vercel. Owned by DST; the wider rules are in `~/dst/CLAUDE.md` and
-`~/dst/LOCAL.md`, and they apply here: **English only** in code, comments,
-commits and Markdown; never delete anything — data, pages, test databases —
-without the user's confirmation.
+app on Vercel. Run by [DST](https://dst.llc/). **English only** in code,
+comments, commits and Markdown; never delete anything — data, pages, test
+databases — without the maintainer's confirmation.
 
-Plan and version scope: `~/.claude/plans/mvp-staged-meerkat.md` (v1.0 MVP,
-v1.1 ranking and rewrite, v1.2 policy rules and the DST network).
+Version scope: v1.0 is the MVP (catalogue, reader, collections, API,
+exports, the original-index check), v1.1 adds ranking and rewriting, v1.2
+policy rules and the DST network. Licence: AGPL-3.0, see `LICENSE`.
 
 ## Commands
 
@@ -50,16 +50,17 @@ kernel (SERVER-121912). `.env.local` points at it and wins over `.env`.
   move its date there.** Only pages `policy()` indexes are listed.
 - **Budgets are constants** in `src/lib/budget.ts` (`LIMITS`), reserved
   before the paid call. Never read a budget from the environment.
-- **Secrets** live in `~/dst/rss.mobi/.env`, never in the repo, never
-  printed. The Telegram bot only ever calls `sendMessage`: no webhook.
+- **Secrets** live in `.env` (gitignored), never in the repo, never
+  printed; `scripts/sync-secrets.sh` copies them to Vercel and GitHub. The
+  repository is public, and so are its Actions logs: a workflow prints
+  status codes, never a response body. The Telegram bot only ever calls `sendMessage`: no webhook.
 - **The Google Indexing API is not used** — it is for job postings and
   livestreams only.
 - **Edit tokens travel in the URL fragment** and the `X-Edit-Token`
   header, and are stored as sha256 hashes. Never put one in a query string.
 - **POST endpoints need a JSON content type.** Astro's origin check refuses
   form-typed and untyped cross-site POSTs; the cron workflow
-  (`cron/`, published to the public `dstengine/rss-mobi-cron`) sends
-  `Content-Type: application/json`.
+  (`.github/workflows/cron.yml`) sends `Content-Type: application/json`.
 
 ## Process
 
@@ -69,7 +70,8 @@ kernel (SERVER-121912). `.env.local` points at it and wins over `.env`.
   wired, docs and `CHANGELOG.md` updated.
 - Decisions: `docs/decisions/NNNN-*.md`, each with the condition that would
   reopen it. Lessons: `docs/learnings.md` — observation, evidence, where
-  applied. Network-wide lessons also go to `~/mind/ai/dubai/`.
+  applied. Lessons that hold for every DST site also go to the network's
+  notes.
 - Experiments are registered in code (`EXPERIMENTS` in
   `src/lib/experiments.ts`, see ADR 0005). One primary metric each, a
   minimum sample fixed before starting, a two-proportion z-test at the end,

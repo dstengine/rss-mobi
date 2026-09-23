@@ -74,7 +74,7 @@ describe("sitemap", () => {
     assert.match(xml, /<sitemap><loc>https:\/\/rss\.mobi\/sitemap-feeds-1\.xml<\/loc><lastmod>2026-09-20T00:00:00\.000Z<\/lastmod><\/sitemap>/);
   });
 
-  test("thresholds match dst_draft/tools/sitemap.mjs", () => {
+  test("thresholds match tools/sitemap.mjs in dstengine/dst", () => {
     assert.equal(changefreqFor(2, new Date(Date.now() - 3 * DAY)), "daily");
     assert.equal(changefreqFor(2, new Date(Date.now() - 20 * DAY)), "weekly");
     assert.equal(changefreqFor(2, new Date(Date.now() - 400 * DAY)), "yearly");

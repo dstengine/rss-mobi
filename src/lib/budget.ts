@@ -1,9 +1,10 @@
 // Hard daily ceilings on paid APIs.
 //
-// Modelled on ~/dst/dst_draft/tools/fal-budget.mjs: reserve *before* the
-// call, because a limit checked after the request has been paid for is not
-// a limit; and the ceilings are constants, because one that can be raised
-// by setting a variable is a suggestion — changing it is a commit.
+// Modelled on tools/fal-budget.mjs in https://github.com/dstengine/dst:
+// reserve *before* the call, because a limit checked after the request has
+// been paid for is not a limit; and the ceilings are constants, because one
+// that can be raised by setting a variable is a suggestion — changing it is
+// a commit.
 //
 // The ledger differs: fal-budget keeps a JSON file, and a serverless
 // function has no disk that outlives it. Here each day is one document and

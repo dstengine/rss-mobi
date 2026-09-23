@@ -1,8 +1,8 @@
 /* rss.mobi — one stylesheet, phone first.
    Colours are tokens on :root and redefined for dark mode; nothing below
-   names a colour directly. Rules from ~/mind/ai/dubai/DESIGN.md apply: a
-   card that is itself a link never underlines on hover, and a short link
-   row spells out its 44px tap target. */
+   names a colour directly. Two rules the DST sites share: a card that is
+   itself a link never underlines on hover, and a short link row spells out
+   its 44px tap target. */
 
 :root {
   --bg: #fbfaf8;

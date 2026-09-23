@@ -2,6 +2,12 @@
   "name": "rss-mobi",
   "private": true,
   "version": "0.0.0",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dstengine/rss-mobi"
+  },
+  "homepage": "https://rss.mobi",
   "description": "rss.mobi - RSS feeds directory, mobile reader and feed API.",
   "type": "module",
   "engines": {

@@ -7,6 +7,8 @@ on:
     - cron: "0 2 * * *"
   workflow_dispatch:
 concurrency: backup
+permissions:
+  contents: read
 jobs:
   backup:
     # Off until R2 and the age key exist: repository variable BACKUP_ENABLED=true.

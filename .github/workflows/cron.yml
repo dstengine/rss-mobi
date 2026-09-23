@@ -1,7 +1,7 @@
 name: cron
-# Runs rss.mobi's scheduled jobs. It lives in a public repository of its own
-# because Actions minutes are unlimited there, while the site's code is
-# private. The log is public, so it prints status codes and nothing else.
+# Runs rss.mobi's scheduled jobs; Vercel's own cron runs once a day on this
+# plan. See docs/decisions/0003-cron-via-github-actions.md. The log is
+# public, so it prints status codes and nothing else.
 on:
   schedule:
     - cron: "*/15 * * * *"

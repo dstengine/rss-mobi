@@ -1,7 +1,7 @@
 // What goes in the sitemap and with which date. Only pages policy() calls
 // indexable; each dated by its own updatedAt, and a page with no entry of
 // its own by the newest of what it lists against the date of its copy
-// (site.config.ts COPY_UPDATED). See ~/dst/CLAUDE.md.
+// (site.config.ts COPY_UPDATED). See "Sitemap dates" in AGENTS.md.
 import { feeds } from "./db.ts";
 import { policy } from "./policy.ts";
 import { newest, type Entry } from "./sitemap.ts";

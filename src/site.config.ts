@@ -26,6 +26,8 @@ export const site = {
     { href: "/about/", label: "About", title: "About the rss.mobi RSS feeds directory" },
     { href: "/terms/", label: "Terms", title: "Terms for submitting and reading RSS feeds" },
     { href: "/api/v1/feeds", label: "API", title: "The RSS feeds directory as JSON" },
+    // AGPL-3.0 §13: the people using the site are offered its source.
+    { href: "https://github.com/dstengine/rss-mobi", label: "Source", title: "Source code of this RSS feeds directory, AGPL-3.0" },
   ],
 } as const;
 
