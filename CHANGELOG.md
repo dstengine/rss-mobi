@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Nightly backups are on: the database is dumped, encrypted with age and
+  stored in R2 at 02:00 UTC, and copied to the maintainer's iCloud Drive
+  each morning. The first archive was restored and every collection's
+  count matched.
+- Rate limits and job locks live in Upstash Redis, so a limit holds
+  across every function instance instead of per instance.
+- `scripts/set-secret.mjs` moves a secret from the clipboard into `.env`
+  without it appearing on screen.
+
 ## v0.2 — 23 Sep 2026 (slice 2: reader and collections)
 
 - The reader at `/reader/`: follow feeds with no account, the list kept in
