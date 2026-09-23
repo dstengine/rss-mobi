@@ -19,6 +19,7 @@ npm run migrate      # create indexes (idempotent); `-- rssmobi_test` for anothe
 npm run build
 node --env-file=.env scripts/migrate.mjs rssmobi   # the same, against Atlas
 node scripts/retag.mjs [db] [--write]  # re-apply topic rules to stored tags
+node --env-file=.env scripts/retro-stats.mjs  # this week vs last, for the retro
 ```
 
 `.env.local` wins over `.env`; a script aimed at production needs
@@ -85,7 +86,9 @@ kernel (SERVER-121912). `.env.local` points at it and wins over `.env`.
 ## Process
 
 - Weekly sprints; backlog in GitHub Issues, milestones `v1.0`–`v1.2`,
-  labels `story`, `bug`, `experiment`, `tech-debt`, `learning`.
+  labels `story`, `bug`, `experiment`, `tech-debt`, `learning`. A retro
+  runs on Mondays and opens a PR with `docs/sprints/YYYY-Www.md`; the
+  backlog changes only once the maintainer agrees.
 - Definition of done: tests green, `npm run seo` clean, deployed, events
   wired, docs and `CHANGELOG.md` updated.
 - Decisions: `docs/decisions/NNNN-*.md`, each with the condition that would
