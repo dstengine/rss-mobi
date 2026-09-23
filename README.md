@@ -47,8 +47,9 @@ node --env-file=.env scripts/migrate.mjs rssmobi
 
 ## Jobs
 
-`.github/workflows/cron.yml` calls `/api/v1/cron/*` every 15 minutes with
-`CRON_SECRET`. `.github/workflows/backup.yml` backs the database up every
+The public repository `dstengine/rss-mobi-cron` calls `/api/v1/cron/*`
+every 15 minutes with `CRON_SECRET` (why public: ADR 0003). Its files live
+in `cron/` here; `scripts/publish-cron.sh` pushes them. `.github/workflows/backup.yml` backs the database up every
 night.
 
 ## Backups and restore

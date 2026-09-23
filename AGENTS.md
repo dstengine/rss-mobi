@@ -57,7 +57,8 @@ kernel (SERVER-121912). `.env.local` points at it and wins over `.env`.
 - **Edit tokens travel in the URL fragment** and the `X-Edit-Token`
   header, and are stored as sha256 hashes. Never put one in a query string.
 - **POST endpoints need a JSON content type.** Astro's origin check refuses
-  form-typed and untyped cross-site POSTs; the cron workflow sends
+  form-typed and untyped cross-site POSTs; the cron workflow
+  (`cron/`, published to the public `dstengine/rss-mobi-cron`) sends
   `Content-Type: application/json`.
 
 ## Process

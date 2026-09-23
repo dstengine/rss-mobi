@@ -1,5 +1,5 @@
 // POST /api/v1/cron/fetch — polls the feeds whose turn has come. Called
-// every 15 minutes by .github/workflows/cron.yml with CRON_SECRET; Vercel's
+// every 15 minutes by the rss-mobi-cron workflow (cron/) with CRON_SECRET; Vercel's
 // own cron runs once a day on this plan, which is not a feed reader.
 import type { APIRoute } from "astro";
 import { pollDue } from "../../../../lib/catalog.ts";

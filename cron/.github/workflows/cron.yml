@@ -1,0 +1,43 @@
+name: cron
+# Runs rss.mobi's scheduled jobs. It lives in a public repository of its own
+# because Actions minutes are unlimited there, while the site's code is
+# private. The log is public, so it prints status codes and nothing else.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+    - cron: "17 4 1 * *" # keepalive, see the job below
+  workflow_dispatch:
+concurrency:
+  group: cron
+  cancel-in-progress: false
+permissions: {}
+jobs:
+  fetch:
+    # Off until the site is deployed: set the repository variable
+    # CRON_ENABLED=true. A skipped job costs nothing.
+    if: (vars.CRON_ENABLED == 'true' && github.event.schedule != '17 4 1 * *') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Poll feeds
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          code=$(curl -sS --max-time 75 -o /dev/null -w '%{http_code}' -X POST https://rss.mobi/api/v1/cron/fetch \
+            -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" -d '{}')
+          echo "fetch: HTTP $code"
+          [ "$code" -lt 300 ]
+
+  keepalive:
+    # GitHub switches schedules off in a public repository after 60 days
+    # with no activity. Re-enabling the workflow once a month resets that.
+    if: github.event.schedule == '17 4 1 * *'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      actions: write
+    steps:
+      - name: Keep the schedule enabled
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/cron.yml/enable"
