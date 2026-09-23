@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — v0.2 (slice 2: reader and collections)
+## v0.2 — 23 Sep 2026 (slice 2: reader and collections)
 
 - The reader at `/reader/`: follow feeds with no account, the list kept in
   the browser; newest posts from all of them in one list, one feed at a
