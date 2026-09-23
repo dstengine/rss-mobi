@@ -60,7 +60,9 @@ kernel (SERVER-121912). `.env.local` points at it and wins over `.env`.
 - **Budgets are constants** in `src/lib/budget.ts` (`LIMITS`), reserved
   before the paid call. Never read a budget from the environment.
 - **Secrets** live in `.env` (gitignored), never in the repo, never
-  printed; `scripts/sync-secrets.sh` copies them to Vercel and GitHub. The
+  printed. A person adds one with `scripts/set-secret.mjs NAME`, which
+  takes it from the clipboard; `scripts/sync-secrets.sh` copies them to
+  Vercel and GitHub. The
   repository is public, and so are its Actions logs: a workflow prints
   status codes, never a response body. The Telegram bot only ever calls
   `sendMessage`: no webhook.
