@@ -12,7 +12,7 @@ set -euo pipefail
 archive=${1:?archive path}
 target=${2:?target database name}
 cd "$(dirname "$0")/.."
-if [ -z "${3:-}" ]; then set -a; . ./.env; set +a; uri=$MONGODB_CONNECTION_STRING; else uri=$3; fi
+if [ -z "${3:-}" ]; then . scripts/lib/env.sh; load_env .env; uri=$MONGODB_CONNECTION_STRING; else uri=$3; fi
 key=${AGE_KEY_FILE:-$HOME/.config/rss-mobi/age.key}
 
 age -d -i "$key" "$archive" | mongorestore --uri="$uri" --gzip --archive \

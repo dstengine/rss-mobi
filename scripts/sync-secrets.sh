@@ -9,7 +9,7 @@
 # Upstash's KV_* variables are not here: the Vercel Marketplace sets them.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-set -a; . ./.env; set +a
+. scripts/lib/env.sh; load_env .env
 replace=${1:-}
 REPO=dstengine/rss-mobi
 CRON_REPO=dstengine/rss-mobi-cron
