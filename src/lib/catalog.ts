@@ -3,7 +3,7 @@ import { ObjectId, type AnyBulkWriteOperation } from "mongodb";
 import { blocklist, feeds, items } from "./db.ts";
 import { discover } from "./feeds/discover.ts";
 import { get, FetchError } from "./feeds/get.ts";
-import { parseFeed, itemKey, tag, NotAFeed, type ParsedFeed } from "./feeds/parse.ts";
+import { parseFeed, itemKey, topic, ownName, NotAFeed, type ParsedFeed, type Site } from "./feeds/parse.ts";
 import { canonical, hostOf, slugify } from "./feeds/url.ts";
 import { lock, unlock } from "./cache.ts";
 import { alert, indexNow } from "./notify.ts";
@@ -62,7 +62,7 @@ export async function submit(input: string, opts: { tags?: string[]; ipHash?: st
 
   const now = new Date();
   const editToken = newToken();
-  const userTags = (opts.tags ?? []).map(tag).filter(Boolean).slice(0, MAX_TAGS);
+  const userTags = (opts.tags ?? []).map(topic).filter(Boolean).slice(0, MAX_TAGS);
   const doc: FeedDoc = {
     _id: new ObjectId(),
     slug: await freeSlug(parsed.title, host),
@@ -73,7 +73,7 @@ export async function submit(input: string, opts: { tags?: string[]; ipHash?: st
     title: parsed.title.slice(0, 200),
     description: parsed.description,
     lang: parsed.lang,
-    tags: feedTags(userTags, parsed),
+    tags: feedTags(userTags, parsed, { title: parsed.title, host }),
     image: parsed.image,
     format: parsed.format,
     status: "active",
@@ -129,12 +129,13 @@ async function freeSlug(title: string, host: string): Promise<string> {
 }
 
 /** The submitter's tags first, then the categories the feed itself uses
-    most, up to five. */
-export function feedTags(userTags: string[], parsed: Pick<ParsedFeed, "items">): string[] {
+    most, up to five; never the site's own name. */
+export function feedTags(userTags: string[], parsed: Pick<ParsedFeed, "items">, self?: Site): string[] {
   const counts = new Map<string, number>();
   for (const it of parsed.items) for (const t of it.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
   const popular = [...counts.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).map(([t]) => t);
-  return [...new Set([...userTags, ...popular])].slice(0, MAX_TAGS);
+  const all = [...new Set([...userTags, ...popular])];
+  return (self ? all.filter((t) => !ownName(t, self)) : all).slice(0, MAX_TAGS);
 }
 
 /* --------------------------------------------------------------- storing */
@@ -156,7 +157,7 @@ export async function store(feed: FeedDoc, parsed: ParsedFeed): Promise<number> 
       excerpt: it.excerpt,
       image: it.image,
       author: it.author,
-      tags: [...new Set([...it.tags, ...feed.tags])].slice(0, 10),
+      tags: [...new Set([...it.tags.filter((t) => !ownName(t, feed)), ...feed.tags])].slice(0, 10),
       lang: feed.lang,
       publishedAt: it.publishedAt ?? now,
       visible: feed.status === "active",

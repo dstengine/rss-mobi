@@ -165,7 +165,7 @@ function parseAtom(feed: any, base: string): ParsedFeed {
         image: mediaImage(e, siteUrl) ?? firstImg(html, siteUrl),
         author: unescape(text(e.author?.name)) || undefined,
         publishedAt: date(text(e.published) || text(e.updated)),
-        tags: (e.category ?? []).map((c: any) => text(c?.["@term"] ?? c)).map(tag).filter(Boolean),
+        tags: (e.category ?? []).map((c: any) => text(c?.["@term"] ?? c)).map(topic).filter(Boolean),
       };
     }).filter(valid),
   };
@@ -208,7 +208,7 @@ function parseJson(body: string, base: string): ParsedFeed {
         image: absolute(it.image ?? it.banner_image ?? "", siteUrl) || undefined,
         author: unescape(it.authors?.[0]?.name ?? it.author?.name ?? "") || undefined,
         publishedAt: date(it.date_published ?? it.date_modified ?? ""),
-        tags: (Array.isArray(it.tags) ? it.tags : []).map(tag).filter(Boolean),
+        tags: (Array.isArray(it.tags) ? it.tags : []).map(topic).filter(Boolean),
       };
     }).filter(valid),
   };
@@ -229,16 +229,67 @@ const first = <T,>(v: T | T[] | undefined): T | undefined => (Array.isArray(v) ?
 
 function categories(v: any): string[] {
   const list = Array.isArray(v) ? v : v ? [v] : [];
-  return [...new Set(list.map((c) => tag(text(c))).filter(Boolean))].slice(0, 10);
+  return [...new Set(list.map((c) => topic(text(c))).filter(Boolean))].slice(0, 10);
 }
 
 /** A category as a tag: lower case, hyphenated, short. Categories are
     whatever the publisher's CMS emits, so anything long is a sentence rather
-    than a topic and is dropped. */
+    than a topic and is dropped. Filters normalise with this too, so it
+    keeps every word — "exclude=sponsored" has to keep working. */
 export function tag(s: unknown): string {
   const t = unescape(s).toLowerCase().normalize("NFKC").replace(/[\s_/]+/g, "-").replace(/[^\p{L}\p{N}-]+/gu, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
   return t.length >= 2 && t.length <= 32 ? t : "";
 }
+
+/** A tag worth storing as a topic: `tag()` minus STOP_TAGS. Everything
+    that files a feed or a post under a topic goes through this. */
+export function topic(s: unknown): string {
+  const t = tag(s);
+  return STOP_TAGS.has(t) ? "" : t;
+}
+
+/** Categories that name the CMS's bookkeeping or the post's format, not
+    what it is about. Every blog has "uncategorized"; as a topic it would
+    gather the whole catalogue and mean nothing. Only words that are never a
+    subject go here — "news", "video" and "podcast" are topics someone
+    browses for, and stay. */
+export const STOP_TAGS: ReadonlySet<string> = new Set([
+  // Defaults a CMS fills in
+  "uncategorized", "uncategorised", "general", "misc", "miscellaneous", "other", "others", "various", "random",
+  "default", "none", "null", "undefined", "untagged", "na", "n-a", "all",
+  // What the post is, not what it is about
+  "blog", "blogs", "blog-post", "blog-posts", "post", "posts", "article", "articles", "entry", "entries",
+  "link", "links", "resource", "resources", "page", "pages", "archive", "archives",
+  "tag", "tags", "category", "categories",
+  // Placement on the publisher's own site
+  "featured", "feature", "features", "featured-posts", "highlights", "sticky", "homepage", "front-page",
+  "frontpage", "main", "top", "top-stories", "latest", "latest-news", "new", "recent", "update", "updates",
+  "trending", "popular", "editors-pick", "editors-picks", "recommended",
+  // Paid placement
+  "sponsored", "sponsor", "ad", "ads", "advert", "advertisement", "promoted", "partner-content",
+]);
+
+export type Site = { title: string; host: string };
+
+/** A category that is the site's own name — "daring-fireball" on
+    daringfireball.net — says where a post is from, which the page says
+    already. As a topic it would only ever hold that one feed. */
+export function ownName(t: string, site: Site): boolean {
+  const flat = (s: string) => s.replace(/-/g, "");
+  const names = [tag(site.title), siteName(site.host)].map(flat).filter(Boolean);
+  return names.includes(flat(t));
+}
+
+/** The registrable name in a host: "ycombinator" in news.ycombinator.com,
+    "example" in blog.example.co.uk. Subdomains are words like "news" and
+    "blog", which are topics, not names. */
+function siteName(host: string): string {
+  const labels = host.toLowerCase().split(".").slice(0, -1);
+  if (labels.length > 1 && SECOND_LEVEL.has(labels.at(-1)!)) labels.pop();
+  return labels.at(-1) ?? "";
+}
+
+const SECOND_LEVEL = new Set(["co", "com", "org", "net", "ac", "gov", "edu", "ne", "or"]);
 
 function mediaImage(it: any, base: string): string | undefined {
   const candidates = [

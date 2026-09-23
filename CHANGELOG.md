@@ -20,5 +20,8 @@
   Every push to `main` deploys; pull requests get previews.
 - Scheduled jobs from GitHub Actions (`.github/workflows/cron.yml`) every
   15 minutes, with a monthly keepalive against GitHub's 60-day pause.
+- Topics skip CMS bookkeeping ("uncategorized", "articles", "links",
+  "featured"…) and a site's own name; `scripts/retag.mjs` cleans what was
+  stored before.
 - Source published under the AGPL-3.0, linked from every page's footer;
   security reports through GitHub's private vulnerability reporting.

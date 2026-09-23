@@ -18,6 +18,7 @@ npm run test:live    # RSS_MOBI_BASE=… — same HTML for Googlebot and a phone
 npm run migrate      # create indexes (idempotent); `-- rssmobi_test` for another db
 npm run build
 node --env-file=.env scripts/migrate.mjs rssmobi   # the same, against Atlas
+node scripts/retag.mjs [db] [--write]  # re-apply topic rules to stored tags
 ```
 
 `.env.local` wins over `.env`; a script aimed at production needs
@@ -48,12 +49,19 @@ kernel (SERVER-121912). `.env.local` points at it and wins over `.env`.
   page that lists feeds by the newest of what it lists, against its copy
   date in `COPY_UPDATED` (`src/site.config.ts`). **Edit a page's text —
   move its date there.** Only pages `policy()` indexes are listed.
+- **Topics go through `topic()`, filters through `tag()`**
+  (`src/lib/feeds/parse.ts`). `topic()` drops `STOP_TAGS` — words like
+  "uncategorized" and "links" that describe the CMS, not the subject — and
+  a feed's categories also lose the site's own name. Filters keep every
+  word, so `exclude=sponsored` works. A new stop word needs
+  `scripts/retag.mjs` run against production.
 - **Budgets are constants** in `src/lib/budget.ts` (`LIMITS`), reserved
   before the paid call. Never read a budget from the environment.
 - **Secrets** live in `.env` (gitignored), never in the repo, never
   printed; `scripts/sync-secrets.sh` copies them to Vercel and GitHub. The
   repository is public, and so are its Actions logs: a workflow prints
-  status codes, never a response body. The Telegram bot only ever calls `sendMessage`: no webhook.
+  status codes, never a response body. The Telegram bot only ever calls
+  `sendMessage`: no webhook.
 - **The Google Indexing API is not used** — it is for job postings and
   livestreams only.
 - **Edit tokens travel in the URL fragment** and the `X-Edit-Token`

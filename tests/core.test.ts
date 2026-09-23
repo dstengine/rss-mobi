@@ -7,6 +7,7 @@ import { assign, zTest, hash32, type Experiment } from "../src/lib/experiments.t
 import { reserve, headroom, BudgetExceeded, LIMITS } from "../src/lib/budget.ts";
 import { spamReason } from "../src/lib/spam.ts";
 import { feedTags } from "../src/lib/catalog.ts";
+import { tag, topic, ownName } from "../src/lib/feeds/parse.ts";
 import { matches, sha256, newToken } from "../src/lib/tokens.ts";
 
 const DAY = 86_400_000;
@@ -197,6 +198,29 @@ describe("catalog helpers", () => {
   test("feed tags: submitter's first, then the feed's recurring categories", () => {
     const parsed = { items: [{ tags: ["a", "b"] }, { tags: ["b", "c"] }, { tags: ["b"] }] } as any;
     assert.deepEqual(feedTags(["mine"], parsed), ["mine", "b"]);
+  });
+
+  test("tags: bookkeeping categories are not topics", () => {
+    for (const t of ["Uncategorized", "Articles", "links", "Resource", "Featured Posts", "blog_posts"]) assert.equal(topic(t), "", t);
+    for (const t of ["news", "video", "podcast", "RSS", "CSS", "web development"]) assert.notEqual(topic(t), "", t);
+    // Filters keep every word: excluding sponsored posts must still work.
+    assert.equal(tag("Sponsored"), "sponsored");
+  });
+
+  test("tags: a site's own name is not a topic", () => {
+    const site = { title: "Daring Fireball", host: "daringfireball.net" };
+    assert.ok(ownName("daring-fireball", site));
+    assert.ok(ownName("daringfireball", site));
+    assert.ok(!ownName("apple", site));
+    assert.ok(ownName("css-tricks", { title: "CSS-Tricks", host: "css-tricks.com" }));
+    assert.ok(!ownName("css", { title: "CSS-Tricks", host: "css-tricks.com" }));
+    // A subdomain is not the site's name: "news" stays a topic here.
+    const hn = { title: "Hacker News: Front Page", host: "news.ycombinator.com" };
+    assert.ok(!ownName("news", hn));
+    assert.ok(ownName("ycombinator", hn));
+    assert.ok(ownName("example", { title: "A blog", host: "blog.example.co.uk" }));
+    const parsed = { items: [{ tags: ["daring-fireball", "apple"] }, { tags: ["daring-fireball", "apple"] }] } as any;
+    assert.deepEqual(feedTags(["tech"], parsed, site), ["tech", "apple"]);
   });
 
   test("tokens are stored as hashes and compared in constant time", () => {

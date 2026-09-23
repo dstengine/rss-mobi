@@ -5,7 +5,7 @@
 import type { APIContext } from "astro";
 import { feeds, items } from "./db.ts";
 import { MAX_TAGS, setStatus } from "./catalog.ts";
-import { tag as toTag } from "./feeds/parse.ts";
+import { topic } from "./feeds/parse.ts";
 import { error, limitIp } from "./http.ts";
 import { matches } from "./tokens.ts";
 import type { FeedDoc } from "./types.ts";
@@ -40,7 +40,7 @@ export async function applyEdit(feed: FeedDoc, req: EditRequest): Promise<FeedDo
   const set: Partial<FeedDoc> = {};
   if (req.tags !== undefined) {
     if (!Array.isArray(req.tags)) return error(400, "tags must be a list of strings.");
-    const tags = [...new Set(req.tags.filter((t): t is string => typeof t === "string").map(toTag).filter(Boolean))].slice(0, MAX_TAGS);
+    const tags = [...new Set(req.tags.filter((t): t is string => typeof t === "string").map(topic).filter(Boolean))].slice(0, MAX_TAGS);
     if (tags.join() !== feed.tags.join()) set.tags = tags;
   }
   if (req.nofollow !== undefined) {
