@@ -3,6 +3,12 @@
 How the live site at rss.mobi is run. None of this is needed to work on
 the code locally; see the [README](../README.md) for that.
 
+## Deploys
+
+Vercel builds every push: `main` goes to production at rss.mobi, and a
+pull request gets a preview URL. `vercel deploy --prod` from a clean
+checkout of `main` does the same by hand, if GitHub is ever the problem.
+
 ## Configuration
 
 Production secrets live in `.env` at the repository root (never committed;
