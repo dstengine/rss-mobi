@@ -15,10 +15,21 @@ export interface ParsedItem {
   url: string;
   title: string;
   excerpt: string;
+  /** The post as the feed publishes it, raw HTML. Passed on, never stored
+      (catalog.ts names the fields it keeps). */
+  content?: string;
+  /** Audio and video attached to the post: a podcast's episode. */
+  media?: Media[];
   image?: string;
   author?: string;
   publishedAt?: Date;
   tags: string[];
+}
+
+export interface Media {
+  url: string;
+  type: string;
+  length?: number;
 }
 
 export interface ParsedFeed {
@@ -104,6 +115,8 @@ function rssItem(it: any, base: string): ParsedItem {
     // constantly. The start of its text is the best name it has.
     title: unescape(text(it.title)) || clip(excerpt, 90),
     excerpt,
+    content: html || undefined,
+    media: media(it, base),
     image: mediaImage(it, base) ?? firstImg(html, base),
     author: unescape(text(it["dc:creator"]) || text(it.author)) || undefined,
     publishedAt: date(text(it.pubDate) || text(it["dc:date"])),
@@ -135,6 +148,7 @@ function parseRdf(rdf: any, base: string): ParsedFeed {
         url,
         title: unescape(text(it.title)),
         excerpt: clip(unescape(text(it.description)), EXCERPT_MAX),
+        content: text(it["content:encoded"]) || text(it.description) || undefined,
         author: unescape(text(it["dc:creator"])) || undefined,
         publishedAt: date(text(it["dc:date"])),
         tags: categories(it["dc:subject"]),
@@ -162,6 +176,13 @@ function parseAtom(feed: any, base: string): ParsedFeed {
         url,
         title: unescape(text(e.title)),
         excerpt: clip(unescape(text(e.summary) || html), EXCERPT_MAX),
+        content: html || undefined,
+        media: [
+          ...media(e, siteUrl),
+          ...(e.link ?? [])
+            .filter((l: any) => l?.["@rel"] === "enclosure" && /^(audio|video)\//.test(l?.["@type"] ?? ""))
+            .map((l: any) => ({ url: absolute(l["@href"], siteUrl), type: l["@type"], length: Number(l["@length"]) || undefined })),
+        ].filter((m) => m.url),
         image: mediaImage(e, siteUrl) ?? firstImg(html, siteUrl),
         author: unescape(text(e.author?.name)) || undefined,
         publishedAt: date(text(e.published) || text(e.updated)),
@@ -205,6 +226,11 @@ function parseJson(body: string, base: string): ParsedFeed {
         url,
         title: unescape(it.title ?? ""),
         excerpt: clip(unescape(it.summary ?? it.content_text ?? it.content_html ?? ""), EXCERPT_MAX),
+        content: it.content_html ?? (it.content_text ? plainToHtml(String(it.content_text)) : undefined),
+        media: (Array.isArray(it.attachments) ? it.attachments : [])
+          .filter((a: any) => /^(audio|video)\//.test(a?.mime_type ?? ""))
+          .map((a: any) => ({ url: absolute(a.url ?? "", siteUrl), type: a.mime_type, length: Number(a.size_in_bytes) || undefined }))
+          .filter((m: Media) => m.url),
         image: absolute(it.image ?? it.banner_image ?? "", siteUrl) || undefined,
         author: unescape(it.authors?.[0]?.name ?? it.author?.name ?? "") || undefined,
         publishedAt: date(it.date_published ?? it.date_modified ?? ""),
@@ -300,6 +326,26 @@ function mediaImage(it: any, base: string): string | undefined {
   ];
   const url = candidates.map((c: any) => c?.["@url"]).find(Boolean);
   return url ? absolute(url, base) || undefined : undefined;
+}
+
+/** Audio and video enclosures, and media:content that is audio or video. */
+function media(it: any, base: string): Media[] {
+  const list = [
+    ...(it.enclosure ?? []).map((e: any) => ({ url: e?.["@url"], type: e?.["@type"] ?? "", length: e?.["@length"] })),
+    ...(it["media:content"] ?? [])
+      .filter((m: any) => m?.["@medium"] === "audio" || m?.["@medium"] === "video" || /^(audio|video)\//.test(m?.["@type"] ?? ""))
+      .map((m: any) => ({ url: m?.["@url"], type: m?.["@type"] ?? `${m["@medium"]}/*`, length: m?.["@fileSize"] })),
+  ];
+  const seen = new Set<string>();
+  return list
+    .filter((m) => /^(audio|video)\//.test(m.type) && m.url)
+    .map((m) => ({ url: absolute(m.url, base), type: m.type, length: Number(m.length) || undefined }))
+    .filter((m) => m.url && !seen.has(m.url) && seen.add(m.url));
+}
+
+function plainToHtml(s: string): string {
+  const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s.split(/\n{2,}/).map((p) => `<p>${esc(p.trim()).replace(/\n/g, "<br>")}</p>`).join("");
 }
 
 function firstImg(html: string, base: string): string | undefined {

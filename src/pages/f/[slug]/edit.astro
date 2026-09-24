@@ -15,7 +15,7 @@ Astro.response.headers.set("Cache-Control", NO_STORE);
 Astro.response.headers.set("Referrer-Policy", "no-referrer");
 ---
 
-<Base title="Edit your feed" description="Change the topics of a feed in the rss.mobi directory of RSS feeds, or take it down." robots={decision.robots} path={`/f/${slug}/edit/`}>
+<Base title="Edit your feed" description="Change the topics of a feed in the rss.mobi directory of RSS feeds, choose what its copy carries, or take it down." robots={decision.robots} path={`/f/${slug}/edit/`}>
   <h1>Edit your feed</h1>
   <p id="state" class="muted" role="status">Checking your edit link…</p>
 
@@ -23,6 +23,9 @@ Astro.response.headers.set("Referrer-Policy", "no-referrer");
     <p><a id="page-link" href={`/feed/${slug}/`} title="The feed's public page">View the public page</a></p>
     <label for="tags">Topics <span class="hint">Up to {MAX_TAGS}, separated by commas.</span></label>
     <input id="tags" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" />
+
+    <label><input id="excerpts" type="checkbox" /> Only excerpts in the rss.mobi copy of my feed</label>
+    <span class="hint">By default <a href={`/feed/${slug}/rss.xml`} title="The rss.mobi copy of this RSS feed">the copy</a> carries each post whole, pictures and audio included, as your feed does. It is read from your feed when a reader asks and never stored.</span>
 
     <label><input id="nofollow" type="checkbox" /> Mark links to my site nofollow</label>
     <span class="hint">By default links are followed while your post is not yet in Google, and marked user content after that.</span>
@@ -48,10 +51,11 @@ Astro.response.headers.set("Referrer-Policy", "no-referrer");
   const headers = { "Content-Type": "application/json", "X-Edit-Token": token };
   const $ = (id: string) => document.querySelector<HTMLInputElement>(id)!;
 
-  function fill(feed: { title: string; tags: string[]; status: string; linkMode: string | null }) {
+  function fill(feed: { title: string; tags: string[]; status: string; linkMode: string | null; copy: string }) {
     state.textContent = `Editing “${feed.title}”.`;
     $("#tags").value = feed.tags.join(", ");
     $("#nofollow").checked = feed.linkMode === "nofollow";
+    $("#excerpts").checked = feed.copy === "excerpt";
     $("#hidden").checked = feed.status === "hidden";
     $("#hidden").disabled = feed.status === "disabled";
     if (feed.status === "disabled") state.textContent += " It stopped answering and is no longer checked.";
@@ -81,6 +85,7 @@ Astro.response.headers.set("Referrer-Policy", "no-referrer");
       body: JSON.stringify({
         tags: $("#tags").value.split(",").map((t) => t.trim()).filter(Boolean),
         nofollow: $("#nofollow").checked,
+        excerpts: $("#excerpts").checked,
         hidden: $("#hidden").checked,
       }),
     });

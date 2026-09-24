@@ -78,6 +78,29 @@
   after another; they are worked through in order, and one with no feed
   comes back into the box and stays named in the message. Only a feed new
   to the directory counts against the five submissions an hour.
+- A feed's copy at `/feed/<slug>/rss.xml` now carries what its original
+  carries: each post whole in `<content:encoded>`, its pictures, and a
+  podcast's episode as an `<enclosure>`, with a thumbnail per post and the
+  feed's image. The original is read when the CDN asks (every five
+  minutes at most), so new posts appear within minutes instead of at the
+  next hourly poll, and nothing of it is stored: `src/lib/copy.ts`. The
+  HTML goes through an allowlist first (`src/lib/feeds/clean.ts`): no
+  scripts, styles or handlers, embeds from YouTube and Vimeo only,
+  addresses made absolute, lazy-loaded pictures resolved, counting pixels
+  dropped. Posts the original has dropped still fill the copy up to 50, as
+  excerpts, and when the original does not answer in six seconds the
+  stored excerpts go out alone. Posts are matched by their stored key, so
+  a linked-list blog's two posts at one address (Daring Fireball) are both
+  kept. Measured against eight originals, the copy now has the same posts,
+  text and pictures.
+- The owner can keep the copy to excerpts from the edit link (`copy` on
+  the feed, `excerpts` in the edit request).
+- Feedly, Inoreader, Feedbin and other readers that count their followers
+  in the user agent have that count recorded when they fetch a copy, and
+  our crawler passes the week's total on to the original the same way
+  (`rss.mobi/1.0 (+https://rss.mobi/about/; 16 subscribers)`), so a
+  publisher's follower count stays whole. The about, terms and submit
+  pages and the footer say so.
 - The terms and about pages name an address for complaints and removal
   requests, rss-mobi@vvm.space, besides the report form (#12).
 - Every new post's original is checked in Google, in the order posts

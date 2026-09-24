@@ -8,6 +8,8 @@ export type LinkMode = "direct" | "ugc" | "nofollow" | "hop" | "none";
 
 export type FeedStatus = "active" | "hidden" | "disabled";
 
+export type Copy = "full" | "excerpt";
+
 export interface FeedDoc {
   _id: ObjectId;
   slug: string;
@@ -36,6 +38,13 @@ export interface FeedDoc {
   linkMode: LinkMode | null;
   /** When IndexNow was first told this feed's page is indexable. */
   announcedAt?: Date;
+  /** What our copy of the feed carries: the whole post, as the original
+      does (the default), or only an excerpt — the owner's choice. */
+  copy?: Copy;
+  /** Readers that fetch our copy and say how many follow it, by reader:
+      forwarded in our own user agent to the original, so a publisher's
+      count of followers does not drop when they read through us. */
+  subscribers?: Record<string, { n: number; at: Date }>;
   submittedIpHash?: string;
   createdAt: Date;
   updatedAt: Date;

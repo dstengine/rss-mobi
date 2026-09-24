@@ -42,6 +42,9 @@ export interface GetOptions {
   lastModified?: string;
   accept?: string;
   timeout?: number;
+  /** Followers the readers fetching our copy report, passed on the way
+      Feedly and Inoreader pass theirs: "; 16 subscribers" in the agent. */
+  subscribers?: number;
   /** Tests resolve names themselves; production never passes this. */
   resolve?: (host: string) => Promise<string[]>;
 }
@@ -54,7 +57,7 @@ export async function get(url: string, opts: GetOptions = {}): Promise<Fetched> 
     const u = await assertPublic(current, opts.resolve);
     await pause(u.host);
     const headers: Record<string, string> = {
-      "User-Agent": UA,
+      "User-Agent": opts.subscribers ? UA.replace(/\)$/, `; ${opts.subscribers} subscribers)`) : UA,
       Accept:
         opts.accept ??
         "application/rss+xml, application/atom+xml, application/feed+json, application/xml;q=0.9, text/xml;q=0.9, text/html;q=0.8, */*;q=0.5",

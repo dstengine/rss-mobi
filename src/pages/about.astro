@@ -32,7 +32,14 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
     <h2>What is shown</h2>
     <p>
       The feed's title, description and the latest posts it publishes: each post's title, a short excerpt, its date and a link to the original.
-      Full articles are not copied. Posts older than ninety days drop out.
+      Posts older than ninety days drop out.
+    </p>
+
+    <h2>A copy of every feed</h2>
+    <p>
+      Every feed's page offers an RSS address of its own at rss.mobi to follow in any reader. It carries what the original carries — whole posts,
+      pictures, a podcast's episodes — read from the original when a reader asks, never more than five minutes old, and never stored. The one who
+      submitted a feed can keep its copy to excerpts from their edit link.
     </p>
 
     <h2>How feeds are checked</h2>
@@ -40,6 +47,11 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
       Every feed is fetched about once an hour by a crawler that identifies itself as <code>{UA}</code>. It sends the ETag and Last-Modified the
       site gave last time, so an unchanged feed costs a 304 and nothing else. A feed that fails is tried less and less often, and after ten
       failures in a row it is retired.
+    </p>
+    <p>
+      Readers such as Feedly and Inoreader say in their user agent how many people follow a feed. When they fetch a copy from rss.mobi, that
+      number is passed on to the original the same way (<code>; 16 subscribers</code> at the end of ours), so a publisher's count of followers
+      stays whole.
     </p>
 
     <h2>Taking a feed down</h2>

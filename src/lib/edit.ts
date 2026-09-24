@@ -8,9 +8,9 @@ import { MAX_TAGS, setStatus } from "./catalog.ts";
 import { topic } from "./feeds/parse.ts";
 import { error, limitIp } from "./http.ts";
 import { matches } from "./tokens.ts";
-import type { FeedDoc } from "./types.ts";
+import type { Copy, FeedDoc } from "./types.ts";
 
-export type Editable = Pick<FeedDoc, "slug" | "title" | "url" | "tags" | "status" | "linkMode">;
+export type Editable = Pick<FeedDoc, "slug" | "title" | "url" | "tags" | "status" | "linkMode"> & { copy: Copy };
 
 /** The feed this request may edit, or the Response refusing it. */
 export async function authorise(ctx: APIContext): Promise<FeedDoc | Response> {
@@ -25,16 +25,27 @@ export async function authorise(ctx: APIContext): Promise<FeedDoc | Response> {
   return feed;
 }
 
-export const editable = (f: FeedDoc): Editable => ({ slug: f.slug, title: f.title, url: f.url, tags: f.tags, status: f.status, linkMode: f.linkMode });
+export const editable = (f: FeedDoc): Editable => ({
+  slug: f.slug,
+  title: f.title,
+  url: f.url,
+  tags: f.tags,
+  status: f.status,
+  linkMode: f.linkMode,
+  copy: f.copy ?? "full",
+});
 
 export interface EditRequest {
   tags?: unknown;
   hidden?: unknown;
   nofollow?: unknown;
+  /** True keeps our copy of the feed to excerpts. */
+  excerpts?: unknown;
 }
 
 /** Applies what the owner may change: topics, whether the feed is listed,
-    and whether our links to it are followed. Owners can ask for less
+    whether our copy of it carries whole posts, and whether our links to
+    it are followed. Owners can ask for less
     link weight, never more — `direct` stays a decision of the rules. */
 export async function applyEdit(feed: FeedDoc, req: EditRequest): Promise<FeedDoc | Response> {
   const set: Partial<FeedDoc> = {};
@@ -46,6 +57,10 @@ export async function applyEdit(feed: FeedDoc, req: EditRequest): Promise<FeedDo
   if (req.nofollow !== undefined) {
     const linkMode = req.nofollow === true ? "nofollow" : null;
     if (linkMode !== feed.linkMode) set.linkMode = linkMode;
+  }
+  if (req.excerpts !== undefined) {
+    const copy: Copy = req.excerpts === true ? "excerpt" : "full";
+    if (copy !== (feed.copy ?? "full")) set.copy = copy;
   }
   const col = await feeds();
   if (Object.keys(set).length) {

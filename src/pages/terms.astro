@@ -27,7 +27,9 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
     <h2>What is shown from a feed</h2>
     <p>
       What a feed reader shows: the feed's name and description, and for each post its title, a short excerpt, its date, its author when given,
-      and a link to the original. Full texts are not copied. rss.mobi may also publish its own articles that draw on several sources; every such
+      and a link to the original. The directory stores nothing more. Each feed's copy at rss.mobi, the RSS address its page offers, passes on
+      posts whole, as the original feed carries them at that moment: it is read from the original when a reader asks for it and is not kept.
+      The feed's edit link can limit the copy to excerpts. rss.mobi may also publish its own articles that draw on several sources; every such
       article names and links the sources it used.
     </p>
 
@@ -39,8 +41,8 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
 
     <h2>Removal on request</h2>
     <p>
-      A publisher who does not want to be listed can ask for removal from the feed's page (<strong>Report a problem → I own this site</strong>),
-      and whoever submitted the feed can take it down with their edit link.{site.contact && <> Anything else: <a href={`mailto:${site.contact}`} title="Complaints and removal requests for the RSS feeds directory">{site.contact}</a>.</>}
+      A publisher who does not want to be listed, or wants its copy limited to excerpts, can say so from the feed's page (<strong>Report a
+      problem → I own this site</strong>), and whoever submitted the feed can do either with their edit link.{site.contact && <> Anything else: <a href={`mailto:${site.contact}`} title="Complaints and removal requests for the RSS feeds directory">{site.contact}</a>.</>}
     </p>
 
     <h2>No warranty</h2>

@@ -18,7 +18,8 @@ const skip = !URI && "RSS_MOBI_TEST_MONGO not set";
 describe("with MongoDB", { skip }, async () => {
   const { client, feeds, items } = await import("../src/lib/db.ts");
   const { store } = await import("../src/lib/catalog.ts");
-  const { applyEdit } = await import("../src/lib/edit.ts");
+  const { applyEdit, editable } = await import("../src/lib/edit.ts");
+  const { noteSubscribers, storedPosts } = await import("../src/lib/copy.ts");
   const { itemJson, itemsFor } = await import("../src/lib/views.ts");
   const { parseFilters } = await import("../src/lib/filters.ts");
   const { linkTo } = await import("../src/lib/policy.ts");
@@ -84,5 +85,25 @@ describe("with MongoDB", { skip }, async () => {
     await applyEdit(edited, { nofollow: false });
     const after = await (await items()).find({ feedId: f._id }).toArray();
     assert.ok(after.every((it) => it.linkMode === null));
+  });
+
+  test("the owner keeps the copy to excerpts and back; readers' counts are recorded", async () => {
+    const f = await feed();
+    await store(f as any, parsed(f.host, [1, 2]));
+    assert.equal(editable(f as any).copy, "full");
+    const short = (await applyEdit(f as any, { excerpts: true })) as any;
+    assert.equal(short.copy, "excerpt");
+    assert.equal(editable(short).copy, "excerpt");
+    assert.equal(((await applyEdit(short, { excerpts: false })) as any).copy, "full");
+
+    const posts = await storedPosts(f.slug);
+    assert.equal(posts.length, 2);
+    assert.ok(posts.every((p) => p.guid && p.excerpt !== undefined));
+
+    await noteSubscribers(f as any, "Feedly/1.0 (+http://www.feedly.com/fetcher.html; 16 subscribers; )");
+    await noteSubscribers(f as any, "Mozilla/5.0 (Macintosh)");
+    const saved = await (await feeds()).findOne({ _id: f._id });
+    assert.equal(saved?.subscribers?.feedly?.n, 16);
+    assert.equal(Object.keys(saved?.subscribers ?? {}).length, 1);
   });
 });

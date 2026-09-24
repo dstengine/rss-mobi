@@ -6,6 +6,7 @@ import { get, FetchError } from "./feeds/get.ts";
 import { parseFeed, itemKey, topic, ownName, NotAFeed, type ParsedFeed, type Site } from "./feeds/parse.ts";
 import { canonical, hostOf, slugify } from "./feeds/url.ts";
 import { lock, unlock } from "./cache.ts";
+import { subscriberTotal } from "./copy.ts";
 import { alert, indexNow } from "./notify.ts";
 import { policy } from "./policy.ts";
 import { spamReason } from "./spam.ts";
@@ -230,7 +231,7 @@ async function pollOne(feed: FeedDoc): Promise<number | "unchanged" | { disabled
   const col = await feeds();
   const now = new Date();
   try {
-    const res = await get(feed.url, { etag: feed.etag, lastModified: feed.lastModified });
+    const res = await get(feed.url, { etag: feed.etag, lastModified: feed.lastModified, subscribers: subscriberTotal(feed.subscribers) });
     const common = {
       lastFetchAt: now,
       failCount: 0,
