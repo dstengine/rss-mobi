@@ -55,6 +55,7 @@ async function accessToken(sa: ServiceAccount): Promise<string> {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: assertion(sa) }),
+    signal: AbortSignal.timeout(10_000),
   });
   // Google's error code ("invalid_grant") and nothing else: logs are public.
   if (!res.ok) throw new Error(`gsc: token exchange failed, HTTP ${res.status} ${((await res.json().catch(() => ({}))) as { error?: string }).error ?? ""}`);
@@ -70,6 +71,9 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
     method,
     headers: { Authorization: `Bearer ${await accessToken(sa)}`, ...(body ? { "Content-Type": "application/json" } : {}) },
     body: body ? JSON.stringify(body) : undefined,
+    // URL Inspection takes about five seconds a page; a call still going
+    // after twelve is not worth the function's time limit.
+    signal: AbortSignal.timeout(12_000),
   });
   if (!res.ok) throw new Error(`gsc: ${method} ${path.split("?")[0]} failed, HTTP ${res.status}`);
   const text = await res.text();

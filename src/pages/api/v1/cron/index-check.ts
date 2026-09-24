@@ -13,6 +13,8 @@ export const POST: APIRoute = async (ctx) => {
   const started = Date.now();
   // Stop starting new calls 15s before the function's 60s limit.
   const report = await runIndexCheck(started + 45_000);
-  const pages = await inspectOpenPages(started + 50_000);
+  // An inspection takes about 5s and gives up at 12s: none starts after
+  // 40s, so the last ends before the 60s limit.
+  const pages = await inspectOpenPages(started + 40_000);
   return json({ ...report, pages, ms: Date.now() - started });
 };
