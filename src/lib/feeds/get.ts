@@ -31,6 +31,8 @@ export interface Fetched {
   status: number;
   url: string;
   body: string;
+  /** The body as it came, when `binary` was asked for; `body` is then empty. */
+  bytes?: Uint8Array;
   type: string;
   etag?: string;
   lastModified?: string;
@@ -45,6 +47,10 @@ export interface GetOptions {
   /** Followers the readers fetching our copy report, passed on the way
       Feedly and Inoreader pass theirs: "; 16 subscribers" in the agent. */
   subscribers?: number;
+  /** Keep the body as bytes (an image) instead of decoding it as text. */
+  binary?: boolean;
+  /** A smaller cap than the default 5 MB. */
+  maxBytes?: number;
   /** Tests resolve names themselves; production never passes this. */
   resolve?: (host: string) => Promise<string[]>;
 }
@@ -88,14 +94,16 @@ export async function get(url: string, opts: GetOptions = {}): Promise<Fetched> 
     };
     if (res.status === 304) return { ...common, body: "", notModified: true };
     if (!res.ok) throw new FetchError(`HTTP ${res.status}`, res.status);
-    return { ...common, body: decode(await readCapped(res), common.type), notModified: false };
+    const bytes = await readCapped(res, opts.maxBytes ?? MAX_BYTES);
+    if (opts.binary) return { ...common, body: "", bytes, notModified: false };
+    return { ...common, body: decode(bytes, common.type), notModified: false };
   }
   throw new FetchError("too many redirects");
 }
 
-async function readCapped(res: Response): Promise<Uint8Array> {
+async function readCapped(res: Response, max: number): Promise<Uint8Array> {
   const declared = Number(res.headers.get("content-length") ?? 0);
-  if (declared > MAX_BYTES) throw new FetchError(`body over ${MAX_BYTES} bytes`);
+  if (declared > max) throw new FetchError(`body over ${max} bytes`);
   if (!res.body) return new Uint8Array();
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -104,9 +112,9 @@ async function readCapped(res: Response): Promise<Uint8Array> {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > MAX_BYTES) {
+    if (size > max) {
       await reader.cancel();
-      throw new FetchError(`body over ${MAX_BYTES} bytes`);
+      throw new FetchError(`body over ${max} bytes`);
     }
     chunks.push(value);
   }

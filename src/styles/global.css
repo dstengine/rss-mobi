@@ -928,23 +928,168 @@ label {
   font-size: 0.9375rem;
 }
 
+/* A feed's icon sits on a white tile in both themes, as an app icon does:
+   most are drawn for a light page, and a dark logo on our dark surface
+   would vanish. The ring keeps a white icon from melting into a light one. */
 .favicon {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  text-transform: uppercase;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--line);
   overflow: hidden;
+  display: block;
 }
 
 .favicon img {
+  display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+}
+
+/* ---------------------------------------------------------------- ranked */
+
+/* A topic's list, best first: the place, then the card as everywhere
+   else, with its actions under the text. The <li> is the card's box; the
+   link inside it carries the text and is borderless. */
+.ranked {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 24px;
+  padding: 0;
+  list-style: none;
+}
+
+.ranked-feed {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.ranked-feed:has(> .feed-card:hover) {
+  border-color: var(--accent);
+}
+
+.ranked-feed > .feed-card {
+  grid-template-columns: 1.5rem 40px 1fr;
+  gap: 10px;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  padding-bottom: 8px;
+}
+
+.ranked-feed > .feed-card:active {
+  transform: none;
+}
+
+.ranked-feed .place {
+  align-self: center;
+  justify-self: end;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.feed-card .facts {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+/* Under the text column, so the three line up with the title. On a phone
+   they start at the card's edge instead, and Website is only its mark:
+   all three keep one line down to a 305px screen. */
+.feed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 14px 12px calc(14px + 1.5rem + 10px + 40px + 10px);
+}
+
+@media (max-width: 479px) {
+  .feed-actions {
+    padding-left: 14px;
+  }
+
+  .feed-actions .site {
+    width: 44px;
+    padding: 0;
+  }
+
+  .feed-actions .site .label {
+    display: none;
+  }
+}
+
+@media (max-width: 359px) {
+  .feed-actions .roomy {
+    display: none;
+  }
+}
+
+.button.plain {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.button.plain:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+}
+
+/* ----------------------------------------------------------------- stats */
+
+/* A feed's figures in a row, as an app store shows an app's: the value
+   large, what it counts small beneath, a hairline between them. */
+.stats {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+  border-block: 1px solid var(--line);
+}
+
+.stats > li {
+  min-width: 0;
+  padding: 10px 4px;
+  text-align: center;
+}
+
+.stats > li + li {
+  border-left: 1px solid var(--line);
+}
+
+.stats a {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.stats strong {
+  display: block;
+  font-size: 1.125rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stats a strong {
+  color: var(--accent);
+}
+
+.stats span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.25;
 }
 
 /* ------------------------------------------------------------------ tags */
@@ -1049,7 +1194,7 @@ label {
 .feed-head .favicon {
   width: 56px;
   height: 56px;
-  font-size: 1.4rem;
+  border-radius: 13px;
 }
 
 .feed-head h1 {
@@ -1351,6 +1496,42 @@ details.report[open] > summary::before,
 .sub-list li > span {
   display: grid;
   min-width: 0;
+}
+
+.sub-list li > span:nth-child(2) {
+  flex: 1 1 auto;
+}
+
+.sub-list .favicon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+/* A source's icon beside its name, in the reader's list and its post view:
+   the small white tile of the lists, at the size of the text. */
+.src-icon {
+  display: inline-block;
+  vertical-align: -0.2em;
+  margin-right: 6px;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--line);
+  object-fit: contain;
+}
+
+.chip .src-icon {
+  margin: 0;
+}
+
+.favicon .src-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .sub-list .meta,

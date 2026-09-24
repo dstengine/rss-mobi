@@ -6,7 +6,8 @@ import { get, FetchError } from "./feeds/get.ts";
 import { parseFeed, itemKey, topic, ownName, NotAFeed, type ParsedFeed, type Site } from "./feeds/parse.ts";
 import { canonical, hostOf, slugify } from "./feeds/url.ts";
 import { lock, unlock } from "./cache.ts";
-import { subscriberTotal } from "./copy.ts";
+import { noteActivity } from "./activity.ts";
+import { subscriberTotal } from "./followers.ts";
 import { alert, indexNow } from "./notify.ts";
 import { policy } from "./policy.ts";
 import { spamReason } from "./spam.ts";
@@ -95,6 +96,7 @@ export async function submit(input: string, opts: { tags?: string[]; ipHash?: st
   await col.insertOne(doc);
   const added = await store(doc, parsed);
   doc.itemCount = added;
+  await activity(doc);
   return { feed: doc, editToken, added };
 }
 
@@ -241,12 +243,14 @@ async function pollOne(feed: FeedDoc): Promise<number | "unchanged" | { disabled
     };
     if (res.notModified) {
       await col.updateOne({ _id: feed._id }, { $set: common, $inc: { okCount: 1 }, $unset: { lastError: "" } });
+      await activity(feed);
       await announceIfIndexable(feed._id);
       return "unchanged";
     }
     const parsed = parseFeed(res.body, res.url);
     await col.updateOne({ _id: feed._id }, { $set: common, $inc: { okCount: 1 }, $unset: { lastError: "" } });
     const added = await store(feed, parsed);
+    await activity(feed);
     await announceIfIndexable(feed._id);
     return added;
   } catch (e) {
@@ -270,6 +274,16 @@ async function pollOne(feed: FeedDoc): Promise<number | "unchanged" | { disabled
     );
     if (disabled) await (await items()).updateMany({ feedId: feed._id }, { $set: { visible: false } });
     return { disabled };
+  }
+}
+
+/** A feed's pace and rank, refreshed. Its failure is logged, never counted
+    against the feed: the fetch itself went fine. */
+async function activity(feed: FeedDoc): Promise<void> {
+  try {
+    await noteActivity(feed);
+  } catch (e) {
+    console.error(`activity ${feed.slug}: ${(e as Error).message}`);
   }
 }
 

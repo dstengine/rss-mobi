@@ -1,0 +1,69 @@
+---
+// One feed in a topic's ranked list: its place, a card that links to its
+// page, and the three things a visitor came to do — follow it here, copy
+// its address into another reader, or visit its site. The card is the
+// link; the actions sit under it, outside the link (DESIGN.md).
+import Favicon from "./Favicon.astro";
+import FollowButton from "./FollowButton.astro";
+import Icon from "./Icon.astro";
+import { relFor } from "../lib/policy.ts";
+import { followers, fmtDay, type PublicFeed } from "../lib/views.ts";
+import { counted, pace } from "../lib/words.ts";
+import { site } from "../site.config.ts";
+
+interface Props {
+  feed: PublicFeed;
+  place: number;
+}
+const { feed, place } = Astro.props;
+const often = pace(feed.postsPerWeek);
+const fans = followers(feed);
+const last = feed.lastPostAt ? fmtDay(feed.lastPostAt) : "";
+---
+
+<li class="ranked-feed">
+  <a class="feed-card" href={`/feed/${feed.slug}/`} title={`${feed.title}: RSS feed from ${feed.host}`}>
+    <span class="place">{place}</span>
+    <Favicon slug={feed.slug} />
+    <span>
+      <span class="title">{feed.title}</span>
+      <span class="meta">{feed.host}{often && <> · <span class="nowrap">{often}</span></>}</span>
+      {feed.description && <span class="desc">{feed.description}</span>}
+      {
+        (last || fans > 0) && (
+          <span class="facts">
+            {last && <>Last post <span class="nowrap">{last}</span></>}
+            {last && fans > 0 && " · "}
+            {fans > 0 && <span class="nowrap">{counted(fans, "follower")} in readers</span>}
+          </span>
+        )
+      }
+    </span>
+  </a>
+  <div class="feed-actions">
+    <FollowButton feed={feed} class="button small secondary" />
+    <button
+      type="button"
+      class="button small secondary"
+      data-copy=""
+      data-copy-url={`${site.url}/feed/${feed.slug}/rss.xml`}
+      title={`Copy the RSS feed address of ${feed.title} for any reader`}
+    >
+      <Icon name="rss" class="when-off" /><Icon name="check" class="when-on" /><span class="label"><span class="roomy">Copy </span>RSS</span>
+    </button>
+    {
+      feed.siteUrl && (
+        <a
+          class="button small plain site"
+          href={feed.siteUrl}
+          rel={relFor(feed.linkMode ?? "ugc") ?? undefined}
+          title={`Visit ${feed.host}, the site behind this RSS feed`}
+          aria-label={`${feed.host} website`}
+        >
+          <span class="label">Website</span>
+          <Icon name="external" />
+        </a>
+      )
+    }
+  </div>
+</li>

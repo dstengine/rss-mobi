@@ -8,7 +8,8 @@ import { policy, relFor } from "../../lib/policy.ts";
 import { cacheFor } from "../../lib/http.ts";
 import { assign, EXPERIMENTS } from "../../lib/experiments.ts";
 import { clip } from "../../lib/feeds/url.ts";
-import { feedBySlug, feedItems, fmtDate } from "../../lib/views.ts";
+import { feedBySlug, feedItems, fmtDate, fmtDay, followers, tagPlace } from "../../lib/views.ts";
+import { topicName } from "../../lib/words.ts";
 import FeedAddress from "../../components/FeedAddress.astro";
 
 const slug = String(Astro.params.slug ?? "");
@@ -21,7 +22,7 @@ if (feed.status === "hidden") {
   return Astro.rewrite("/gone");
 }
 
-const items = await feedItems(slug, 20);
+const [items, place] = await Promise.all([feedItems(slug, 20), tagPlace(feed)]);
 const decision = policy({ type: "feed", feed });
 Astro.response.headers.set("Cache-Control", cacheFor(300));
 
@@ -43,6 +44,28 @@ const readers = [
 const type = feed.format === "atom" ? "application/atom+xml" : feed.format === "json" ? "application/feed+json" : "application/rss+xml";
 const siteRel = relFor(feed.linkMode ?? "ugc");
 
+// The row of figures under the name, as an app store shows them: how
+// often it posts, when it last did, where it stands in its topic, and how
+// many follow it in other readers.
+const stats: { value: string; label: string; href?: string; title?: string }[] = [];
+const ppw = feed.postsPerWeek ?? 0;
+if (ppw >= 1) stats.push({ value: String(Math.round(ppw)), label: Math.round(ppw) === 1 ? "post a week" : "posts a week" });
+else if (ppw > 0) {
+  const m = Math.max(1, Math.round((ppw * 30) / 7));
+  stats.push({ value: String(m), label: m === 1 ? "post a month" : "posts a month" });
+}
+if (feed.lastPostAt) stats.push({ value: fmtDay(feed.lastPostAt), label: "last post" });
+if (place) {
+  stats.push({
+    value: `#${place.place}`,
+    label: `in ${topicName(place.tag)}`,
+    href: `/tag/${place.tag}/`,
+    title: `The best ${topicName(place.tag, false)} RSS feeds, ranked`,
+  });
+}
+const fans = followers(feed);
+if (fans > 0) stats.push({ value: String(fans), label: fans === 1 ? "follower" : "followers" });
+
 const jsonLd = [
   {
     "@context": "https://schema.org",
@@ -59,7 +82,7 @@ const jsonLd = [
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "RSS feeds", item: `${site.url}/` },
-      ...(feed.tags[0] ? [{ "@type": "ListItem", position: 2, name: feed.tags[0].replace(/-/g, " "), item: `${site.url}/tag/${feed.tags[0]}/` }] : []),
+      ...(feed.tags[0] ? [{ "@type": "ListItem", position: 2, name: topicName(feed.tags[0]), item: `${site.url}/tag/${feed.tags[0]}/` }] : []),
       { "@type": "ListItem", position: feed.tags[0] ? 3 : 2, name: feed.title },
     ],
   },
@@ -68,7 +91,7 @@ const jsonLd = [
 
 <Base title={title} description={description} robots={decision.robots} path={path} jsonLd={jsonLd} alternate={{ href: feed.url, title: feed.title, type }}>
   <div class="feed-head">
-    <Favicon title={feed.title} image={feed.image} />
+    <Favicon slug={feed.slug} size={56} eager />
     <div>
       <h1>{feed.title}</h1>
       <p class="muted">
@@ -85,6 +108,28 @@ const jsonLd = [
       </p>
     </div>
   </div>
+
+  {
+    stats.length > 0 && (
+      <ul class="stats">
+        {stats.map((x) =>
+          x.href ? (
+            <li>
+              <a href={x.href} title={x.title}>
+                <strong>{x.value}</strong>
+                <span>{x.label}</span>
+              </a>
+            </li>
+          ) : (
+            <li>
+              <strong>{x.value}</strong>
+              <span>{x.label}</span>
+            </li>
+          ),
+        )}
+      </ul>
+    )
+  }
 
   {
     feed.status === "disabled" && (

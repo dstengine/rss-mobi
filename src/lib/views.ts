@@ -5,6 +5,7 @@ import { ObjectId, type Filter } from "mongodb";
 import { feeds, items } from "./db.ts";
 import { cached } from "./cache.ts";
 import { toQuery, type Cursor, type Filters } from "./filters.ts";
+import { subscriberTotal } from "./followers.ts";
 import { linkTo, policy } from "./policy.ts";
 import type { FeedDoc, ItemDoc } from "./types.ts";
 
@@ -26,6 +27,10 @@ export type PublicFeed = Pick<
   | "robots"
   | "linkMode"
   | "lastFetchAt"
+  | "postsPerWeek"
+  | "lastPostAt"
+  | "rank"
+  | "subscribers"
   | "createdAt"
   | "updatedAt"
 >;
@@ -53,6 +58,10 @@ const FEED_FIELDS = {
   robots: 1,
   linkMode: 1,
   lastFetchAt: 1,
+  postsPerWeek: 1,
+  lastPostAt: 1,
+  rank: 1,
+  subscribers: 1,
   createdAt: 1,
   updatedAt: 1,
 } as const;
@@ -185,9 +194,30 @@ export async function tagStat(tag: string): Promise<TagStat | null> {
   return row ?? null;
 }
 
+/** A topic's feeds, best first (activity.ts ranks them). */
 export async function feedsByTag(tag: string, limit = 50): Promise<PublicFeed[]> {
-  return (await feeds()).find<PublicFeed>({ ...LISTED, tags: tag }, { projection: FEED_FIELDS }).sort({ updatedAt: -1 }).limit(limit).toArray();
+  return (await feeds())
+    .find<PublicFeed>({ ...LISTED, tags: tag }, { projection: FEED_FIELDS })
+    .sort({ rank: -1, itemCount: -1, slug: 1 })
+    .limit(limit)
+    .toArray();
 }
+
+/** Where a feed stands in its first topic's list, when that list has at
+    least three feeds to stand among. */
+export async function tagPlace(f: Pick<PublicFeed, "tags" | "rank" | "status">): Promise<{ tag: string; place: number; of: number } | null> {
+  const tag = f.tags[0];
+  if (!tag || f.status !== "active" || f.rank === undefined) return null;
+  const col = await feeds();
+  const [above, of] = await Promise.all([
+    col.countDocuments({ ...LISTED, tags: tag, rank: { $gt: f.rank } }),
+    col.countDocuments({ ...LISTED, tags: tag }),
+  ]);
+  return of >= 3 ? { tag, place: above + 1, of } : null;
+}
+
+/** People who follow a feed in their readers, as the readers last said. */
+export const followers = (f: Pick<PublicFeed, "subscribers">) => subscriberTotal(f.subscribers);
 
 export async function itemsByTag(tag: string, limit = 20): Promise<PublicItem[]> {
   const rows = await (await items())
@@ -220,6 +250,14 @@ export async function feedsForSitemap(skip: number, limit: number) {
 export const fmtDate = (d: Date | string | undefined | null) =>
   d ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(d)) : "";
 
+/** "24 Sept", with the year only when it is not this one: short enough
+    for a figure in a row of them. */
+export function fmtDay(d: Date | string, now = new Date()): string {
+  const at = new Date(d);
+  const sameYear = at.getUTCFullYear() === now.getUTCFullYear();
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }), timeZone: "UTC" }).format(at);
+}
+
 /** A remote image we are willing to show: https only, so a page never
     carries mixed content, and never from a private address. */
 export const safeImage = (src?: string) => (src && /^https:\/\//i.test(src) ? src : undefined);
@@ -239,6 +277,10 @@ export function feedJson(f: PublicFeed) {
     format: f.format,
     status: f.status,
     itemCount: f.itemCount,
+    postsPerWeek: f.postsPerWeek ?? null,
+    lastPostAt: f.lastPostAt ?? null,
+    followers: followers(f),
+    icon: `https://rss.mobi/feed/${f.slug}/icon`,
     page: `https://rss.mobi/feed/${f.slug}/`,
     lastFetchAt: f.lastFetchAt ?? null,
     createdAt: f.createdAt,

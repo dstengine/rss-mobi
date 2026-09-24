@@ -45,6 +45,15 @@ export interface FeedDoc {
       forwarded in our own user agent to the original, so a publisher's
       count of followers does not drop when they read through us. */
   subscribers?: Record<string, { n: number; at: Date }>;
+  /** Posts a week lately, the newest post's date, and the score topic
+      lists sort by — recomputed after every poll (activity.ts). */
+  postsPerWeek?: number;
+  lastPostAt?: Date;
+  rank?: number;
+  /** The site's icon, as found at `iconAt`; null when it has none we can
+      use (icon.ts). */
+  icon?: string | null;
+  iconAt?: Date;
   submittedIpHash?: string;
   createdAt: Date;
   updatedAt: Date;

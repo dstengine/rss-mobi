@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Topic pages are ranked lists, "Best <Topic> RSS Feeds in <year>": each
+  feed with its place, icon, posting pace, last post and followers, and
+  Follow, Copy RSS and Website beside it. The rank (`src/lib/activity.ts`)
+  weighs followers reported by readers, posts a week (capped at two a
+  day) and time since the last post; every poll recomputes it with the
+  pace and last post. `/about/` says how lists are ranked.
+- Every feed has an icon at `/feed/<slug>/icon`: the site's
+  apple-touch-icon, the feed's image, its largest linked icon or
+  favicon.ico, fetched once a month and kept a week by the CDN, or its
+  initial on a coloured tile (`src/lib/icon.ts`). Cards, feed pages and
+  the reader's list, filters and post view show it.
+- A feed's page shows a row of figures: posts a week, last post, its
+  place in its first topic, and followers in other readers.
+- The public API's feeds carry `postsPerWeek`, `lastPostAt`, `followers`
+  and `icon`.
+
 - Nightly backups are on: the database is dumped, encrypted with age and
   stored in R2 at 02:00 UTC, and copied to the maintainer's iCloud Drive
   each morning. The first archive was restored and every collection's

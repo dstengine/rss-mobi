@@ -20,7 +20,8 @@ describe("with MongoDB", { skip }, async () => {
   const { store } = await import("../src/lib/catalog.ts");
   const { applyEdit, editable } = await import("../src/lib/edit.ts");
   const { noteSubscribers, storedPosts } = await import("../src/lib/copy.ts");
-  const { itemJson, itemsFor } = await import("../src/lib/views.ts");
+  const { itemJson, itemsFor, feedsByTag, tagPlace } = await import("../src/lib/views.ts");
+  const { noteActivity } = await import("../src/lib/activity.ts");
   const { parseFilters } = await import("../src/lib/filters.ts");
   const { linkTo } = await import("../src/lib/policy.ts");
   const created: ObjectId[] = [];
@@ -105,5 +106,38 @@ describe("with MongoDB", { skip }, async () => {
     const saved = await (await feeds()).findOne({ _id: f._id });
     assert.equal(saved?.subscribers?.feedly?.n, 16);
     assert.equal(Object.keys(saved?.subscribers ?? {}).length, 1);
+  });
+
+  test("a feed's pace and last post; a topic lists the lively first; an undated backlog is no pace", async () => {
+    const tag = `shared-${new ObjectId()}`;
+    const lively = await feed();
+    const backlog = await feed();
+    const third = await feed();
+    await (await feeds()).updateMany({ _id: { $in: [lively._id, backlog._id, third._id] } }, { $set: { tags: [tag] } });
+    const dated = parsed(lively.host, [1, 2, 3, 4, 5, 6, 7, 8]);
+    dated.items.forEach((it, i) => (it.publishedAt = new Date(Date.now() - (i + 1) * 86_400_000)));
+    await store({ ...lively, tags: [tag] } as any, dated);
+    // Undated posts are stamped with the moment they were first read.
+    const undated = parsed(backlog.host, [1, 2, 3]);
+    undated.items.forEach((it) => delete (it as any).publishedAt);
+    await store({ ...backlog, tags: [tag] } as any, undated);
+    const one = parsed(third.host, [1]);
+    one.items[0].publishedAt = new Date(Date.now() - 3_600_000);
+    await store({ ...third, tags: [tag] } as any, one);
+
+    for (const f of [lively, backlog, third]) await noteActivity(f as any);
+    const col = await feeds();
+    const a = await col.findOne({ _id: lively._id });
+    const b = await col.findOne({ _id: backlog._id });
+    assert.equal(a?.postsPerWeek, 7);
+    assert.ok(a?.lastPostAt && Date.now() - a.lastPostAt.getTime() < 2 * 86_400_000);
+    assert.equal(b?.postsPerWeek, 0);
+    assert.equal(b?.lastPostAt, undefined);
+
+    await col.updateMany({ _id: { $in: [lively._id, backlog._id, third._id] } }, { $set: { itemCount: 1 } });
+    const listed = await feedsByTag(tag);
+    assert.deepEqual(listed.map((f) => f.slug)[0], lively.slug);
+    assert.equal(listed.at(-1)?.slug, backlog.slug);
+    assert.deepEqual(await tagPlace({ ...listed[0], status: "active" }), { tag, place: 1, of: 3 });
   });
 });

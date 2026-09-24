@@ -19,6 +19,9 @@ import { get } from "./feeds/get.ts";
 import { itemKey, ownName, parseFeed, type ParsedItem } from "./feeds/parse.ts";
 import type { RssItem } from "./rss.ts";
 import type { Copy, FeedDoc } from "./types.ts";
+import { subscriberTotal } from "./followers.ts";
+
+export { subscriberTotal };
 
 /** The copy's length, as the original's usually is. */
 export const COPY_ITEMS = 50;
@@ -26,8 +29,6 @@ export const COPY_ITEMS = 50;
     answer is capped at 4.5 MB, and a reader has no use for more. */
 const CONTENT_BUDGET = 2_000_000;
 const LIVE_TIMEOUT = 6_000;
-/** How long a reader's reported count stands without being reported again. */
-const SUBSCRIBERS_FRESH = 7 * 24 * 3600_000;
 
 type Source = Pick<FeedDoc, "slug" | "url" | "title" | "host" | "tags"> & { copy?: Copy; subscribers?: FeedDoc["subscribers"] };
 
@@ -172,11 +173,6 @@ export function readerCount(ua: string): { reader: string; n: number } | null {
   if (!n) return null;
   const reader = READERS.find(([, re]) => re.test(ua))?.[0];
   return reader ? { reader, n } : null;
-}
-
-/** Followers across readers that reported within the last week. */
-export function subscriberTotal(map: FeedDoc["subscribers"], now = Date.now()): number {
-  return Object.values(map ?? {}).reduce((sum, r) => (now - new Date(r.at).getTime() < SUBSCRIBERS_FRESH ? sum + r.n : sum), 0);
 }
 
 /** Records what a reader fetching our copy reported — only when it

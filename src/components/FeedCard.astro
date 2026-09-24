@@ -4,21 +4,22 @@
 // sits beside the card, never inside the link.
 import Favicon from "./Favicon.astro";
 import type { PublicFeed } from "../lib/views.ts";
-import { counted } from "../lib/words.ts";
+import { counted, pace } from "../lib/words.ts";
 
 interface Props {
   feed: PublicFeed;
 }
 const { feed } = Astro.props;
-const count = counted(feed.itemCount, "post");
+// How often it posts says more than how many posts we hold.
+const often = pace(feed.postsPerWeek) || counted(feed.itemCount, "post");
 ---
 
 <li>
   <a class="feed-card" href={`/feed/${feed.slug}/`} title={`${feed.title}: RSS feed from ${feed.host}`}>
-    <Favicon title={feed.title} image={feed.image} />
+    <Favicon slug={feed.slug} />
     <span>
       <span class="title">{feed.title}</span>
-      <span class="meta">{feed.host} · <span class="nowrap">{count}</span></span>
+      <span class="meta">{feed.host} · <span class="nowrap">{often}</span></span>
       {feed.description && <span class="desc">{feed.description}</span>}
     </span>
   </a>

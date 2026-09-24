@@ -24,6 +24,8 @@ const INDEXES = {
     [{ status: 1, nextFetchAt: 1 }],
     [{ status: 1, updatedAt: -1 }],
     [{ tags: 1 }],
+    // A topic's list, best first.
+    [{ tags: 1, rank: -1 }],
     [{ host: 1 }],
     [{ title: "text", description: "text", host: "text", tags: "text" }, { default_language: "none", weights: { title: 4, tags: 2, host: 2, description: 1 }, name: "text" }],
   ],

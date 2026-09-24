@@ -1,13 +1,14 @@
 ---
 import Base from "../../layouts/Base.astro";
-import FeedCard from "../../components/FeedCard.astro";
+import RankedFeed from "../../components/RankedFeed.astro";
 import ItemList from "../../components/ItemList.astro";
 import { site } from "../../site.config.ts";
 import { policy } from "../../lib/policy.ts";
 import { cacheFor } from "../../lib/http.ts";
 import { tag as normalise } from "../../lib/feeds/parse.ts";
 import { feedsByTag, itemsByTag, tagStat } from "../../lib/views.ts";
-import { counted } from "../../lib/words.ts";
+import { clip } from "../../lib/feeds/url.ts";
+import { counted, topicName } from "../../lib/words.ts";
 
 const raw = decodeURIComponent(String(Astro.params.tag ?? ""));
 const t = normalise(raw);
@@ -21,23 +22,36 @@ const [feeds, items] = await Promise.all([feedsByTag(t, 50), itemsByTag(t, 20)])
 const decision = policy({ type: "tag", feeds: stat.feeds, hosts: stat.hosts });
 Astro.response.headers.set("Cache-Control", cacheFor(300));
 
-const label = t.replace(/-/g, " ");
-const Label = label.charAt(0).toUpperCase() + label.slice(1);
+const label = topicName(t, false);
+const name = topicName(t);
 const path = `/tag/${t}/`;
 const n = stat.feeds;
-const description = `${n} ${label} RSS ${n === 1 ? "feed" : "feeds"} from ${stat.hosts} ${stat.hosts === 1 ? "site" : "sites"}, with their latest posts. Follow any of these RSS feeds on your phone — no account needed.`;
+const shown = feeds.length;
+// A list is a ranking once there is something to rank; the year says the
+// ranking is current, and it is — every poll moves it.
+const year = new Date().getUTCFullYear();
+const ranked = shown >= 3;
+const heading = !ranked ? `${name} RSS Feeds` : shown >= 5 ? `${shown} Best ${name} RSS Feeds in ${year}` : `Best ${name} RSS Feeds in ${year}`;
+const top = feeds.slice(0, 3).map((f) => f.title);
+const lead = ranked
+  ? `The ${shown} best ${label} RSS feeds in ${year}, ranked by followers and how often they post`
+  : `${counted(n, `${label} RSS feed`)} from ${counted(stat.hosts, "site")}, and their latest posts`;
+const tail = ". Follow them on your phone, no account needed.";
+const withTop = `${lead}: ${top.join(", ")}${n > top.length ? " and more" : ""}${tail}`;
+const description = withTop.length <= 160 ? withTop : clip(`${lead}${tail}`, 160);
 
 const jsonLd = [
   {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: `${Label} RSS feeds`,
+    name: heading,
     url: `${site.url}${path}`,
     description,
     dateModified: stat.updatedAt.toISOString(),
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: feeds.length,
+      itemListOrder: "https://schema.org/ItemListOrderDescending",
       itemListElement: feeds.slice(0, 20).map((f, i) => ({ "@type": "ListItem", position: i + 1, url: `${site.url}/feed/${f.slug}/`, name: f.title })),
     },
   },
@@ -47,23 +61,34 @@ const jsonLd = [
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "RSS feeds", item: `${site.url}/` },
       { "@type": "ListItem", position: 2, name: "Topics", item: `${site.url}/tags/` },
-      { "@type": "ListItem", position: 3, name: Label },
+      { "@type": "ListItem", position: 3, name },
     ],
   },
 ];
 ---
 
-<Base title={`${Label} RSS feeds`} description={description} robots={decision.robots} path={path} jsonLd={jsonLd}>
+<Base title={heading} description={description} robots={decision.robots} path={path} jsonLd={jsonLd}>
   <p class="muted small"><a href="/tags/" title="Browse RSS feeds by topic">Topics</a> /</p>
-  <h1>{Label} RSS feeds</h1>
+  <h1>{heading}</h1>
   <p class="lede">
-    <span class="nowrap">{counted(n, "feed")}</span> from <span class="nowrap">{counted(stat.hosts, "site")}</span> tagged “{label}”. Open one to subscribe, or read the newest posts
-    below.
+    {
+      ranked ? (
+        <>
+          <span class="nowrap">{counted(n, "feed")}</span> from <span class="nowrap">{counted(stat.hosts, "site")}</span> tagged “{label}”, ranked by how many people follow each
+          one in their readers, how often it posts and how recently. The list moves every hour.
+        </>
+      ) : (
+        <>
+          <span class="nowrap">{counted(n, "feed")}</span> from <span class="nowrap">{counted(stat.hosts, "site")}</span> tagged “{label}”. Follow one here, or copy its address
+          into any RSS reader.
+        </>
+      )
+    }
   </p>
 
-  <ul class="cards two">
-    {feeds.map((f) => <FeedCard feed={f} />)}
-  </ul>
+  <ol class="ranked">
+    {feeds.map((f, i) => <RankedFeed feed={f} place={i + 1} />)}
+  </ol>
 
   {
     items.length > 0 && (
@@ -74,3 +99,10 @@ const jsonLd = [
     )
   }
 </Base>
+
+<script>
+  import { track } from "../../scripts/track.ts";
+  import { wireCopyButtons } from "../../scripts/copy.ts";
+
+  wireCopyButtons(() => track("subscribe_copy", { label: "topic" }));
+</script>

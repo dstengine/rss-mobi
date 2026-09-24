@@ -144,6 +144,12 @@ const jsonLd = {
     e.append(...kids);
     return e;
   };
+  /** A feed's icon, as every list on the site shows it (/feed/<slug>/icon).
+      `loading` goes before `src`: an image starts loading the moment it
+      has an address, in the DOM or not. */
+  const icon = (slug: string, size: number) =>
+    el("img", { loading: "lazy", decoding: "async", className: "src-icon", alt: "", width: size, height: size, src: `/feed/${slug}/icon` });
+
   const nowrap = (text: string) => el("span", { className: "nowrap" }, text);
   const date = (s: string) => new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(s));
 
@@ -193,7 +199,7 @@ const jsonLd = {
       { className: "meta" },
       el("time", { dateTime: it.publishedAt, className: "nowrap" }, date(it.publishedAt)),
       " · ",
-      el("a", { href: `/feed/${it.feed}/`, title: `The ${names.get(it.feed) ?? it.host} RSS feed` }, names.get(it.feed) ?? it.host),
+      el("a", { href: `/feed/${it.feed}/`, title: `The ${names.get(it.feed) ?? it.host} RSS feed` }, icon(it.feed, 16), names.get(it.feed) ?? it.host),
       it.author ? ` · ${it.author}` : "",
     );
     const li = el("li", {}, el("h3", {}, title), meta);
@@ -242,7 +248,7 @@ const jsonLd = {
   function chips(list: Sub[]) {
     const box = $("#chips");
     const chip = (label: string, slug: string | null) => {
-      const b = el("button", { type: "button", className: "chip" }, label);
+      const b = el("button", { type: "button", className: "chip" }, ...(slug ? [icon(slug, 18)] : []), label);
       b.setAttribute("aria-pressed", String(only === slug));
       b.addEventListener("click", () => {
         only = slug;
@@ -269,7 +275,7 @@ const jsonLd = {
   async function openPost(it: Item, feedName: string, from: HTMLElement) {
     reading = it.id;
     returnTo = from;
-    $("#post-source").textContent = feedName;
+    $("#post-source").replaceChildren(icon(it.feed, 20), feedName);
     $("#post-title").textContent = it.title;
     $("#post-meta").replaceChildren(
       el("time", { dateTime: it.publishedAt, className: "nowrap" }, date(it.publishedAt)),
@@ -369,6 +375,7 @@ const jsonLd = {
         return el(
           "li",
           {},
+          el("span", { className: "favicon" }, icon(s.slug, 32)),
           el("span", {}, el("a", { href: `/feed/${s.slug}/`, title: `The ${s.title} RSS feed and its latest posts` }, s.title), el("span", { className: "meta" }, s.host)),
           b,
         );
