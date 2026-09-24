@@ -17,8 +17,6 @@ const SHAPES = {
   R2_SECRET_ACCESS_KEY: [/^[0-9a-f]{64}$/, "64 hex characters — the Secret Access Key"],
   DATAFORSEO_LOGIN: [/^\S+@\S+$/, "the email address you signed up with"],
   DATAFORSEO_PASSWORD: [/^\S{8,}$/, "the API password from the API Access page, not your account password"],
-  GOOGLE_CLIENT_ID: [/\.apps\.googleusercontent\.com$/, "a Client ID ending in .apps.googleusercontent.com"],
-  GOOGLE_CLIENT_SECRET: [/^GOCSPX-\S+$/, "a Client secret starting with GOCSPX-"],
 };
 
 const fail = (why) => {

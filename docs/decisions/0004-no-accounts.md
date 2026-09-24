@@ -11,8 +11,8 @@ subscriptions in localStorage with OPML import and export.
 This removes sign-up friction for both audiences and leaves no personal
 data to protect. The cost: a lost edit link cannot be recovered. A
 publisher who lost it, or never had it, asks for removal through the
-report form; connecting Search Console (slice 3) proves ownership where it
-matters.
+report form. (The plan let a Search Console connection prove ownership;
+that went with ADR 0006.)
 
 **Reopen if:** users need the same subscriptions on several devices badly
 enough to ask — then add an optional sync key before any login.

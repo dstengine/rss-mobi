@@ -10,6 +10,10 @@
   across every function instance instead of per instance.
 - `scripts/set-secret.mjs` moves a secret from the clipboard into `.env`
   without it appearing on screen.
+- Search Console is read for rss.mobi only, through a service account
+  (`src/lib/gsc.ts`, `scripts/gsc.mjs`); the weekly retro stats include
+  clicks, impressions and top pages. Publishers no longer connect their own
+  Search Console: checks of their posts go to DataForSEO (ADR 0006).
 
 ## v0.2 — 23 Sep 2026 (slice 2: reader and collections)
 

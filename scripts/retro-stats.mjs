@@ -53,6 +53,25 @@ try {
   const stale = await count("feeds", { status: "active", lastFetchAt: { $lt: new Date(end - DAY) } });
   const spend = await db.collection("spend").find({}, { projection: { _id: 1, usd: 1 } }).sort({ _id: -1 }).limit(14).toArray();
 
+  // Search Console, through the rss-mobi-workers service account. Its data
+  // runs two to three days behind, so the newest days of this week are thin.
+  const search = async () => {
+    if (!process.env.GSC_SERVICE_ACCOUNT) return "GSC_SERVICE_ACCOUNT is not set";
+    const gsc = await import("../src/lib/gsc.ts");
+    const dates = ([from, to]) => ({ startDate: from.toISOString().slice(0, 10), endDate: new Date(to - DAY).toISOString().slice(0, 10) });
+    const totals = async (range) => (await gsc.searchAnalytics(dates(range)))[0] ?? { clicks: 0, impressions: 0 };
+    try {
+      return {
+        thisWeek: await totals(weeks.this),
+        lastWeek: await totals(weeks.last),
+        topPages: await gsc.searchAnalytics({ ...dates(weeks.this), dimensions: ["page"], rowLimit: 5 }),
+        topQueries: await gsc.searchAnalytics({ ...dates(weeks.this), dimensions: ["query"], rowLimit: 5 }),
+      };
+    } catch (e) {
+      return { error: e.message };
+    }
+  };
+
   console.log(
     JSON.stringify(
       {
@@ -66,6 +85,7 @@ try {
         },
         health: { activeFeedsNotFetchedForADay: stale, failing: failing.map((f) => ({ slug: f.slug, failCount: f.failCount, lastError: String(f.lastError ?? "").slice(0, 120) })) },
         spend,
+        search: await search(),
         thisWeek: await week(weeks.this),
         lastWeek: await week(weeks.last),
       },

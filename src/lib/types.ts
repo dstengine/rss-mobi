@@ -34,8 +34,6 @@ export interface FeedDoc {
   /** Manual overrides; null means "decide by the rules". */
   robots: Robots | null;
   linkMode: LinkMode | null;
-  /** Set once a Search Console property for this host is connected. */
-  gscProperty?: string;
   /** When IndexNow was first told this feed's page is indexable. */
   announcedAt?: Date;
   submittedIpHash?: string;

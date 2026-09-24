@@ -40,4 +40,3 @@ export const reports = c<Document>("reports");
 export const events = c<Document>("events");
 export const metricsDaily = c<Document>("metrics_daily");
 export const experiments = c<Document>("experiments");
-export const gscConnections = c<Document>("gsc_connections");

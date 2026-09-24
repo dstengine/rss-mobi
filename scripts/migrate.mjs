@@ -45,7 +45,6 @@ const INDEXES = {
   events: [[{ at: 1 }, { expireAfterSeconds: 180 * DAY }], [{ name: 1, at: -1 }]],
   metrics_daily: [[{ day: 1, metric: 1, variant: 1 }, { unique: true }]],
   reports: [[{ createdAt: -1 }]],
-  gsc_connections: [[{ host: 1 }, { unique: true }]],
 };
 
 const client = await new MongoClient(uri, { appName: "rss.mobi migrate" }).connect();
