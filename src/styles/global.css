@@ -135,6 +135,19 @@ p {
   margin: 0 0 1rem;
 }
 
+/* No paragraph ends on a lone short word, and a heading that wraps splits
+   into even lines rather than leaving one word under a full line. */
+p,
+li {
+  text-wrap: pretty;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
 code,
 .mono {
   font-family: var(--mono);
@@ -500,11 +513,44 @@ main {
   min-width: 0;
 }
 
+/* On a narrow phone the word "Search" costs the field its placeholder.
+   The magnifier says it alone; the word stays for screen readers. */
+@media (max-width: 399px) {
+  .search .button {
+    flex: none;
+    width: 48px;
+    padding: 0;
+  }
+
+  .search .button .icon {
+    width: 1.3em;
+    height: 1.3em;
+  }
+
+  .search .button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin: 12px 0;
+}
+
+/* A row of buttons that wraps on a phone fills each line rather than
+   leaving a ragged stack: short ones share a line, a long one takes it
+   whole. */
+@media (max-width: 479px) {
+  .actions > .button,
+  .readers > .button {
+    flex: 1 1 auto;
+  }
 }
 
 /* ----------------------------------------------------------------- forms */

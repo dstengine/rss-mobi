@@ -44,9 +44,12 @@
   submit, combine, follow, copy, export, open the original), and Follow
   and Copy swap their icon for a check when done. Topic chips and small
   buttons are 44 px tap targets, fields for tags and addresses no longer
-  capitalise or autocorrect, the search placeholder fits a 320 px screen,
-  and the collapsible "Narrow it down" and "Report a problem" show a
-  chevron.
+  capitalise or autocorrect, and the collapsible "Narrow it down" and
+  "Report a problem" show a chevron. Under 400 px the search button keeps
+  only its magnifier, so "Search by site or topic…" fits whole down to
+  300 px; a row of buttons that wraps fills each line instead of stacking
+  at ragged widths; paragraphs no longer end on a lone short word
+  ("sign-|up."), and headings wrap into even lines.
 - The terms and about pages name an address for complaints and removal
   requests, rss-mobi@vvm.space, besides the report form (#12).
 - Every new post's original is checked in Google, in the order posts

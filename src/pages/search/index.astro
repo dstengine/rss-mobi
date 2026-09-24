@@ -24,7 +24,7 @@ Astro.response.headers.set("Cache-Control", cacheFor(120));
   <h1>Search RSS feeds</h1>
   <form class="search" action="/search/" method="get" role="search">
     <label class="visually-hidden" for="q">Search RSS feeds</label>
-    <input id="q" name="q" type="search" value={q} placeholder="A site, a topic…" autocomplete="off" enterkeyhint="search" />
+    <input id="q" name="q" type="search" value={q} placeholder="Search by site or topic…" autocomplete="off" enterkeyhint="search" />
     <button class="button" type="submit"><Icon name="search" /><span>Search</span></button>
   </form>
   {
