@@ -1,8 +1,8 @@
-// The RSS 2.0 documents rss.mobi publishes: a collection's feed now, tag and
-// filter exports in slice 4. Each post carries a link to its original, the
-// excerpt we store and nothing more, and a <source> naming the feed it
-// came from — a reader that follows a mix of feeds should still be able to
-// tell who wrote what.
+// The RSS 2.0 documents rss.mobi publishes: a feed's and a collection's
+// now, tag and filter exports in slice 4. Each post carries a link to its
+// original, the excerpt we store and nothing more, and a <source> naming
+// the feed it came from — a reader that follows a mix of feeds should still
+// be able to tell who wrote what.
 import { esc } from "./xml.ts";
 import type { PublicItem } from "./views.ts";
 

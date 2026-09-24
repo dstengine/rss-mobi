@@ -1,0 +1,30 @@
+---
+// A feed's address as a real link, with a Copy button in the same box.
+// The link opens the feed itself; the button copies the address, which is
+// what a reader app wants pasted in, whole. The address shows without its
+// https:// and wraps rather than being cut off: whoever copies it by hand
+// has to see all of it.
+import Icon from "./Icon.astro";
+import CopyButton from "./CopyButton.astro";
+
+interface Props {
+  id: string;
+  /** Empty when a script fills it in later (a collection just created). */
+  url: string;
+  title: string;
+  type?: string;
+  rel?: string | null;
+  [attr: `data-${string}`]: string;
+}
+const { id, url, title, type = "application/rss+xml", rel, ...rest } = Astro.props;
+// Shown without its scheme, and free to wrap after each slash: a browser
+// left to itself breaks a URL at any letter ("rss|.xml").
+const parts = url.replace(/^https?:\/\//, "").split("/");
+---
+
+<div class="feed-address-row">
+  <a class="feed-address" id={id} href={url || undefined} type={type} rel={rel ?? undefined} title={title} {...rest}
+    ><Icon name="rss" /><span class="url">{parts.map((p, i) => (i < parts.length - 1 ? <>{p}/<wbr /></> : p))}</span></a
+  >
+  <CopyButton target={`#${id}`} class="joined" />
+</div>

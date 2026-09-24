@@ -687,6 +687,69 @@ label {
   font-size: 0.875rem;
 }
 
+/* A feed's address: a link that opens the feed and a Copy cell, in one
+   box shaped like a field, so the address reads as the thing to copy. The
+   address wraps rather than being cut off, and the cell grows with it. */
+.feed-address-row {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.feed-address-row:hover {
+  border-color: var(--accent);
+}
+
+.feed-address {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 12px;
+  font: 0.875rem/1.4 var(--mono);
+}
+
+.button.joined {
+  flex: none;
+  min-height: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.button.joined:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* On a phone the cell keeps its mark and gives the address the width; the
+   word stays for screen readers. */
+@media (max-width: 479px) {
+  .button.joined {
+    width: 48px;
+    padding: 0;
+  }
+
+  .button.joined .icon {
+    width: 1.3em;
+    height: 1.3em;
+  }
+
+  .button.joined .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}
+
 /* ----------------------------------------------------------------- cards */
 
 .cards {
@@ -948,6 +1011,12 @@ details.report[open] > summary::before,
   justify-content: space-between;
   gap: 8px;
   margin-top: 24px;
+}
+
+.pager a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
 .step[hidden] {

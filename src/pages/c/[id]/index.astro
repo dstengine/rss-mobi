@@ -13,7 +13,7 @@ import { cursorOf, parseCursor } from "../../../lib/filters.ts";
 import { feedsBySlugs, fmtDate } from "../../../lib/views.ts";
 import { site } from "../../../site.config.ts";
 import { counted } from "../../../lib/words.ts";
-import CopyButton from "../../../components/CopyButton.astro";
+import FeedAddress from "../../../components/FeedAddress.astro";
 
 const PAGE = 30;
 const c = await byId(String(Astro.params.id ?? ""));
@@ -61,11 +61,7 @@ const count = counted(list.length, "feed");
 
   <section class="subscribe" aria-labelledby="subscribe-h">
     <h2 id="subscribe-h">Follow this collection</h2>
-    <div class="copy-row">
-      <label class="visually-hidden" for="rss-url">RSS feed address</label>
-      <input id="rss-url" type="text" readonly value={rss} />
-      <CopyButton target="#rss-url" />
-    </div>
+    <FeedAddress id="rss-url" url={rss} title={`${c.title}, as one RSS feed: copy this address into any reader`} />
     <div class="readers">
       {
         readers.map((r) => (

@@ -9,7 +9,7 @@ import { cacheFor } from "../../lib/http.ts";
 import { assign, EXPERIMENTS } from "../../lib/experiments.ts";
 import { clip } from "../../lib/feeds/url.ts";
 import { feedBySlug, feedItems, fmtDate } from "../../lib/views.ts";
-import CopyButton from "../../components/CopyButton.astro";
+import FeedAddress from "../../components/FeedAddress.astro";
 
 const slug = String(Astro.params.slug ?? "");
 const feed = /^[a-z0-9-]{1,80}$/.test(slug) ? await feedBySlug(slug) : null;
@@ -116,11 +116,12 @@ const jsonLd = [
       <FollowButton feed={feed} />
       <span class="small muted">in the <a href="/reader/" title="Read the RSS feeds you follow on this phone">reader on this device</a> — no account. Or use any reader:</span>
     </div>
-    <div class="copy-row">
-      <label class="visually-hidden" for="feed-url">Feed address</label>
-      <input id="feed-url" type="text" readonly value={feed.url} />
-      <CopyButton target="#feed-url" />
-    </div>
+    <FeedAddress
+      id="feed-url"
+      url={`${site.url}${path}rss.xml`}
+      title={`${feed.title} as an RSS feed from rss.mobi: copy this address into any reader`}
+      data-reader="rss.mobi"
+    />
     <div class="readers">
       {
         readers.map((r) => (

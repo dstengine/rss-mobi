@@ -50,6 +50,13 @@
   300 px; a row of buttons that wraps fills each line instead of stacking
   at ragged widths; paragraphs no longer end on a lone short word
   ("sign-|up."), and headings wrap into even lines.
+- Every feed has its own RSS feed on rss.mobi, `/feed/<slug>/rss.xml`:
+  its newest 50 posts, each with its excerpt and a link to the original.
+  The feed's page shows that address as a link with a Copy button in the
+  same box, in place of the old read-only field; a collection's page and
+  a new collection show theirs the same way. The address wraps after its
+  slashes rather than mid-word, and on a phone the Copy button keeps only
+  its mark. The pager under a collection's posts is a 44 px tap target.
 - The terms and about pages name an address for complaints and removal
   requests, rss-mobi@vvm.space, besides the report form (#12).
 - Every new post's original is checked in Google, in the order posts

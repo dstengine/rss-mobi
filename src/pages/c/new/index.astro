@@ -11,6 +11,7 @@ import { cacheFor } from "../../../lib/http.ts";
 import { parseFilters } from "../../../lib/filters.ts";
 import { feedsBySlugs } from "../../../lib/views.ts";
 import CopyButton from "../../../components/CopyButton.astro";
+import FeedAddress from "../../../components/FeedAddress.astro";
 
 const f = parseFilters(Astro.url.searchParams);
 const start = await feedsBySlugs(f.feeds);
@@ -41,11 +42,7 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
     </div>
     <h2>Its RSS feed</h2>
     <p>Paste this into any reader. It updates as the feeds in it publish.</p>
-    <div class="copy-row">
-      <label class="visually-hidden" for="d-rss">RSS feed address</label>
-      <input id="d-rss" type="text" readonly />
-      <CopyButton target="#d-rss" />
-    </div>
+    <FeedAddress id="d-rss" url="" title="The new collection as one RSS feed: copy this address into any reader" />
     <h2>Your edit link</h2>
     <p>Keep this link: it is the only way to change the collection later. It is shown once, and it cannot be recovered or sent again.</p>
     <div class="copy-row">
@@ -81,7 +78,10 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
     const page = document.querySelector<HTMLAnchorElement>("#d-page")!;
     page.href = `/c/${data.collection.id}/`;
     page.textContent = `Open “${data.collection.title}”`;
-    document.querySelector<HTMLInputElement>("#d-rss")!.value = data.collection.rss;
+    const rss = document.querySelector<HTMLAnchorElement>("#d-rss")!;
+    rss.href = data.collection.rss;
+    const parts = String(data.collection.rss).replace(/^https?:\/\//, "").split("/");
+    rss.querySelector(".url")!.replaceChildren(...parts.flatMap((p, i) => (i < parts.length - 1 ? [`${p}/`, document.createElement("wbr")] : [p])));
     document.querySelector<HTMLInputElement>("#d-edit")!.value = data.editUrl;
     const done = document.querySelector<HTMLElement>("#done")!;
     done.hidden = false;

@@ -18,6 +18,7 @@ export const ICONS = {
   import: "M12 4v11M7.5 10.5 12 15l4.5-4.5M4 15v5h16v-5",
   export: "M12 15V4M7.5 8.5 12 4l4.5 4.5M4 15v5h16v-5",
   minus: "M5 12h14",
+  rss: "M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16M5 18a1 1 0 1 0 0 2a1 1 0 1 0 0-2Z",
 } as const;
 
 export type IconName = keyof typeof ICONS;
