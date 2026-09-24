@@ -12,6 +12,7 @@ import { byId, collectionItems } from "../../../lib/collections.ts";
 import { cursorOf, parseCursor } from "../../../lib/filters.ts";
 import { feedsBySlugs, fmtDate } from "../../../lib/views.ts";
 import { site } from "../../../site.config.ts";
+import { counted } from "../../../lib/words.ts";
 
 const PAGE = 30;
 const c = await byId(String(Astro.params.id ?? ""));
@@ -42,7 +43,7 @@ const narrowing = [
 ].filter(Boolean);
 const last = items.at(-1);
 const older = items.length === PAGE && last ? `${path}?before=${encodeURIComponent(cursorOf(last))}` : null;
-const count = `${list.length} ${list.length === 1 ? "feed" : "feeds"}`;
+const count = counted(list.length, "feed");
 ---
 
 <Base
@@ -54,7 +55,7 @@ const count = `${list.length} ${list.length === 1 ? "feed" : "feeds"}`;
 >
   <h1>{c.title}</h1>
   <p class="muted">
-    A combined RSS feed{list.length > 0 && ` of ${count}`}{narrowing.length > 0 && <>, {narrowing.join("; ")}</>}. Updated {fmtDate(c.updatedAt)}.
+    A combined RSS feed{list.length > 0 && <> of <span class="nowrap">{count}</span></>}{narrowing.length > 0 && <>, {narrowing.join("; ")}</>}. Updated <span class="nowrap">{fmtDate(c.updatedAt)}</span>.
   </p>
 
   <section class="subscribe" aria-labelledby="subscribe-h">
@@ -128,6 +129,7 @@ const count = `${list.length} ${list.length === 1 ? "feed" : "feeds"}`;
 
 <script>
   import { follow } from "../../../scripts/subs.ts";
+  import { counted } from "../../../lib/words.ts";
   import { track } from "../../../scripts/track.ts";
   import { wireCopyButtons } from "../../../scripts/copy.ts";
 
@@ -143,9 +145,9 @@ const count = `${list.length} ${list.length === 1 ? "feed" : "feeds"}`;
       const added = follow(...JSON.parse(all.dataset.feeds ?? "[]"));
       const note = document.querySelector<HTMLElement>("#follow-note")!;
       note.textContent = "";
-      const text = added ? `${added} ${added === 1 ? "feed" : "feeds"} added to your reader. ` : "You already follow all of these. ";
+      const said = added ? [Object.assign(document.createElement("span"), { className: "nowrap", textContent: counted(added, "feed") }), " added to your reader. "] : ["You already follow all of these. "];
       const a = Object.assign(document.createElement("a"), { href: "/reader/", title: "Read the feeds you follow", textContent: "Open the reader" });
-      note.append(text, a);
+      note.append(...said, a);
       track("follow", { label: `collection:${added}` });
     });
   }

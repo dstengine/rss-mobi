@@ -33,7 +33,10 @@
   "Sub mit" at 320 px): the wordmark and menu labels never wrap inside a
   word, and below 340 px the wordmark shows only its icon. In the
   reader's starter feeds the Follow button moves inside the card on
-  phones, so a host like smashingmagazine.com no longer splits.
+  phones, so a host like smashingmagazine.com no longer splits. A count
+  and its word ("40 posts") and a date stay on one line everywhere, kept
+  together by a `nowrap` span rather than `&nbsp;`, so copied text stays
+  plain.
 - The terms and about pages name an address for complaints and removal
   requests, rss-mobi@vvm.space, besides the report form (#12).
 - Every new post's original is checked in Google, in the order posts

@@ -155,6 +155,12 @@ code,
   font-size: 0.875rem;
 }
 
+/* A number and the word it counts, a date: always on one line. A class
+   rather than &nbsp;, so copied text keeps its plain spaces. */
+.nowrap {
+  white-space: nowrap;
+}
+
 /* `hidden` wins over any class that sets display — a button styled
    inline-flex must still disappear when a script hides it. */
 [hidden] {

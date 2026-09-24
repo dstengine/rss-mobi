@@ -36,10 +36,10 @@ const { items, feed, showFeed = false } = Astro.props;
           <span class="meta">
             {itemPageOpen(it) ? (
               <a href={itemPath(it.id)} title={`“${it.title}”: the post in the RSS feeds directory`}>
-                <time datetime={new Date(it.publishedAt).toISOString()}>{fmtDate(it.publishedAt)}</time>
+                <time class="nowrap" datetime={new Date(it.publishedAt).toISOString()}>{fmtDate(it.publishedAt)}</time>
               </a>
             ) : (
-              <time datetime={new Date(it.publishedAt).toISOString()}>{fmtDate(it.publishedAt)}</time>
+              <time class="nowrap" datetime={new Date(it.publishedAt).toISOString()}>{fmtDate(it.publishedAt)}</time>
             )}
             {" · "}
             {showFeed ? (

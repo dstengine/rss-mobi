@@ -86,7 +86,7 @@ const jsonLd = [
       <article class="post">
         <h1>{item.title}</h1>
         <p class="muted small">
-          <time datetime={published}>{fmtDate(item.publishedAt)}</time>
+          <time class="nowrap" datetime={published}>{fmtDate(item.publishedAt)}</time>
           {" · "}
           <a href={`/feed/${feed.slug}/`} title={`The ${feed.title} RSS feed: latest posts and how to subscribe`}>
             {feed.title}

@@ -143,7 +143,7 @@ const jsonLd = [
   </section>
 
   <p class="muted small">
-    In the directory since {fmtDate(feed.createdAt)}{feed.lastFetchAt && <> · last checked {fmtDate(feed.lastFetchAt)}</>} · {feed.format.toUpperCase()}
+    In the directory since <span class="nowrap">{fmtDate(feed.createdAt)}</span>{feed.lastFetchAt && <> · last checked <span class="nowrap">{fmtDate(feed.lastFetchAt)}</span></>} · {feed.format.toUpperCase()}
   </p>
 
   <details class="report">

@@ -5,6 +5,7 @@ import { site } from "../site.config.ts";
 import { policy } from "../lib/policy.ts";
 import { cacheFor } from "../lib/http.ts";
 import { recentFeeds, tagStats, listedCount } from "../lib/views.ts";
+import { counted } from "../lib/words.ts";
 
 const [feeds, tags, total] = await Promise.all([recentFeeds(30), tagStats(24), listedCount()]);
 const decision = policy({ type: "home" });
@@ -71,7 +72,7 @@ const jsonLd = {
       feeds.length > 0 ? (
         <>
           <p class="muted small">
-            {total} {total === 1 ? "feed" : "feeds"} in the directory, newest first.
+            <span class="nowrap">{counted(total, "feed")}</span> in the directory, newest first.
           </p>
           <ul class="cards two">
             {feeds.map((f) => (

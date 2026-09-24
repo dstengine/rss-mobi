@@ -3,6 +3,7 @@
 // src/scripts/collection-form.ts fills it and reads it back, so the two
 // pages differ only in what they do with the result.
 import { MAX_FEEDS, MAX_TITLE } from "../lib/collections.ts";
+import { counted } from "../lib/words.ts";
 
 interface Props {
   submitLabel: string;
@@ -19,7 +20,7 @@ const { submitLabel, hidden = false } = Astro.props;
   <ul class="picked" id="c-feeds" aria-live="polite"></ul>
   <p class="muted small" id="c-none">No feeds yet. Add some below, or use the filters on their own — say, every post tagged <em>css</em>.</p>
 
-  <label for="c-search">Add a feed <span class="hint">Search the directory by name, site or topic. Up to {MAX_FEEDS} feeds.</span></label>
+  <label for="c-search">Add a feed <span class="hint">Search the directory by name, site or topic. Up to <span class="nowrap">{counted(MAX_FEEDS, "feed")}</span>.</span></label>
   <input id="c-search" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search RSS feeds…" />
   <ul class="results" id="c-results"></ul>
   <p><button type="button" class="button secondary" id="c-mine" hidden>Add the feeds I follow</button></p>

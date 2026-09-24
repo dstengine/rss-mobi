@@ -4,6 +4,7 @@ import FeedCard from "../../components/FeedCard.astro";
 import { policy } from "../../lib/policy.ts";
 import { cacheFor } from "../../lib/http.ts";
 import { searchFeeds } from "../../lib/views.ts";
+import { counted } from "../../lib/words.ts";
 
 const q = (Astro.url.searchParams.get("q") ?? "").trim().slice(0, 100);
 const results = q ? await searchFeeds(q) : [];
@@ -30,7 +31,7 @@ Astro.response.headers.set("Cache-Control", cacheFor(120));
       (results.length ? (
         <>
           <p class="muted small">
-            {results.length} {results.length === 1 ? "feed" : "feeds"} found.
+            <span class="nowrap">{counted(results.length, "feed")}</span> found.
           </p>
           <ul class="cards">
             {results.map((f) => (

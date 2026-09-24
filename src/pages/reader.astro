@@ -103,6 +103,7 @@ const jsonLd = {
 <script>
   import { track } from "../scripts/track.ts";
   import { follow, lastSeen, markSeen, subs, unfollow, MAX_SUBS, type Sub } from "../scripts/subs.ts";
+  import { counted } from "../lib/words.ts";
   import { parseOpml, toOpml } from "../lib/opml.ts";
 
   interface Item {
@@ -123,6 +124,7 @@ const jsonLd = {
     e.append(...kids);
     return e;
   };
+  const nowrap = (text: string) => el("span", { className: "nowrap" }, text);
   const date = (s: string) => new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(s));
 
   /* ------------------------------------------------------------ tabs */
@@ -160,7 +162,7 @@ const jsonLd = {
     const meta = el(
       "span",
       { className: "meta" },
-      el("time", { dateTime: it.publishedAt }, date(it.publishedAt)),
+      el("time", { dateTime: it.publishedAt, className: "nowrap" }, date(it.publishedAt)),
       " · ",
       el("a", { href: `/feed/${it.feed}/`, title: `The ${names.get(it.feed) ?? it.host} RSS feed` }, names.get(it.feed) ?? it.host),
       it.author ? ` · ${it.author}` : "",
@@ -296,8 +298,8 @@ const jsonLd = {
     const added = follow(...found);
     track("opml_import", { label: `${found.length}/${feeds.length}` });
     box.className = "notice ok";
-    const full = subs().length >= MAX_SUBS ? ` The reader holds up to ${MAX_SUBS} feeds.` : "";
-    box.replaceChildren(el("p", {}, `${feeds.length} feeds in the file: ${found.length} in the directory, ${added} newly followed.${full}`));
+    const full = subs().length >= MAX_SUBS ? [" The reader holds up to ", nowrap(counted(MAX_SUBS, "feed")), "."] : [];
+    box.replaceChildren(el("p", {}, nowrap(counted(feeds.length, "feed")), ` in the file: ${found.length} in the directory, ${added} newly followed.`, ...full));
     if (missing.length) {
       const titles = new Map(feeds.map((f) => [f.url, f.title]));
       box.append(
