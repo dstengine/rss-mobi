@@ -1020,8 +1020,10 @@ label {
   margin: 0 0 4px;
 }
 
-.items h3 a {
+.items h3 a,
+.items h3 .linklike {
   color: var(--text);
+  text-align: left;
 }
 
 .items p {
@@ -1421,4 +1423,210 @@ details.report[open] > summary::before,
 .missing {
   margin: 8px 0 0;
   padding-left: 1.2rem;
+}
+
+/* ------------------------------------------------------------- post view */
+
+/* One post over the reader's list, the way an app opens it: the whole
+   screen on a phone, with a bar to go back; a sheet over the dimmed list
+   on wider screens. */
+.post-view {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--bg);
+  color: var(--text);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.post-view::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+html:has(.post-view[open]) {
+  overflow: hidden;
+}
+
+.post-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: max(6px, env(safe-area-inset-top)) var(--gutter) 6px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.post-close {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  /* The chevron, not its 44px box, meets the page's edge. */
+  margin-left: -12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.post-close .icon {
+  width: 26px;
+  height: 26px;
+}
+
+.post-source {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-body {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 16px var(--gutter) calc(32px + env(safe-area-inset-bottom));
+}
+
+.post-body h2 {
+  margin: 8px 0 6px;
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+.post-body h2:focus {
+  outline: none;
+}
+
+.post-body > .meta {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.post-media audio,
+.post-media video {
+  display: block;
+  width: 100%;
+  margin: 0 0 16px;
+}
+
+.post-content {
+  font-size: 1.0625rem;
+  line-height: 1.65;
+}
+
+.post-content img,
+.post-content video {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.post-content iframe {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 8px;
+}
+
+.post-content .caption {
+  display: block;
+  margin: 6px 0 12px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.post-content figure {
+  margin: 16px 0;
+}
+
+.post-content figcaption {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.post-content blockquote {
+  margin: 16px 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+}
+
+.post-content pre {
+  overflow-x: auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.post-content code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+.post-content pre code {
+  font-size: inherit;
+}
+
+/* A wide table scrolls on its own instead of widening the post. */
+.post-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.post-content th,
+.post-content td {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+}
+
+.post-end {
+  margin-top: 24px;
+}
+
+@media (min-width: 640px) {
+  .post-view {
+    width: min(100% - 32px, 48rem);
+    height: calc(100% - 48px);
+    margin: 24px auto;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgb(0 0 0 / 25%);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .post-view[open] {
+    animation: post-in 180ms ease-out;
+  }
+
+  @keyframes post-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
 }

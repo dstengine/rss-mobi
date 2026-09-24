@@ -93,6 +93,15 @@
   a linked-list blog's two posts at one address (Daring Fireball) are both
   kept. Measured against eight originals, the copy now has the same posts,
   text and pictures.
+- The reader opens a post in place, the way a reader app does: the whole
+  post as its feed carries it, pictures and a podcast's player included,
+  over the list — the full screen on a phone with a bar to go back (the
+  phone's back gesture works too), a sheet on wider screens. A picture's
+  hover text is printed under it, since a finger never hovers (xkcd).
+  **Open** and **Read on …** go to the publisher. The post comes from
+  `/api/v1/items/<id>/content`, which reads the original, keeps it five
+  minutes per function instance and never stores it; a post with nothing
+  whole to show keeps its excerpt and the link.
 - The owner can keep the copy to excerpts from the edit link (`copy` on
   the feed, `excerpts` in the edit request).
 - Feedly, Inoreader, Feedbin and other readers that count their followers

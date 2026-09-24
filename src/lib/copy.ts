@@ -12,6 +12,7 @@
 // because somebody else's server is slow.
 //
 // The owner can keep the copy to excerpts from the feed's edit page.
+import { ObjectId } from "mongodb";
 import { feeds, items } from "./db.ts";
 import { clean } from "./feeds/clean.ts";
 import { get } from "./feeds/get.ts";
@@ -57,15 +58,46 @@ export async function storedPosts(slug: string, limit = COPY_ITEMS): Promise<Sto
     .toArray();
 }
 
+/** Originals read in the last five minutes, per function instance: a
+    reader opening ten posts of one feed costs the publisher one fetch. */
+const recent = new Map<string, { at: number; posts: Promise<ParsedItem[] | null> }>();
+const RECENT_TTL = 5 * 60_000;
+const RECENT_MAX = 50;
+
 /** The original's posts as it serves them now; null when it does not
     answer in time or does not parse. */
-export async function livePosts(feed: Source): Promise<ParsedItem[] | null> {
-  try {
-    const res = await get(feed.url, { timeout: LIVE_TIMEOUT, subscribers: subscriberTotal(feed.subscribers) });
-    return parseFeed(res.body, res.url).items;
-  } catch {
-    return null;
-  }
+export function livePosts(feed: Source): Promise<ParsedItem[] | null> {
+  const hit = recent.get(feed.url);
+  if (hit && Date.now() - hit.at < RECENT_TTL) return hit.posts;
+  const posts = get(feed.url, { timeout: LIVE_TIMEOUT, subscribers: subscriberTotal(feed.subscribers) })
+    .then((res) => parseFeed(res.body, res.url).items)
+    .catch(() => null);
+  recent.delete(feed.url);
+  recent.set(feed.url, { at: Date.now(), posts });
+  // A Map iterates in insertion order: the first key is the oldest.
+  if (recent.size > RECENT_MAX) recent.delete(recent.keys().next().value!);
+  return posts;
+}
+
+/** One post whole, for reading it in the reader: the original's HTML,
+    cleaned, and its audio or video. `content` is null when the owner keeps
+    the copy to excerpts, the original is out of reach, or the post has
+    left its feed — the reader then shows the excerpt and a link. */
+export async function postContent(id: string) {
+  if (!/^[0-9a-f]{24}$/.test(id)) return null;
+  const it = await (await items()).findOne(
+    { _id: new ObjectId(id) },
+    { projection: { guid: 1, feedSlug: 1, url: 1, visible: 1 } },
+  );
+  if (!it) return null;
+  if (!it.visible) return { gone: true as const };
+  const feed = await copySource(it.feedSlug);
+  if (!feed || feed.status !== "active" || (feed.copy ?? "full") !== "full") return { content: null, media: [] };
+  const post = (await livePosts(feed))?.find((p) => itemKey(p).slice(0, 500) === it.guid);
+  return {
+    content: post?.content ? clean(post.content, post.url) || null : null,
+    media: post?.media ?? [],
+  };
 }
 
 /** The posts our copy carries: every post the original carries now, whole,

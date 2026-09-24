@@ -20,6 +20,7 @@ const NAMES = new Set([
   "follow",
   "unfollow",
   "reader_more",
+  "read_post",
   "opml_import",
   "opml_export",
   "collection_create",

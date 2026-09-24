@@ -90,11 +90,30 @@ const jsonLd = {
     <div id="import-result" class="notice" role="status" hidden></div>
   </section>
 
+  {/* One post, whole, over the list: the way a reader app opens a post.
+      Filled by the script from /api/v1/items/<id>/content, which reads the
+      original feed; nothing of it is in the page a crawler sees. */}
+  <dialog class="post-view" id="post" aria-labelledby="post-title">
+    <div class="post-bar">
+      <button type="button" class="post-close" id="post-close" aria-label="Back to the list" title="Back to the list"><Icon name="back" /></button>
+      <span class="post-source" id="post-source"></span>
+      <a class="button secondary small" id="post-open" target="_blank"><Icon name="external" /><span>Open</span></a>
+    </div>
+    <article class="post-body">
+      <h2 id="post-title" tabindex="-1" autofocus></h2>
+      <p class="meta" id="post-meta"></p>
+      <div class="post-media" id="post-media"></div>
+      <div class="post-content" id="post-content"></div>
+      <p class="muted small" id="post-state" role="status"></p>
+      <p class="post-end"><a class="button" id="post-end" target="_blank"></a></p>
+    </article>
+  </dialog>
+
   <section class="prose">
     <h2>How this RSS reader works</h2>
     <ul>
       <li>Following a feed adds it to a list kept in this browser. Nothing is sent to us but the list of feeds to fetch, and nothing identifies you.</li>
-      <li>Posts arrive as the directory checks each feed, about once an hour. Tap a title to read the post on the publisher's site.</li>
+      <li>Posts arrive as the directory checks each feed, about once an hour. Tap a title to read the whole post here, pictures and audio included, as its feed carries it; <strong>Open</strong> takes you to the publisher's site.</li>
       <li>To move your list to another phone or another app, export it as OPML — the file every reader imports.</li>
       <li>On a phone, use your browser's <em>Add to Home Screen</em> to open the reader like an app.</li>
     </ul>
@@ -154,11 +173,20 @@ const jsonLd = {
   let generation = 0;
 
   function itemNode(it: Item, names: Map<string, string>) {
-    const title = it.link.mode === "none" ? it.title : el("a", { href: it.url, title: `Read “${it.title}” on ${it.host}` }, it.title);
-    if (title instanceof HTMLAnchorElement) {
-      if (it.link.rel) title.rel = it.link.rel;
-      title.addEventListener("click", () => track("outbound", { label: it.host }));
-    }
+    // The title opens the post here. It stays a real link to the original
+    // where the owner allows one, so a long press or a modified click
+    // still reaches the publisher.
+    const title =
+      it.link.mode === "none"
+        ? el("button", { type: "button", className: "linklike" }, it.title)
+        : el("a", { href: it.url, title: `Read “${it.title}” from ${it.host}` }, it.title);
+    if (title instanceof HTMLAnchorElement && it.link.rel) title.rel = it.link.rel;
+    title.addEventListener("click", (e) => {
+      const me = e as MouseEvent;
+      if (me.metaKey || me.ctrlKey || me.shiftKey || me.altKey || me.button > 0) return track("outbound", { label: it.host });
+      e.preventDefault();
+      openPost(it, names.get(it.feed) ?? it.host, title);
+    });
     const at = new Date(it.publishedAt).getTime();
     const meta = el(
       "span",
@@ -228,6 +256,101 @@ const jsonLd = {
   }
 
   $("#more").addEventListener("click", () => next && load(next, false));
+
+  /* --------------------------------------------------------- one post */
+
+  const view = $<HTMLDialogElement>("#post");
+  const content = $("#post-content");
+  const media = $("#post-media");
+  const postState = $("#post-state");
+  let reading: string | null = null;
+  let returnTo: HTMLElement | null = null;
+
+  async function openPost(it: Item, feedName: string, from: HTMLElement) {
+    reading = it.id;
+    returnTo = from;
+    $("#post-source").textContent = feedName;
+    $("#post-title").textContent = it.title;
+    $("#post-meta").replaceChildren(
+      el("time", { dateTime: it.publishedAt, className: "nowrap" }, date(it.publishedAt)),
+      it.author ? ` · ${it.author}` : "",
+      " · ",
+      el("a", { href: `/feed/${it.feed}/`, title: `The ${feedName} RSS feed` }, feedName),
+    );
+    // The way to the original follows the owner's link choice, as the list does.
+    const linked = it.link.mode !== "none";
+    for (const a of [$<HTMLAnchorElement>("#post-open"), $<HTMLAnchorElement>("#post-end")]) {
+      a.hidden = !linked;
+      a.href = it.url;
+      a.rel = [it.link.rel, "noopener"].filter(Boolean).join(" ");
+      a.title = `Read “${it.title}” on ${it.host}`;
+    }
+    $("#post-end").textContent = `Read on ${it.host}`;
+    media.replaceChildren();
+    content.replaceChildren(...(it.excerpt ? [el("p", {}, it.excerpt)] : []));
+    postState.textContent = "Loading the whole post…";
+    view.showModal();
+    view.scrollTop = 0;
+    // The phone's back gesture should close the post, not leave the reader.
+    if (!history.state?.post) history.pushState({ post: it.id }, "", `#post-${it.id}`);
+    track("read_post", { label: it.host });
+    try {
+      const res = await fetch(`/api/v1/items/${it.id}/content`);
+      const data: { content: string | null; media: { url: string; type: string }[] } = await res.json();
+      if (reading !== it.id) return;
+      media.replaceChildren(
+        ...(data.media ?? []).map((m) =>
+          m.type.startsWith("video/")
+            ? el("video", { src: m.url, controls: true, preload: "none", playsInline: true })
+            : el("audio", { src: m.url, controls: true, preload: "none" }),
+        ),
+      );
+      // Cleaned on the server by an allowlist (lib/feeds/clean.ts).
+      if (data.content) {
+        content.innerHTML = data.content;
+        // A picture's title is text a mouse finds by hovering and a finger
+        // never does — on xkcd it is half the joke. It goes under the
+        // picture instead.
+        for (const img of content.querySelectorAll<HTMLImageElement>("img[title]")) {
+          if (img.closest("figure") || img.title.trim().length < 4) continue;
+          const holder = img.closest("a") ?? img;
+          holder.after(el("span", { className: "caption" }, img.title));
+        }
+      }
+      postState.textContent = data.content ? "" : `Only the excerpt is here. The whole post is on ${it.host}.`;
+    } catch {
+      if (reading === it.id) postState.textContent = `The whole post could not be loaded. It is on ${it.host}.`;
+    }
+  }
+
+  function closePost() {
+    if (history.state?.post) history.back();
+    else view.close();
+  }
+
+  $("#post-close").addEventListener("click", closePost);
+  $("#post-open").addEventListener("click", () => track("outbound", { label: new URL($<HTMLAnchorElement>("#post-open").href).host }));
+  $("#post-end").addEventListener("click", () => track("outbound", { label: new URL($<HTMLAnchorElement>("#post-end").href).host }));
+  // Escape: go back the same way the button does, so history stays in step.
+  view.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    closePost();
+  });
+  // A click on the dimmed page around the post (wide screens) closes it.
+  view.addEventListener("click", (e) => e.target === view && closePost());
+  window.addEventListener("popstate", () => {
+    if (view.open && !history.state?.post) view.close();
+  });
+  view.addEventListener("close", () => {
+    reading = null;
+    // Stop an episode that was playing, and free the post's pictures.
+    content.replaceChildren();
+    media.replaceChildren();
+    returnTo?.focus();
+  });
+  // A post left open when the page was reloaded is not reopened: the list
+  // it belongs to is gone.
+  if (location.hash.startsWith("#post-")) history.replaceState(null, "", location.pathname + location.search);
 
   /* -------------------------------------------------------- following */
 
