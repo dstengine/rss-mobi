@@ -10,6 +10,7 @@ import { site } from "../site.config.ts";
 import { policy } from "../lib/policy.ts";
 import { cacheFor } from "../lib/http.ts";
 import { recentFeeds } from "../lib/views.ts";
+import Icon from "../components/Icon.astro";
 
 const starters = await recentFeeds(8);
 const decision = policy({ type: "static" });
@@ -78,8 +79,8 @@ const jsonLd = {
     <p class="muted" id="no-subs">Nothing followed yet.</p>
 
     <div class="actions" id="sub-actions" hidden>
-      <button type="button" class="button secondary" id="export">Export OPML</button>
-      <a class="button secondary" id="combine" href="/c/new/" title="Turn the feeds you follow into one RSS feed with its own address">Combine into one feed</a>
+      <button type="button" class="button secondary" id="export"><Icon name="export" /><span>Export OPML</span></button>
+      <a class="button secondary" id="combine" href="/c/new/" title="Turn the feeds you follow into one RSS feed with its own address"><Icon name="combine" /><span>Combine into one feed</span></a>
     </div>
 
     <h2>Import from another reader</h2>

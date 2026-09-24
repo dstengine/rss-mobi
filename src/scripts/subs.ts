@@ -73,7 +73,7 @@ export function wireFollowButtons(root: ParentNode = document) {
     for (const b of buttons) {
       const on = following(b.dataset.follow!);
       b.setAttribute("aria-pressed", String(on));
-      b.textContent = on ? "Following" : "Follow";
+      (b.querySelector(".label") ?? b).textContent = on ? "Following" : "Follow";
       b.title = on ? "In your reader on this device. Tap to stop following." : "Add to your reader on this device. No account needed.";
     }
   };

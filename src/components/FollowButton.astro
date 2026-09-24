@@ -3,6 +3,7 @@
 // for everyone; the script shows it and sets its state from localStorage,
 // so the cached HTML never depends on who is looking.
 import type { PublicFeed } from "../lib/views.ts";
+import Icon from "./Icon.astro";
 
 interface Props {
   feed: Pick<PublicFeed, "slug" | "title" | "host" | "url">;
@@ -12,7 +13,7 @@ const { feed, class: cls = "button" } = Astro.props;
 ---
 
 <button type="button" class={`${cls} follow`} data-follow={feed.slug} data-title={feed.title} data-host={feed.host} data-url={feed.url} aria-pressed="false" hidden>
-  Follow
+  <Icon name="plus" class="when-off" /><Icon name="check" class="when-on" /><span class="label">Follow</span>
 </button>
 <script>
   import { wireFollowButtons } from "../scripts/subs.ts";

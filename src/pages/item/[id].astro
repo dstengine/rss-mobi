@@ -11,6 +11,7 @@ import { linkTo, policy } from "../../lib/policy.ts";
 import { cacheFor } from "../../lib/http.ts";
 import { clip } from "../../lib/feeds/url.ts";
 import { feedBySlug, fmtDate, itemById, itemPath, relatedItems } from "../../lib/views.ts";
+import Icon from "../../components/Icon.astro";
 
 const item = await itemById(String(Astro.params.id ?? ""));
 const feed = item ? await feedBySlug(item.feedSlug) : null;
@@ -102,7 +103,8 @@ const jsonLd = [
             <span class="muted">{item.url}</span>
           ) : (
             <a class="button" href={item.url} rel={link.rel ?? undefined} title={`The whole post on ${item.host}`} data-original>
-              Read on {item.host}
+              <span>Read on {item.host}</span>
+              <Icon name="external" />
             </a>
           )}
         </p>

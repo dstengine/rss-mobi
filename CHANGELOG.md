@@ -31,12 +31,22 @@
   checks it against a real MongoDB, which CI now starts.
 - The header no longer breaks words on narrow phones ("rss.m obi",
   "Sub mit" at 320 px): the wordmark and menu labels never wrap inside a
-  word, and below 340 px the wordmark shows only its icon. In the
-  reader's starter feeds the Follow button moves inside the card on
+  word. In the reader's starter feeds the Follow button moves inside the card on
   phones, so a host like smashingmagazine.com no longer splits. A count
   and its word ("40 posts") and a date stay on one line everywhere, kept
   together by a `nowrap` span rather than `&nbsp;`, so copied text stays
   plain.
+- Phones get a menu. The header always shows the name "rss.mobi" and a
+  burger that opens a panel with search, the three sections, Combine
+  feeds and About; the page dims behind it, and a tap outside or Escape
+  closes it. On phones the header stays at the top while the page
+  scrolls. Menu items and the main buttons carry line icons (search,
+  submit, combine, follow, copy, export, open the original), and Follow
+  and Copy swap their icon for a check when done. Topic chips and small
+  buttons are 44 px tap targets, fields for tags and addresses no longer
+  capitalise or autocorrect, the search placeholder fits a 320 px screen,
+  and the collapsible "Narrow it down" and "Report a problem" show a
+  chevron.
 - The terms and about pages name an address for complaints and removal
   requests, rss-mobi@vvm.space, besides the report form (#12).
 - Every new post's original is checked in Google, in the order posts

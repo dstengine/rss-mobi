@@ -9,6 +9,7 @@ import { cacheFor } from "../../lib/http.ts";
 import { assign, EXPERIMENTS } from "../../lib/experiments.ts";
 import { clip } from "../../lib/feeds/url.ts";
 import { feedBySlug, feedItems, fmtDate } from "../../lib/views.ts";
+import CopyButton from "../../components/CopyButton.astro";
 
 const slug = String(Astro.params.slug ?? "");
 const feed = /^[a-z0-9-]{1,80}$/.test(slug) ? await feedBySlug(slug) : null;
@@ -118,7 +119,7 @@ const jsonLd = [
     <div class="copy-row">
       <label class="visually-hidden" for="feed-url">Feed address</label>
       <input id="feed-url" type="text" readonly value={feed.url} />
-      <button class="button" type="button" data-copy="#feed-url">Copy</button>
+      <CopyButton target="#feed-url" />
     </div>
     <div class="readers">
       {
@@ -168,22 +169,9 @@ const jsonLd = [
 
 <script>
   import { track } from "../../scripts/track.ts";
+  import { wireCopyButtons } from "../../scripts/copy.ts";
 
-  for (const b of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
-    b.addEventListener("click", async () => {
-      const input = document.querySelector<HTMLInputElement>(b.dataset.copy!);
-      if (!input) return;
-      try {
-        await navigator.clipboard.writeText(input.value);
-      } catch {
-        input.select();
-        document.execCommand("copy");
-      }
-      b.textContent = "Copied";
-      setTimeout(() => (b.textContent = "Copy"), 2000);
-      track("subscribe_copy");
-    });
-  }
+  wireCopyButtons(() => track("subscribe_copy"));
 
   for (const a of document.querySelectorAll<HTMLAnchorElement>("[data-reader]")) {
     a.addEventListener("click", () => track("subscribe_open", { label: a.dataset.reader }));

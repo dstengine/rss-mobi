@@ -5,6 +5,7 @@ import { policy } from "../../lib/policy.ts";
 import { cacheFor } from "../../lib/http.ts";
 import { searchFeeds } from "../../lib/views.ts";
 import { counted } from "../../lib/words.ts";
+import Icon from "../../components/Icon.astro";
 
 const q = (Astro.url.searchParams.get("q") ?? "").trim().slice(0, 100);
 const results = q ? await searchFeeds(q) : [];
@@ -23,8 +24,8 @@ Astro.response.headers.set("Cache-Control", cacheFor(120));
   <h1>Search RSS feeds</h1>
   <form class="search" action="/search/" method="get" role="search">
     <label class="visually-hidden" for="q">Search RSS feeds</label>
-    <input id="q" name="q" type="search" value={q} placeholder="A site, a title, a topic…" autocomplete="off" enterkeyhint="search" />
-    <button class="button" type="submit">Search</button>
+    <input id="q" name="q" type="search" value={q} placeholder="A site, a topic…" autocomplete="off" enterkeyhint="search" />
+    <button class="button" type="submit"><Icon name="search" /><span>Search</span></button>
   </form>
   {
     q &&

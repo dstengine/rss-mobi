@@ -4,6 +4,7 @@
 // comes from policy(): this file renders a decision, it never makes one.
 import "../styles/global.css";
 import { site } from "../site.config.ts";
+import Icon from "../components/Icon.astro";
 import type { Robots } from "../lib/types.ts";
 
 interface Props {
@@ -65,19 +66,65 @@ const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
           >
           <span class="wordmark-name">{site.name}</span>
         </a>
-        <nav aria-label="Main">
+        <nav class="nav-row" aria-label="Main">
           <ul class="nav">
             {
               site.nav.map((n) => (
                 <li>
                   <a href={n.href} title={n.title} aria-current={isCurrent(n.href) ? "page" : undefined}>
-                    {n.label}
+                    <Icon name={n.icon} />
+                    <span>{n.label}</span>
                   </a>
                 </li>
               ))
             }
           </ul>
         </nav>
+        {/* On a phone the row gives way to this. A native <details>: it opens
+            and closes with no script, and says "expanded" to a screen reader
+            by itself; the script below only adds closing on an outside tap or
+            Escape. Search sits at the top, because on a phone the only other
+            search box is on the front page. */}
+        <details class="menu">
+          <summary aria-label="Menu">
+            <span class="burger" aria-hidden="true"></span>
+          </summary>
+          <div class="menu-panel">
+            <form class="menu-search" action="/search/" method="get" role="search">
+              <label class="visually-hidden" for="menu-q">Search RSS feeds</label>
+              <input id="menu-q" name="q" type="search" placeholder="Search RSS feeds…" autocomplete="off" enterkeyhint="search" />
+              <button class="button icon-only" type="submit" aria-label="Search" title="Search RSS feeds">
+                <Icon name="search" />
+              </button>
+            </form>
+            <nav aria-label="Main">
+              <ul>
+                {
+                  site.nav.map((n) => (
+                    <li>
+                      <a href={n.href} title={n.title} aria-current={isCurrent(n.href) ? "page" : undefined}>
+                        <Icon name={n.icon} />
+                        <span>{"long" in n ? n.long : n.label}</span>
+                      </a>
+                    </li>
+                  ))
+                }
+              </ul>
+              <ul class="menu-more">
+                {
+                  site.menu.map((n) => (
+                    <li>
+                      <a href={n.href} title={n.title} aria-current={isCurrent(n.href) ? "page" : undefined}>
+                        <Icon name={n.icon} />
+                        <span>{n.label}</span>
+                      </a>
+                    </li>
+                  ))
+                }
+              </ul>
+            </nav>
+          </div>
+        </details>
       </div>
     </header>
     <main>
@@ -104,6 +151,20 @@ const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     <script>
       import { track } from "../scripts/track.ts";
       track("view");
+
+      // <details> closes only on its own summary. A menu should also close
+      // on a tap outside it (the dimmed page) and on Escape.
+      const menu = document.querySelector<HTMLDetailsElement>(".menu");
+      if (menu) {
+        document.addEventListener("click", (e) => {
+          if (menu.open && !menu.contains(e.target as Node)) menu.open = false;
+        });
+        document.addEventListener("keydown", (e) => {
+          if (e.key !== "Escape" || !menu.open) return;
+          menu.open = false;
+          menu.querySelector("summary")?.focus();
+        });
+      }
     </script>
   </body>
 </html>

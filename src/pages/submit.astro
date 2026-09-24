@@ -3,6 +3,7 @@ import Base from "../layouts/Base.astro";
 import { policy } from "../lib/policy.ts";
 import { cacheFor } from "../lib/http.ts";
 import { MAX_TAGS } from "../lib/catalog.ts";
+import CopyButton from "../components/CopyButton.astro";
 
 const decision = policy({ type: "static" });
 Astro.response.headers.set("Cache-Control", cacheFor(3600));
@@ -21,10 +22,10 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
 
   <form id="find" novalidate>
     <label for="url">Site or feed address</label>
-    <input id="url" name="url" type="url" inputmode="url" required placeholder="https://example.com" autocomplete="url" spellcheck="false" />
+    <input id="url" name="url" type="url" inputmode="url" autocapitalize="none" enterkeyhint="go" required placeholder="https://example.com" autocomplete="url" spellcheck="false" />
     <div id="one-step-tags" hidden>
       <label for="tags-1">Topics <span class="hint">Up to {MAX_TAGS}, separated by commas.</span></label>
-      <input id="tags-1" type="text" placeholder="e.g. web development, design" />
+      <input id="tags-1" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" enterkeyhint="go" placeholder="e.g. web development, design" />
     </div>
     <p><button class="button" type="submit" id="find-button">Find the feed</button></p>
   </form>
@@ -42,7 +43,7 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
     <ol id="p-items"></ol>
     <form id="publish">
       <label for="tags">Topics <span class="hint">Up to {MAX_TAGS}, separated by commas. The feed's own categories are added after yours.</span></label>
-      <input id="tags" type="text" placeholder="e.g. web development, design" />
+      <input id="tags" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" enterkeyhint="done" placeholder="e.g. web development, design" />
       <div class="actions">
         <button class="button" type="submit" id="publish-button">Publish</button>
         <button class="button secondary" type="button" id="back">Change address</button>
@@ -62,7 +63,7 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
     <div class="copy-row">
       <label class="visually-hidden" for="edit-url">Edit link</label>
       <input id="edit-url" type="text" readonly />
-      <button class="button" type="button" data-copy="#edit-url">Copy</button>
+      <CopyButton target="#edit-url" />
     </div>
   </div>
 
@@ -88,6 +89,7 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
 
 <script>
   import { track, variant } from "../scripts/track.ts";
+  import { wireCopyButtons } from "../scripts/copy.ts";
 
   const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
   const findForm = $<HTMLFormElement>("#find");
@@ -235,17 +237,5 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
     urlInput.focus();
   });
 
-  for (const b of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
-    b.addEventListener("click", async () => {
-      const input = document.querySelector<HTMLInputElement>(b.dataset.copy!)!;
-      try {
-        await navigator.clipboard.writeText(input.value);
-      } catch {
-        input.select();
-        document.execCommand("copy");
-      }
-      b.textContent = "Copied";
-      setTimeout(() => (b.textContent = "Copy"), 2000);
-    });
-  }
+  wireCopyButtons();
 </script>

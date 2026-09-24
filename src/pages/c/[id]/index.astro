@@ -13,6 +13,7 @@ import { cursorOf, parseCursor } from "../../../lib/filters.ts";
 import { feedsBySlugs, fmtDate } from "../../../lib/views.ts";
 import { site } from "../../../site.config.ts";
 import { counted } from "../../../lib/words.ts";
+import CopyButton from "../../../components/CopyButton.astro";
 
 const PAGE = 30;
 const c = await byId(String(Astro.params.id ?? ""));
@@ -63,7 +64,7 @@ const count = counted(list.length, "feed");
     <div class="copy-row">
       <label class="visually-hidden" for="rss-url">RSS feed address</label>
       <input id="rss-url" type="text" readonly value={rss} />
-      <button class="button" type="button" data-copy="#rss-url">Copy</button>
+      <CopyButton target="#rss-url" />
     </div>
     <div class="readers">
       {

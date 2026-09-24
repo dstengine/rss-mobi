@@ -1,6 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import { policy } from "../lib/policy.ts";
+import Icon from "../components/Icon.astro";
 
 Astro.response.status = 404;
 ---
@@ -10,6 +11,6 @@ Astro.response.status = 404;
   <p>Nothing lives at this address. The feed may have been renamed, or the link may be mistyped.</p>
   <div class="actions">
     <a class="button" href="/" title="RSS feeds directory: newest feeds">Browse the directory</a>
-    <a class="button secondary" href="/search/" title="Search RSS feeds">Search feeds</a>
+    <a class="button secondary" href="/search/" title="Search RSS feeds"><Icon name="search" /><span>Search feeds</span></a>
   </div>
 </Base>

@@ -14,7 +14,7 @@ const { submitLabel, hidden = false } = Astro.props;
 
 <form id="collection" class="collection-form" novalidate hidden={hidden}>
   <label for="c-title">Title</label>
-  <input id="c-title" type="text" maxlength={MAX_TITLE} required placeholder="e.g. Web design reading" />
+  <input id="c-title" type="text" maxlength={MAX_TITLE} required autocomplete="off" placeholder="e.g. Web design reading" />
 
   <h2>Feeds</h2>
   <ul class="picked" id="c-feeds" aria-live="polite"></ul>
@@ -29,15 +29,15 @@ const { submitLabel, hidden = false } = Astro.props;
     <summary>Narrow it down</summary>
     <p class="muted small">Only posts that match every filter you fill in are kept. Separate several values with commas; any one of them matches.</p>
     <label for="c-tags">Topics</label>
-    <input id="c-tags" type="text" placeholder="e.g. css, javascript" />
+    <input id="c-tags" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. css, javascript" />
     <label for="c-hosts">Sites</label>
-    <input id="c-hosts" type="text" placeholder="e.g. example.com" />
+    <input id="c-hosts" type="text" inputmode="url" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. example.com" />
     <label for="c-q">Posts that mention</label>
-    <input id="c-q" type="text" placeholder="e.g. accessibility" />
+    <input id="c-q" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. accessibility" />
     <label for="c-exclude">Leave out titles with <span class="hint">Words that drop a post when its title contains them.</span></label>
-    <input id="c-exclude" type="text" placeholder="e.g. sponsored, podcast" />
+    <input id="c-exclude" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. sponsored, podcast" />
     <label for="c-lang">Language <span class="hint">A two-letter code, like en or es. Empty for any.</span></label>
-    <input id="c-lang" type="text" maxlength="3" autocapitalize="none" spellcheck="false" />
+    <input id="c-lang" type="text" maxlength="3" autocapitalize="none" autocomplete="off" spellcheck="false" />
   </details>
 
   <div id="c-error" class="notice bad" role="alert" hidden></div>

@@ -22,7 +22,7 @@ Astro.response.headers.set("Referrer-Policy", "no-referrer");
   <form id="edit" data-slug={slug} hidden>
     <p><a id="page-link" href={`/feed/${slug}/`} title="The feed's public page">View the public page</a></p>
     <label for="tags">Topics <span class="hint">Up to {MAX_TAGS}, separated by commas.</span></label>
-    <input id="tags" type="text" />
+    <input id="tags" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" />
 
     <label><input id="nofollow" type="checkbox" /> Mark links to my site nofollow</label>
     <span class="hint">By default links are followed while your post is not yet in Google, and marked user content after that.</span>

@@ -17,10 +17,18 @@ export const site = {
       a catch-all mailbox on vvm.space. Empty would hide it from the terms
       and about pages, which say only what is true. */
   contact: "rss-mobi@vvm.space" as string,
+  /** The header row on a wide screen, and the top of the menu on a phone,
+      where `long` names an item that stands alone in a list. */
   nav: [
-    { href: "/tags/", label: "Topics", title: "Browse RSS feeds by topic" },
-    { href: "/reader/", label: "Reader", title: "Read the RSS feeds you follow on your phone" },
-    { href: "/submit/", label: "Submit", title: "Submit an RSS feed to the directory" },
+    { href: "/tags/", label: "Topics", icon: "topics", title: "Browse RSS feeds by topic" },
+    { href: "/reader/", label: "Reader", icon: "reader", title: "Read the RSS feeds you follow on your phone" },
+    { href: "/submit/", label: "Submit", long: "Submit a feed", icon: "plus", title: "Submit an RSS feed to the directory" },
+  ],
+  /** Below the main items in the phone menu only: on a wide screen these
+      live in the footer, which a phone reaches after a long scroll. */
+  menu: [
+    { href: "/c/new/", label: "Combine feeds", icon: "combine", title: "Combine several RSS feeds into one" },
+    { href: "/about/", label: "About", icon: "about", title: "About the rss.mobi RSS feeds directory" },
   ],
   footer: [
     { href: "/about/", label: "About", title: "About the rss.mobi RSS feeds directory" },

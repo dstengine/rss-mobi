@@ -6,6 +6,7 @@ import { policy } from "../lib/policy.ts";
 import { cacheFor } from "../lib/http.ts";
 import { recentFeeds, tagStats, listedCount } from "../lib/views.ts";
 import { counted } from "../lib/words.ts";
+import Icon from "../components/Icon.astro";
 
 const [feeds, tags, total] = await Promise.all([recentFeeds(30), tagStats(24), listedCount()]);
 const decision = policy({ type: "home" });
@@ -40,13 +41,13 @@ const jsonLd = {
 
   <form class="search" action="/search/" method="get" role="search">
     <label class="visually-hidden" for="q">Search RSS feeds</label>
-    <input id="q" name="q" type="search" placeholder="Search feeds: a site, a topic…" autocomplete="off" enterkeyhint="search" />
-    <button class="button" type="submit">Search</button>
+    <input id="q" name="q" type="search" placeholder="A site, a topic…" autocomplete="off" enterkeyhint="search" />
+    <button class="button" type="submit"><Icon name="search" /><span>Search</span></button>
   </form>
 
   <div class="actions">
-    <a class="button secondary" href="/submit/" title="Submit an RSS feed to the directory">Submit a feed</a>
-    <a class="button secondary" href="/c/new/" title="Combine several RSS feeds into one feed of your own">Combine feeds</a>
+    <a class="button secondary" href="/submit/" title="Submit an RSS feed to the directory"><Icon name="plus" /><span>Submit a feed</span></a>
+    <a class="button secondary" href="/c/new/" title="Combine several RSS feeds into one feed of your own"><Icon name="combine" /><span>Combine feeds</span></a>
   </div>
 
   {

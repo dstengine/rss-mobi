@@ -10,6 +10,7 @@ import { policy } from "../../../lib/policy.ts";
 import { cacheFor } from "../../../lib/http.ts";
 import { parseFilters } from "../../../lib/filters.ts";
 import { feedsBySlugs } from "../../../lib/views.ts";
+import CopyButton from "../../../components/CopyButton.astro";
 
 const f = parseFilters(Astro.url.searchParams);
 const start = await feedsBySlugs(f.feeds);
@@ -43,14 +44,14 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
     <div class="copy-row">
       <label class="visually-hidden" for="d-rss">RSS feed address</label>
       <input id="d-rss" type="text" readonly />
-      <button class="button" type="button" data-copy="#d-rss">Copy</button>
+      <CopyButton target="#d-rss" />
     </div>
     <h2>Your edit link</h2>
     <p>Keep this link: it is the only way to change the collection later. It is shown once, and it cannot be recovered or sent again.</p>
     <div class="copy-row">
       <label class="visually-hidden" for="d-edit">Edit link</label>
       <input id="d-edit" type="text" readonly />
-      <button class="button" type="button" data-copy="#d-edit">Copy</button>
+      <CopyButton target="#d-edit" />
     </div>
   </div>
 

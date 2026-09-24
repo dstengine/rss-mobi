@@ -1,0 +1,15 @@
+---
+// Copies the value of the input it names. The copy mark turns into a tick
+// for two seconds; src/scripts/copy.ts does the copying.
+import Icon from "./Icon.astro";
+
+interface Props {
+  /** Selector of the input to copy, e.g. "#feed-url". */
+  target: string;
+}
+const { target } = Astro.props;
+---
+
+<button class="button copy" type="button" data-copy={target}>
+  <Icon name="copy" class="when-off" /><Icon name="check" class="when-on" /><span class="label">Copy</span>
+</button>

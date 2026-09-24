@@ -144,7 +144,9 @@ code,
 .wrap {
   max-width: var(--measure);
   margin: 0 auto;
-  padding: 0 var(--gutter);
+  /* viewport-fit=cover lets a phone on its side draw under the notch;
+     the gutter grows to clear it. */
+  padding: 0 max(var(--gutter), env(safe-area-inset-right)) 0 max(var(--gutter), env(safe-area-inset-left));
 }
 
 .muted {
@@ -179,18 +181,17 @@ code,
 /* ---------------------------------------------------------------- header */
 
 .site-header {
+  position: relative;
+  z-index: 10;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
 
 .site-header .wrap {
   display: flex;
-  /* A last resort for a very large system font: the menu takes a second
-     row rather than breaking its words. */
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0 12px;
+  gap: 12px;
   min-height: 56px;
 }
 
@@ -200,7 +201,7 @@ code,
   gap: 8px;
   min-height: 44px;
   /* body's overflow-wrap: anywhere would let a squeezed header split
-     "rss.mobi" and "Topics" mid-word. */
+     "rss.mobi" mid-word. */
   white-space: nowrap;
   overflow-wrap: normal;
   color: var(--text);
@@ -217,6 +218,13 @@ code,
   flex: none;
 }
 
+/* A line icon beside its label, sized in em so it follows the text. */
+.icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+}
+
 .nav {
   display: flex;
   gap: 4px;
@@ -228,6 +236,7 @@ code,
 .nav a {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   min-height: 44px;
   padding: 0 10px;
   border-radius: 8px;
@@ -238,38 +247,207 @@ code,
   overflow-wrap: normal;
 }
 
-/* Small phones (360px Androids): tighter links keep one row. */
-@media (max-width: 400px) {
-  .site-header .wrap {
-    column-gap: 8px;
-  }
-
-  .nav {
-    gap: 2px;
-  }
-
-  .nav a {
-    padding: 0 6px;
-  }
+/* The mark labels the item, it is not the item: a step quieter. */
+.nav a .icon,
+.menu-panel a .icon {
+  color: var(--muted);
 }
 
-/* Narrower still: the icon alone, the name kept for screen readers. */
-@media (max-width: 340px) {
-  .wordmark-name {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-}
-
-.nav a[aria-current="page"] {
+.nav a[aria-current="page"],
+.nav a[aria-current="page"] .icon,
+.menu-panel a[aria-current="page"],
+.menu-panel a[aria-current="page"] .icon {
   color: var(--accent);
 }
 
 .nav a:hover {
+  background: var(--accent-soft);
+}
+
+/* ------------------------------------------------------------ phone menu */
+
+.menu {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .nav-row {
+    display: none;
+  }
+
+  .menu {
+    display: block;
+    position: relative;
+    /* The burger's lines, not its 44px box, meet the page's edge. */
+    margin-right: -11px;
+  }
+
+  /* On a phone the menu is the only way between pages, and a reader deep
+     in a list should not scroll back to the top to reach it. Sticky rather
+     than fixed, so nothing has to be padded to clear it. */
+  .site-header {
+    position: sticky;
+    top: 0;
+  }
+
+  main [id] {
+    scroll-margin-top: 72px;
+  }
+
+  /* The page dims behind the open menu, and a tap on it closes the menu. */
+  .site-header:has(.menu[open])::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 100vh;
+    background: rgb(0 0 0 / 40%);
+  }
+}
+
+.menu summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+}
+
+.menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu summary::marker {
+  content: "";
+}
+
+.menu summary:hover {
+  background: var(--accent-soft);
+}
+
+.burger,
+.burger::before,
+.burger::after {
+  display: block;
+  width: 22px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transition:
+    transform 150ms ease,
+    top 150ms ease,
+    background-color 150ms ease;
+}
+
+.burger {
+  position: relative;
+}
+
+.burger::before,
+.burger::after {
+  content: "";
+  position: absolute;
+  left: 0;
+}
+
+.burger::before {
+  top: -7px;
+}
+
+.burger::after {
+  top: 7px;
+}
+
+.menu[open] .burger {
+  background-color: transparent;
+}
+
+.menu[open] .burger::before {
+  top: 0;
+  transform: rotate(45deg);
+}
+
+.menu[open] .burger::after {
+  top: 0;
+  transform: rotate(-45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .burger,
+  .burger::before,
+  .burger::after {
+    transition: none;
+  }
+}
+
+/* Shut, the panel takes no space at all: Chromium still lays out a closed
+   <details>' children, and on the network sites they poked past the
+   window's edge. */
+.menu:not([open]) .menu-panel {
+  display: none;
+}
+
+/* Anchored under the burger, not across the window: a panel reads as a
+   menu, a full-width band reads as part of the page. */
+.menu-panel {
+  position: absolute;
+  z-index: 1;
+  top: calc(100% + 6px);
+  right: 11px;
+  width: min(20rem, calc(100vw - 2 * var(--gutter)));
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 25%);
+}
+
+.menu-search {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.menu-search input {
+  flex: 1;
+  min-width: 0;
+}
+
+.menu-panel ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.menu-panel .menu-more {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.menu-panel a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.menu-panel a .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.menu-panel a:hover {
   background: var(--accent-soft);
 }
 
@@ -281,7 +459,7 @@ main {
 
 .site-footer {
   border-top: 1px solid var(--line);
-  padding: 16px 0 32px;
+  padding: 16px 0 calc(32px + env(safe-area-inset-bottom));
   color: var(--muted);
   font-size: 0.875rem;
 }
@@ -401,6 +579,33 @@ label {
   cursor: progress;
 }
 
+.button .icon {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+/* A button that is only its mark: square, a fingertip wide. Its name is
+   in aria-label. */
+.button.icon-only {
+  flex: none;
+  width: 44px;
+  padding: 0;
+}
+
+/* A two-state button carries both marks and shows the one for its state:
+   Follow's plus becomes a tick once followed, Copy's mark a tick once
+   copied. */
+.button .when-on,
+.button.follow[aria-pressed="true"] .when-off,
+.button[data-done] .when-off {
+  display: none;
+}
+
+.button.follow[aria-pressed="true"] .when-on,
+.button[data-done] .when-on {
+  display: block;
+}
+
 .notice {
   padding: 12px 14px;
   border-radius: 10px;
@@ -507,30 +712,47 @@ label {
 
 /* ------------------------------------------------------------------ tags */
 
+/* Rows touch: each chip's box already carries 4px of air above and below
+   its pill, so the pills sit 8px apart. */
 .tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 12px 0;
+  gap: 0 8px;
+  margin: 8px 0;
   padding: 0;
   list-style: none;
 }
 
-.tag {
+/* 44px to the finger, 36px to the eye: the box is the tap target and the
+   pill is drawn inside it, so a row of chips stays light. */
+.tag,
+.chip {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
+  border: 0;
+  background: none;
   color: var(--text);
   font-size: 0.9375rem;
   text-decoration: none;
 }
 
-.tag:hover {
+.tag::before,
+.chip::before {
+  content: "";
+  position: absolute;
+  inset: 4px 0;
+  z-index: -1;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.tag:hover::before {
   border-color: var(--accent);
 }
 
@@ -627,6 +849,33 @@ details.report summary {
   cursor: pointer;
 }
 
+/* A flex summary loses the browser's own triangle, and without it the line
+   reads as a heading with nothing under it. A chevron says it opens. */
+details.report summary::before,
+.collection-form summary::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin: 0 12px 0 2px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+
+details.report[open] > summary::before,
+.collection-form details[open] > summary::before {
+  transform: translateY(-2px) rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  details.report summary::before,
+  .collection-form summary::before {
+    transition: none;
+  }
+}
+
 /* ------------------------------------------------------------------ post */
 
 .post .excerpt {
@@ -685,7 +934,7 @@ details.report summary {
 /* ---------------------------------------------------------------- reader */
 
 .button.small {
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 12px;
   font-size: 0.875rem;
 }
@@ -742,7 +991,10 @@ details.report summary {
   }
 }
 
+/* A button that reads as a link inside a sentence, and like a link in a
+   sentence it keeps the line's height rather than a 44px box. */
 .linklike {
+  display: inline;
   padding: 0;
   border: 0;
   background: none;
@@ -798,21 +1050,18 @@ details.report summary {
 
 .chip {
   flex: none;
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--text);
   font: 400 0.9375rem/1 var(--font);
   white-space: nowrap;
   cursor: pointer;
 }
 
 .chip[aria-pressed="true"] {
+  color: var(--accent-strong);
+}
+
+.chip[aria-pressed="true"]::before {
   border-color: var(--accent);
   background: var(--accent-soft);
-  color: var(--accent-strong);
 }
 
 .items .new {

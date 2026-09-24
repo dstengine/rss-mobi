@@ -1,0 +1,13 @@
+---
+// A line icon beside a label. Always decorative: the label next to it
+// says what the control does, so it is hidden from screen readers.
+import { ICONS, type IconName } from "../lib/icons.ts";
+
+interface Props {
+  name: IconName;
+  class?: string;
+}
+const { name, class: cls } = Astro.props;
+---
+
+<svg class:list={["icon", cls]} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d={ICONS[name]}></path></svg>
