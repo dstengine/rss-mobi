@@ -80,9 +80,11 @@ kernel (SERVER-121912). `.env.local` points at it and wins over `.env`.
 - **Search Console is ours only** (ADR 0006). The service account
   `rss-mobi-workers` reads the `https://rss.mobi/` property through
   `src/lib/gsc.ts`, key in `GSC_SERVICE_ACCOUNT`; URL Inspection is
-  counted against its 2,000 a day before each call. Publishers never
-  connect theirs, and nobody else's page is inspected: whether another
-  site's post is in Google is asked of DataForSEO, under `LIMITS.serp`.
+  counted against its 2,000 a day before each call, and the daily sample
+  of open post pages (`src/lib/pagecheck.ts`) takes 200 of them.
+  Publishers never connect theirs, and nobody else's page is inspected:
+  whether another site's post is in Google is asked of DataForSEO, under
+  `LIMITS.serp`.
 - **Edit tokens travel in the URL fragment** and the `X-Edit-Token`
   header, and are stored as sha256 hashes. Never put one in a query string.
 - **The reader keeps nothing on the server.** Subscriptions live in the

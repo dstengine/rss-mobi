@@ -40,7 +40,11 @@ only what is due, so two callers do no harm.
 - `/api/v1/cron/fetch` polls the feeds whose turn has come.
 - `/api/v1/cron/index-check` asks DataForSEO whether each post's original is
   in Google (`src/lib/indexcheck.ts`). A run collects the answers to earlier
-  tasks, then files up to 100 new ones, oldest first.
+  tasks, then files up to 100 new ones, oldest first, and tells IndexNow
+  about post pages that opened or closed. The time left goes to Search
+  Console's URL Inspection of our open post pages (`src/lib/pagecheck.ts`):
+  up to 200 a day, each at most weekly, the answer kept on the item as
+  `pageVerdict`. `retro-stats` counts them under `openPages`.
 
 ### Index-check spending
 
@@ -49,8 +53,8 @@ stops it spending:
 
 - **The daily ceiling**, `LIMITS.serp` in `src/lib/budget.ts` — $0.12,
   40 checks, while the account runs on its trial credit; $1, about 330,
-  once it is topped up. A batch is reserved before its POST and settled to the real
-  cost after. At the ceiling, posts wait in the queue with their pages at
+  once it is topped up. A batch is reserved before its POST and settled
+  to the real cost after. At the ceiling, posts wait in the queue with their pages at
   `noindex`, and Telegram hears once that day.
 - **A refusal** — no money, a rate limit, bad credentials (HTTP 401/402/429,
   DataForSEO's 401xx/402xx) — pauses checks until 00:00 UTC, with one

@@ -79,6 +79,11 @@ export interface ItemDoc {
       the news; cleared only after a 200 or 202, so a failed ping is tried
       again on the next run. */
   announce?: true;
+  /** What Search Console's URL Inspection last said about our page for
+      this post (src/lib/pagecheck.ts): PASS means Google has it. */
+  pageVerdict?: string;
+  pageCoverage?: string;
+  pageCheckedAt?: Date;
   /** TTL: the item disappears after this date unless a story needs it. */
   expiresAt: Date | null;
   createdAt: Date;

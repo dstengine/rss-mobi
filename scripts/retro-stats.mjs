@@ -42,6 +42,7 @@ try {
     events: await byName(range),
   });
 
+  const openItems = { visible: true, $or: [{ robots: "index,follow" }, { robots: null, indexStatus: "not_indexed" }] };
   const status = Object.fromEntries((await db.collection("feeds").aggregate([{ $group: { _id: "$status", n: { $sum: 1 } } }]).toArray()).map((r) => [r._id, r.n]));
   const indexStatus = Object.fromEntries((await db.collection("items").aggregate([{ $group: { _id: "$indexStatus", n: { $sum: 1 } } }]).toArray()).map((r) => [r._id, r.n]));
   const failing = await db
@@ -81,6 +82,13 @@ try {
           items: await count("items", {}),
           itemsVisible: await count("items", { visible: true }),
           indexStatus,
+          // Post pages open to search (the sitemap's OPEN_ITEMS), and what
+          // URL Inspection last said about them: PASS is in Google.
+          openPages: {
+            open: await count("items", openItems),
+            inspected: await count("items", { $and: [openItems, { pageCheckedAt: { $exists: true } }] }),
+            inGoogle: await count("items", { $and: [openItems, { pageVerdict: "PASS" }] }),
+          },
           collections: await count("collections", {}),
         },
         health: { activeFeedsNotFetchedForADay: stale, failing: failing.map((f) => ({ slug: f.slug, failCount: f.failCount, lastError: String(f.lastError ?? "").slice(0, 120) })) },

@@ -57,7 +57,7 @@ export async function feedEntries(n: number): Promise<Entry[]> {
 /** Posts whose page policy() can open: an override to index, or no
     override and an original Google does not have. Everything else is
     noindex whatever else is true, so the query leaves it out. */
-const OPEN_ITEMS: Filter<ItemDoc> = { visible: true, $or: [{ robots: "index,follow" }, { robots: null, indexStatus: "not_indexed" }] };
+export const OPEN_ITEMS: Filter<ItemDoc> = { visible: true, $or: [{ robots: "index,follow" }, { robots: null, indexStatus: "not_indexed" }] };
 
 export async function itemFileCount(): Promise<number> {
   const n = await (await items()).countDocuments(OPEN_ITEMS);

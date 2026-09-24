@@ -23,6 +23,8 @@
   its date while the page is open.
 - Open post pages are listed in `sitemap-items-<n>.xml`, dated by the
   moment they opened, and IndexNow hears when a page opens or closes (#4).
+- Each index-check run asks Search Console about up to 200 open post pages
+  a day, and the retro stats count how many of them Google has (#5).
 - The terms and about pages name an address for complaints and removal
   requests, rss-mobi@vvm.space, besides the report form (#12).
 - Every new post's original is checked in Google, in the order posts
