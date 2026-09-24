@@ -2,6 +2,7 @@
 // filters. Pages call `mountForm` with what to start from and what to do
 // on submit; everything remote is written with textContent.
 import { subs } from "./subs.ts";
+import { track } from "./track.ts";
 
 export interface PickedFeed {
   slug: string;
@@ -27,6 +28,17 @@ const split = (s: string) =>
     .split(",")
     .map((x) => x.trim())
     .filter(Boolean);
+
+// What typed into the search box is an address rather than words:
+// "example.com", "www.example.com/blog", "https://example.com/feed.xml".
+const URLISH = /^(https?:\/\/)?([\w-]+\.)+[a-z]{2,}(:\d+)?([/?#]\S*)?$/i;
+const asUrl = (s: string) => (/^https?:\/\//i.test(s) ? s : `https://${s}`);
+
+async function post(path: string, payload: unknown) {
+  const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).catch(() => null);
+  const data = res ? await res.json().catch(() => ({})) : { error: "No connection. Try again." };
+  return { ok: Boolean(res?.ok), status: res?.status ?? 0, data };
+}
 
 export function mountForm(initial: Initial, onSubmit: (v: CollectionValue) => Promise<string | null>) {
   const form = $<HTMLFormElement>("#collection");
@@ -71,11 +83,102 @@ export function mountForm(initial: Initial, onSubmit: (v: CollectionValue) => Pr
 
   $("#c-mine").addEventListener("click", () => add(...subs()));
 
+  const search = $<HTMLInputElement>("#c-search");
+  const status = $("#c-status");
+  const say = (text: string, bad = false) => {
+    status.textContent = text;
+    status.classList.toggle("bad", bad);
+    status.hidden = !text;
+  };
+
+  // A pasted address adds its feed: the directory's own if it has one, and
+  // otherwise the feed is found, submitted and added in one go, so a
+  // collection is never limited to what the directory already knows. The
+  // box clears as soon as an address is taken, so the next one can be pasted
+  // while the first is still being looked up; they are worked through in
+  // order, and one that fails comes back into the box to be corrected and
+  // stays named in the status until the batch is through.
+  let queue = Promise.resolve();
+  let waiting = 0;
+  let failed: string[] = [];
+  const missed = () => (failed.length ? ` Nothing found at ${failed.join(", ")}.` : "");
+  function addByUrl(raw: string) {
+    results.replaceChildren();
+    search.value = "";
+    if (!waiting) failed = [];
+    waiting++;
+    queue = queue
+      .then(() => addOne(raw))
+      .catch(() => say(`${raw}: that did not work. Try again.`, true))
+      .finally(() => waiting--);
+  }
+  async function addOne(raw: string) {
+    const url = asUrl(raw);
+    const more = waiting > 1 ? ` (${waiting - 1} more waiting)` : "";
+    say(`Looking for a feed at ${raw}…${more}`);
+    let feed: PickedFeed | null = null;
+    let fresh = false;
+    let why = "";
+    // Cheapest first. An exact feed address the directory has costs one
+    // query; a site's address is read to find its feed, and only a feed the
+    // directory lacks is submitted, since submissions are few an hour.
+    const look = await post("/api/v1/lookup", { urls: [url] });
+    feed = look.ok ? (look.data.found?.[0]?.feed ?? null) : null;
+    if (!feed) {
+      const d = await post("/api/v1/discover", { url });
+      let slug: string | null = d.ok ? d.data.existing : null;
+      if (d.ok && !slug) {
+        const r = await post("/api/v1/feeds", { url: d.data.feedUrl });
+        if (r.ok) {
+          feed = r.data.feed;
+          fresh = true;
+        } else {
+          slug = r.data.existing ?? null;
+          why = r.status === 429 ? "the directory takes five new feeds an hour from one address. Try this one later." : r.data.error;
+        }
+      } else if (!d.ok) why = d.data.error;
+      if (slug) {
+        const g = await fetch(`/api/v1/feeds/${encodeURIComponent(slug)}`).catch(() => null);
+        feed = g?.ok ? ((await g.json()).feed ?? null) : null;
+      }
+      if (!feed) {
+        if (!search.value) search.value = raw;
+        failed.push(raw);
+        say(`${raw}: ${why || "no feed was found at that address."}`, true);
+        return;
+      }
+    }
+    add(feed);
+    say(`Added ${feed.title}.${fresh ? " It is new to the directory, too." : ""}${missed()}`, failed.length > 0);
+    track("collection_add_url", { label: fresh ? "new" : "existing" });
+  }
+
   let timer: ReturnType<typeof setTimeout> | undefined;
   let asked = "";
-  $<HTMLInputElement>("#c-search").addEventListener("input", (e) => {
+  search.addEventListener("input", (e) => {
     const q = (e.target as HTMLInputElement).value.trim();
     clearTimeout(timer);
+    if (!waiting) say("");
+    if (URLISH.test(q)) {
+      asked = q;
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "result";
+      // The address without its scheme, free to wrap after a slash rather
+      // than at any letter.
+      const t = document.createElement("span");
+      const parts = q.replace(/^https?:\/\//i, "").replace(/\/$/, "").split("/");
+      t.append(...parts.flatMap((p, i) => (i < parts.length - 1 ? [`${p}/`, document.createElement("wbr")] : [p])));
+      const h = document.createElement("span");
+      h.className = "meta";
+      h.textContent = "Add its feed to this collection";
+      b.append(t, h);
+      b.addEventListener("click", () => addByUrl(q));
+      li.append(b);
+      results.replaceChildren(li);
+      return;
+    }
     if (q.length < 2) {
       results.replaceChildren();
       return;
@@ -114,8 +217,14 @@ export function mountForm(initial: Initial, onSubmit: (v: CollectionValue) => Pr
     }, 250);
   });
 
-  // Enter in the search box searches; it must not submit the form.
-  $<HTMLInputElement>("#c-search").addEventListener("keydown", (e) => e.key === "Enter" && e.preventDefault());
+  // Enter in the search box must not submit the form. On an address it
+  // adds that feed; on words the results are already showing.
+  search.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const q = search.value.trim();
+    if (URLISH.test(q)) addByUrl(q);
+  });
 
   const f = initial.filters ?? {};
   $<HTMLInputElement>("#c-title").value = initial.title ?? "";

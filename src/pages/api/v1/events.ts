@@ -24,6 +24,7 @@ const NAMES = new Set([
   "opml_export",
   "collection_create",
   "collection_save",
+  "collection_add_url",
 ]);
 
 const NO_CONTENT = () => new Response(null, { status: 204, headers: { "Cache-Control": "private, no-store" } });

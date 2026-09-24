@@ -1198,6 +1198,16 @@ details.report[open] > summary::before,
   list-style: none;
 }
 
+/* What became of an address pasted into the search: added, or why not. */
+#c-status {
+  margin: 8px 0 0;
+  color: var(--ok);
+}
+
+#c-status.bad {
+  color: var(--bad);
+}
+
 .sub-list li,
 .picked li {
   display: flex;

@@ -57,6 +57,14 @@
   a new collection show theirs the same way. The address wraps after its
   slashes rather than mid-word, and on a phone the Copy button keeps only
   its mark. The pager under a collection's posts is a 44 px tap target.
+- A collection takes any site or feed address pasted into its search box,
+  on the new-collection page and when editing one. A feed the directory
+  has is added at once; one it lacks is found, submitted and added in the
+  same step, so a collection is no longer limited to the directory. The
+  box clears as soon as an address is taken, so several can be pasted one
+  after another; they are worked through in order, and one with no feed
+  comes back into the box and stays named in the message. Only a feed new
+  to the directory counts against the five submissions an hour.
 - The terms and about pages name an address for complaints and removal
   requests, rss-mobi@vvm.space, besides the report form (#12).
 - Every new post's original is checked in Google, in the order posts

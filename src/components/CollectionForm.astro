@@ -20,8 +20,15 @@ const { submitLabel, hidden = false } = Astro.props;
   <ul class="picked" id="c-feeds" aria-live="polite"></ul>
   <p class="muted small" id="c-none">No feeds yet. Add some below, or use the filters on their own — say, every post tagged <em>css</em>.</p>
 
-  <label for="c-search">Add a feed <span class="hint">Search the directory by name, site or topic. Up to <span class="nowrap">{counted(MAX_FEEDS, "feed")}</span>.</span></label>
-  <input id="c-search" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search RSS feeds…" />
+  <label for="c-search"
+    >Add a feed <span class="hint"
+      >Search the directory by name, site or topic, or paste any site or feed address — one the directory lacks is added to it. Up to <span
+        class="nowrap">{counted(MAX_FEEDS, "feed")}</span
+      >.</span
+    ></label
+  >
+  <input id="c-search" type="search" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" placeholder="Search, or paste an address…" />
+  <p class="small" id="c-status" role="status" hidden></p>
   <ul class="results" id="c-results"></ul>
   <p><button type="button" class="button secondary" id="c-mine" hidden>Add the feeds I follow</button></p>
 
