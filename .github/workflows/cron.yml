@@ -4,7 +4,9 @@ name: cron
 # public, so it prints status codes and nothing else.
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    # Off the quarter hours: GitHub delays and drops scheduled runs at the
+    # top of the hour, and */15 ran every three to five hours on 23-24 Sep.
+    - cron: "7,22,37,52 * * * *"
     - cron: "17 4 1 * *" # keepalive, see the job below
   workflow_dispatch:
 concurrency:
