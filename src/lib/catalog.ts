@@ -165,7 +165,10 @@ export async function store(feed: FeedDoc, parsed: ParsedFeed): Promise<number> 
       indexNextCheckAt: now,
       indexChecks: 0,
       robots: null,
-      linkMode: null,
+      // The owner's choice travels with each post, so every list, the
+      // reader and the API mark its links the same way (applyEdit keeps
+      // it in step).
+      linkMode: feed.linkMode ?? null,
       expiresAt: new Date(now.getTime() + ITEM_TTL_DAYS * DAY),
       createdAt: now,
       updatedAt: now,

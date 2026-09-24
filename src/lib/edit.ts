@@ -54,6 +54,11 @@ export async function applyEdit(feed: FeedDoc, req: EditRequest): Promise<FeedDo
       // Items carry the feed's tags so filters need no join; move them too.
       await (await items()).updateMany({ feedId: feed._id }, [{ $set: { tags: { $slice: [{ $setUnion: [{ $setDifference: ["$tags", feed.tags] }, set.tags] }, 10] } } }]);
     }
+    if ("linkMode" in set) {
+      // And the owner's link choice, which lists of many feeds, the reader
+      // and the API read off the item alone.
+      await (await items()).updateMany({ feedId: feed._id }, { $set: { linkMode: set.linkMode ?? null } });
+    }
   }
   if (typeof req.hidden === "boolean" && feed.status !== "disabled") {
     const status = req.hidden ? "hidden" : "active";

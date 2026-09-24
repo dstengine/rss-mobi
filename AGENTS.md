@@ -14,6 +14,8 @@ policy rules and the DST network. Licence: AGPL-3.0, see `LICENSE`.
 ```
 npm run dev          # http://localhost:4340 (reads .env.local, then .env)
 npm test             # unit tests, no services needed
+# plus tests/db.test.ts against a disposable server (db rssmobi_test; CI runs it):
+RSS_MOBI_TEST_MONGO="mongodb://127.0.0.1:27018/?directConnection=true" npm test
 npm run test:live    # RSS_MOBI_BASE=… — same HTML for Googlebot and a phone
 npm run migrate      # create indexes (idempotent); `-- rssmobi_test` for another db
 npm run build

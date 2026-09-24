@@ -25,6 +25,10 @@
   moment they opened, and IndexNow hears when a page opens or closes (#4).
 - Each index-check run asks Search Console about up to 200 open post pages
   a day, and the retro stats count how many of them Google has (#5).
+- An owner's nofollow choice now reaches every link to the feed's posts —
+  topic pages, collections, the reader and the API — not only the feed's
+  own page: items carry the feed's `linkMode` (#13). `tests/db.test.ts`
+  checks it against a real MongoDB, which CI now starts.
 - The terms and about pages name an address for complaints and removal
   requests, rss-mobi@vvm.space, besides the report form (#12).
 - Every new post's original is checked in Google, in the order posts

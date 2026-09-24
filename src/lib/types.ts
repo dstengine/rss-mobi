@@ -74,6 +74,8 @@ export interface ItemDoc {
   serpPostedAt?: Date;
   serpCost?: number;
   robots: Robots | null;
+  /** The feed owner's link choice, copied from the feed on insert and on
+      every edit, so a link is marked right wherever the post is listed. */
   linkMode: LinkMode | null;
   /** Set when the page's robots changed and IndexNow has not yet accepted
       the news; cleared only after a 200 or 202, so a failed ping is tried
