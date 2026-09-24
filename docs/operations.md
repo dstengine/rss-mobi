@@ -29,9 +29,13 @@ node --env-file=.env scripts/migrate.mjs rssmobi
 
 ## Scheduled jobs
 
-`.github/workflows/cron.yml` calls `/api/v1/cron/*` every 15 minutes with
-`CRON_SECRET`, once the repository variable `CRON_ENABLED` is `true`. Why
-GitHub Actions and not Vercel cron: [ADR 0003](decisions/0003-cron-via-github-actions.md).
+Upstash QStash calls `/api/v1/cron/*` every 15 minutes with
+`CRON_SECRET` ([ADR 0007](decisions/0007-cron-via-qstash.md)); see or
+recreate its schedules with
+`node --env-file=.env scripts/qstash-schedules.mjs [list]`.
+`.github/workflows/cron.yml` does the same as a fallback, while the
+repository variable `CRON_ENABLED` is `true`. The jobs take locks and do
+only what is due, so two callers do no harm.
 
 - `/api/v1/cron/fetch` polls the feeds whose turn has come.
 - `/api/v1/cron/index-check` asks DataForSEO whether each post's original is
