@@ -165,11 +165,11 @@ export function mountForm(initial: Initial, onSubmit: (v: CollectionValue) => Pr
       const b = document.createElement("button");
       b.type = "button";
       b.className = "result";
-      // The address without its scheme, free to wrap after a slash rather
-      // than at any letter.
+      // The address without its scheme, wrapping only after a slash.
       const t = document.createElement("span");
+      t.className = "url";
       const parts = q.replace(/^https?:\/\//i, "").replace(/\/$/, "").split("/");
-      t.append(...parts.flatMap((p, i) => (i < parts.length - 1 ? [`${p}/`, document.createElement("wbr")] : [p])));
+      t.append(...parts.map((p, i) => Object.assign(document.createElement("span"), { textContent: i < parts.length - 1 ? `${p}/` : p })));
       const h = document.createElement("span");
       h.className = "meta";
       h.textContent = "Add its feed to this collection";

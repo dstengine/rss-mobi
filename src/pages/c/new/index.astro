@@ -81,7 +81,9 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
     const rss = document.querySelector<HTMLAnchorElement>("#d-rss")!;
     rss.href = data.collection.rss;
     const parts = String(data.collection.rss).replace(/^https?:\/\//, "").split("/");
-    rss.querySelector(".url")!.replaceChildren(...parts.flatMap((p, i) => (i < parts.length - 1 ? [`${p}/`, document.createElement("wbr")] : [p])));
+    rss.querySelector(".url")!.replaceChildren(
+      ...parts.map((p, i) => Object.assign(document.createElement("span"), { textContent: i < parts.length - 1 ? `${p}/` : p })),
+    );
     document.querySelector<HTMLInputElement>("#d-edit")!.value = data.editUrl;
     const done = document.querySelector<HTMLElement>("#done")!;
     done.hidden = false;

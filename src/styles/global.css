@@ -437,12 +437,6 @@ code,
   list-style: none;
 }
 
-.menu-panel .menu-more {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--line);
-}
-
 .menu-panel a {
   display: flex;
   align-items: center;
@@ -466,6 +460,135 @@ code,
 
 main {
   padding: 24px 0 48px;
+}
+
+/* --------------------------------------------------------------- tab bar */
+
+/* On a phone the site is used as an app, and is laid out as one: the
+   sections along the bottom, within reach of a thumb, the current one in
+   the accent colour. A wide screen keeps the header row instead. */
+.tabbar {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  :root {
+    --tabbar: 56px;
+  }
+
+  body {
+    padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom));
+  }
+
+  .tabbar {
+    display: block;
+    position: fixed;
+    z-index: 20;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--surface) 86%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    backdrop-filter: saturate(180%) blur(18px);
+  }
+
+  .tabbar ul {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tabbar a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: var(--tabbar);
+    color: var(--muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    text-decoration: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .tabbar .icon {
+    width: 24px;
+    height: 24px;
+    transition: transform 120ms ease;
+  }
+
+  .tabbar a[aria-current="page"] {
+    color: var(--accent);
+  }
+
+  .tabbar a:active .icon {
+    transform: scale(0.88);
+  }
+
+  /* The keyboard is up: the bar would sit on top of it. */
+  .typing .tabbar {
+    display: none;
+  }
+
+  .typing body {
+    padding-bottom: 0;
+  }
+
+  /* The header reads as an app bar: the page slides under it, softened. */
+  .site-header {
+    background: color-mix(in srgb, var(--surface) 86%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    backdrop-filter: saturate(180%) blur(18px);
+  }
+}
+
+/* A tap answers at once, as a native control does: no grey flash from the
+   browser, a pressed state of our own instead. Double-tap zoom is off, so
+   a tap never waits to see whether a second one follows. */
+html {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button:active,
+.feed-card:active,
+.chip:active,
+.tag:active,
+.result:active {
+  transform: scale(0.98);
+}
+
+/* ------------------------------------------------------------ transitions */
+
+/* Moving between pages cross-fades while the header and the tab bar stay
+   put, the way screens change inside an app. Browsers without cross-page
+   view transitions simply load the next page. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+
+  .site-header {
+    view-transition-name: header;
+  }
+
+  .tabbar {
+    view-transition-name: tabbar;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 160ms;
+  }
 }
 
 /* ---------------------------------------------------------------- footer */
@@ -711,6 +834,11 @@ label {
   min-height: 44px;
   padding: 10px 12px;
   font: 0.875rem/1.4 var(--mono);
+}
+
+/* An address wraps only after a slash: each piece is an inline block. */
+.url > span {
+  display: inline-block;
 }
 
 .button.joined {

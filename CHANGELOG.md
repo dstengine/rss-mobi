@@ -57,6 +57,19 @@
   a new collection show theirs the same way. The address wraps after its
   slashes rather than mid-word, and on a phone the Copy button keeps only
   its mark. The pager under a collection's posts is a 44 px tap target.
+- On a phone the site is laid out as an app. A tab bar along the bottom
+  holds Home, Topics, Reader, Combine and Search, the current one in the
+  accent colour, clear of the home indicator; it steps aside while the
+  keyboard is up. The header is a translucent app bar, and its menu keeps
+  what the tabs leave out: search, Submit a feed, About and Terms. Pages
+  cross-fade while the header and tab bar stay put (where the browser
+  supports cross-page view transitions, and not under reduced motion),
+  links are fetched ahead as a finger lands on them, buttons and cards
+  answer a tap with a pressed state instead of the browser's grey flash,
+  and double-tap zoom no longer delays a tap. Installed to the home
+  screen, the app offers shortcuts to Reader, Search, Topics and Combine.
+  The empty search screen offers popular topics and the newest feeds. A
+  feed's address wraps only after a slash, never at a hyphen.
 - A collection takes any site or feed address pasted into its search box,
   on the new-collection page and when editing one. A feed the directory
   has is added at once; one it lacks is found, submitted and added in the

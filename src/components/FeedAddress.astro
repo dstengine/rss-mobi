@@ -17,14 +17,15 @@ interface Props {
   [attr: `data-${string}`]: string;
 }
 const { id, url, title, type = "application/rss+xml", rel, ...rest } = Astro.props;
-// Shown without its scheme, and free to wrap after each slash: a browser
-// left to itself breaks a URL at any letter ("rss|.xml").
+// Shown without its scheme, and wrapped only after a slash: each piece is
+// its own inline block, so "daring-fireball/" moves down whole instead of
+// splitting at its hyphen, and only a piece wider than the line breaks.
 const parts = url.replace(/^https?:\/\//, "").split("/");
 ---
 
 <div class="feed-address-row">
   <a class="feed-address" id={id} href={url || undefined} type={type} rel={rel ?? undefined} title={title} {...rest}
-    ><Icon name="rss" /><span class="url">{parts.map((p, i) => (i < parts.length - 1 ? <>{p}/<wbr /></> : p))}</span></a
+    ><Icon name="rss" /><span class="url">{parts.map((p, i) => <span>{i < parts.length - 1 ? `${p}/` : p}</span>)}</span></a
   >
   <CopyButton target={`#${id}`} class="joined" />
 </div>

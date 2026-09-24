@@ -28,6 +28,18 @@ const canonical = new URL(path, site.url).toString();
 const pageTitle = fullTitle ?? (title ? `${title} · ${site.titleSuffix}` : site.titleSuffix);
 const current = Astro.url.pathname;
 const isCurrent = (href: string) => (href === "/" ? current === "/" : current.startsWith(href));
+const onTab = (t: { href: string; match: readonly string[] }) => isCurrent(t.href) || t.match.some((m) => current.startsWith(m));
+// Same-origin pages are fetched ahead the moment a finger lands on a link
+// (or the pointer rests on one), so the next screen opens the way an app's
+// does. Never the API, the outbound hop, edit pages or the XML files.
+const speculation = {
+  prefetch: [
+    {
+      where: { and: [{ href_matches: "/*" }, { not: { href_matches: ["/api/*", "/go/*", "/*/edit/*", "/*.xml", "/*.txt"] } }] },
+      eagerness: "moderate",
+    },
+  ],
+};
 const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 ---
 
@@ -44,6 +56,9 @@ const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="apple-mobile-web-app-title" content={site.name} />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141210" media="(prefers-color-scheme: dark)" />
     <meta property="og:site_name" content={site.name} />
@@ -54,6 +69,7 @@ const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     <meta name="twitter:card" content="summary" />
     {alternate && <link rel="alternate" type={alternate.type ?? "application/rss+xml"} href={alternate.href} title={alternate.title} />}
     {ld.map((o) => <script type="application/ld+json" set:html={JSON.stringify(o).replace(/</g, "\\u003c")} />)}
+    <script type="speculationrules" is:inline set:html={JSON.stringify(speculation)} />
   </head>
   <body>
     <header class="site-header">
@@ -80,11 +96,11 @@ const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
             }
           </ul>
         </nav>
-        {/* On a phone the row gives way to this. A native <details>: it opens
-            and closes with no script, and says "expanded" to a screen reader
-            by itself; the script below only adds closing on an outside tap or
-            Escape. Search sits at the top, because on a phone the only other
-            search box is on the front page. */}
+        {/* On a phone the row gives way to the tab bar along the bottom, and
+            this menu keeps what the tabs leave out. A native <details>: it
+            opens and closes with no script, and says "expanded" to a screen
+            reader by itself; the script below only adds closing on an outside
+            tap or Escape. */}
         <details class="menu">
           <summary aria-label="Menu">
             <span class="burger" aria-hidden="true"></span>
@@ -97,20 +113,8 @@ const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
                 <Icon name="search" />
               </button>
             </form>
-            <nav aria-label="Main">
+            <nav aria-label="More">
               <ul>
-                {
-                  site.nav.map((n) => (
-                    <li>
-                      <a href={n.href} title={n.title} aria-current={isCurrent(n.href) ? "page" : undefined}>
-                        <Icon name={n.icon} />
-                        <span>{"long" in n ? n.long : n.label}</span>
-                      </a>
-                    </li>
-                  ))
-                }
-              </ul>
-              <ul class="menu-more">
                 {
                   site.menu.map((n) => (
                     <li>
@@ -148,6 +152,20 @@ const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
         <p>{site.name} — a directory of {site.keyword}, readable on a phone. Excerpts belong to their publishers; every entry links to its source.</p>
       </div>
     </footer>
+    <nav class="tabbar" aria-label="Sections">
+      <ul>
+        {
+          site.tabs.map((t) => (
+            <li>
+              <a href={t.href} title={t.title} aria-current={onTab(t) ? "page" : undefined}>
+                <Icon name={t.icon} />
+                <span>{t.label}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
     <script>
       import { track } from "../scripts/track.ts";
       track("view");
@@ -165,6 +183,13 @@ const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
           menu.querySelector("summary")?.focus();
         });
       }
+
+      // With the keyboard up the tab bar would ride on top of it and eat
+      // half of what is left of the screen; it steps aside while typing.
+      const typing = (el: EventTarget | null) =>
+        el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement && !["checkbox", "radio", "button", "submit"].includes(el.type));
+      document.addEventListener("focusin", (e) => document.documentElement.classList.toggle("typing", typing(e.target)));
+      document.addEventListener("focusout", () => document.documentElement.classList.remove("typing"));
     </script>
   </body>
 </html>

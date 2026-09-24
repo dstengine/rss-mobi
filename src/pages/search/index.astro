@@ -3,12 +3,15 @@ import Base from "../../layouts/Base.astro";
 import FeedCard from "../../components/FeedCard.astro";
 import { policy } from "../../lib/policy.ts";
 import { cacheFor } from "../../lib/http.ts";
-import { searchFeeds } from "../../lib/views.ts";
+import { recentFeeds, searchFeeds, tagStats } from "../../lib/views.ts";
 import { counted } from "../../lib/words.ts";
 import Icon from "../../components/Icon.astro";
 
 const q = (Astro.url.searchParams.get("q") ?? "").trim().slice(0, 100);
 const results = q ? await searchFeeds(q) : [];
+// With nothing asked yet the screen offers somewhere to start, as an app's
+// search tab does: the busiest topics and the newest feeds.
+const [tags, fresh] = q ? [[], []] : await Promise.all([tagStats(16), recentFeeds(6)]);
 // Search results are never indexed: every query would be a thin page of
 // its own. Cached briefly so a popular query costs one lookup.
 const decision = policy({ type: "search" });
@@ -47,5 +50,33 @@ Astro.response.headers.set("Cache-Control", cacheFor(120));
           </p>
         </div>
       ))
+  }
+  {
+    tags.length > 0 && (
+      <section>
+        <h2>Popular topics</h2>
+        <ul class="tags">
+          {tags.map((t) => (
+            <li>
+              <a class="tag" href={`/tag/${t.tag}/`} title={`${t.tag.replace(/-/g, " ")} RSS feeds`}>
+                {t.tag.replace(/-/g, " ")} <span class="n">{t.feeds}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+  {
+    fresh.length > 0 && (
+      <section>
+        <h2>Newest RSS feeds</h2>
+        <ul class="cards">
+          {fresh.map((f) => (
+            <FeedCard feed={f} />
+          ))}
+        </ul>
+      </section>
+    )
   }
 </Base>
