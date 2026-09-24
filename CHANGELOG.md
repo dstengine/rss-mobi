@@ -17,7 +17,7 @@
 
 - Every new post's original is checked in Google, in the order posts
   arrived, through DataForSEO: `/api/v1/cron/index-check`, called by the
-  cron workflow. Spending is capped at $1 a day, a refusal pauses checks
+  cron workflow. Spending is capped at $0.12 a day for now, a refusal pauses checks
   until midnight UTC, and a low balance or a spent budget goes to Telegram
   once (#2).
 

@@ -2,7 +2,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { ObjectId } from "mongodb";
 import { LIMITS } from "../src/lib/budget.ts";
-import { afterCheck, isPaused, nextCheckIn, runIndexCheck, type Queued, type Store } from "../src/lib/indexcheck.ts";
+import { LOW_BALANCE_DAYS, afterCheck, isPaused, nextCheckIn, runIndexCheck, type Queued, type Store } from "../src/lib/indexcheck.ts";
 import { CHECK_USD, SerpStop, dataForSeo, isStop, keywordFor, listed, type SerpApi } from "../src/lib/serp.ts";
 import type { IndexStatus } from "../src/lib/types.ts";
 
@@ -229,13 +229,14 @@ describe("index check", () => {
   test("a low balance is reported once a day", async () => {
     const now = new Date("2026-10-04T10:00:00Z");
     const { store } = memStore([]);
-    const { api } = fakeApi({ balance: 3.5 });
+    const low = +(LOW_BALANCE_DAYS * LIMITS.serp * 0.5).toFixed(2);
+    const { api } = fakeApi({ balance: low });
     const alerts: string[] = [];
     const deps = { api, store, ledger: fakeLedger(), alert: async (t: string) => void alerts.push(t), now: () => now };
-    assert.equal((await runIndexCheck(Date.now() + 10_000, deps)).balance, 3.5);
+    assert.equal((await runIndexCheck(Date.now() + 10_000, deps)).balance, low);
     await runIndexCheck(Date.now() + 10_000, deps);
     assert.equal(alerts.length, 1);
-    assert.match(alerts[0], /\$3\.50/);
+    assert.ok(alerts[0].includes(`$${low.toFixed(2)}`));
   });
 
   test("without credentials the job does nothing", async () => {

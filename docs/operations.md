@@ -47,8 +47,9 @@ only what is due, so two callers do no harm.
 A check is one `site:` query in DataForSEO's standard queue, $0.003. What
 stops it spending:
 
-- **The daily ceiling**, `LIMITS.serp` in `src/lib/budget.ts` ($1, about
-  330 checks). A batch is reserved before its POST and settled to the real
+- **The daily ceiling**, `LIMITS.serp` in `src/lib/budget.ts` — $0.12,
+  40 checks, while the account runs on its trial credit; $1, about 330,
+  once it is topped up. A batch is reserved before its POST and settled to the real
   cost after. At the ceiling, posts wait in the queue with their pages at
   `noindex`, and Telegram hears once that day.
 - **A refusal** — no money, a rate limit, bad credentials (HTTP 401/402/429,

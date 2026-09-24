@@ -15,8 +15,10 @@ import type { Collection } from "mongodb";
 /** Dollars per UTC day. */
 export const LIMITS = {
   /** DataForSEO index checks, v1.0. A check is a `site:` query, which
-      DataForSEO bills at five times a plain one: $0.003, about 330 a day. */
-  serp: 1,
+      DataForSEO bills at five times a plain one: $0.003, so $0.12 is 40
+      checks a day. Temporary, from 24 Sep 2026, while the account runs on
+      its trial credit; $1 (about 330 checks) once it is topped up. */
+  serp: 0.12,
   /** Claude rewrites, v1.1. */
   llm: 5,
 } as const;
