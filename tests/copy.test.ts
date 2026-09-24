@@ -1,5 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { parseFeed, itemKey, type ParsedItem } from "../src/lib/feeds/parse.ts";
 import { clean } from "../src/lib/feeds/clean.ts";
 import { copyItems, readerCount, subscriberTotal, type StoredPost } from "../src/lib/copy.ts";
@@ -178,4 +179,12 @@ describe("subscribers", () => {
     assert.equal(subscriberTotal(map, now), 25);
     assert.equal(subscriberTotal(undefined, now), 0);
   });
+});
+
+// Vercel's runtime refuses require() of an ES module, which Node here
+// allows: sanitize-html 2.17.2+ requires an ESM-only htmlparser2 and took
+// every route that imports it down in production, with the tests green.
+test("sanitize-html loads without require(esm), as on Vercel", () => {
+  const r = spawnSync(process.execPath, ["--no-experimental-require-module", "-e", "require('sanitize-html')"], { cwd: new URL("..", import.meta.url) });
+  assert.equal(r.status, 0, String(r.stderr));
 });
