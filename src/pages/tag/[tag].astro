@@ -75,7 +75,7 @@ const jsonLd = [
       ranked ? (
         <>
           <span class="nowrap">{counted(n, "feed")}</span> from <span class="nowrap">{counted(stat.hosts, "site")}</span> tagged “{label}”, ranked by how many people follow each
-          one in their readers, how often it posts and how recently. The list moves every hour.
+          one in their readers, how often it posts and how recently. The list moves as the feeds are checked, at least hourly.
         </>
       ) : (
         <>

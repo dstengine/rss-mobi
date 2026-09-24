@@ -37,7 +37,13 @@ recreate its schedules with
 repository variable `CRON_ENABLED` is `true`. The jobs take locks and do
 only what is due, so two callers do no harm.
 
-- `/api/v1/cron/fetch` polls the feeds whose turn has come.
+- `/api/v1/cron/fetch` polls the feeds whose turn has come, and those due
+  in the next two minutes, eight at a time. A feed's turn comes every 15
+  minutes if it posts three times a day or more, every 30 at once a day,
+  hourly otherwise (`interval()` in `src/lib/catalog.ts`). Feed pages,
+  feed copies and the reader's API also poll the feeds they show once
+  they have answered (`src/lib/after.ts`), so a scheduler that runs late
+  or stops does not leave a feed people read behind.
 - `/api/v1/cron/index-check` asks DataForSEO whether each post's original is
   in Google (`src/lib/indexcheck.ts`). A run collects the answers to earlier
   tasks, then files up to 100 new ones, oldest first, and tells IndexNow

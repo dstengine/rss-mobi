@@ -5,6 +5,7 @@
 // feed in <source>.
 import type { APIRoute } from "astro";
 import { copyItems, copySource, livePosts, noteSubscribers, storedPosts } from "../../../lib/copy.ts";
+import { freshen } from "../../../lib/after.ts";
 import { cacheFor } from "../../../lib/http.ts";
 import { toRss, xmlHeaders } from "../../../lib/rss.ts";
 import { site } from "../../../site.config.ts";
@@ -23,6 +24,8 @@ export const GET: APIRoute = async ({ params, request }) => {
     feed.status === "active" ? livePosts(feed) : null,
     noteSubscribers(feed, request.headers.get("user-agent") ?? "").catch(() => {}),
   ]);
+  // Readers following the copy keep the catalogue's posts fresh too.
+  freshen([feed.slug]);
   const self = `${site.url}/feed/${feed.slug}/rss.xml`;
   const xml = toRss({
     title: feed.title,

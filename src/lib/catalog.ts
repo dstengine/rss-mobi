@@ -1,5 +1,5 @@
 // The catalogue: submitting a feed, storing what it publishes, polling it.
-import { ObjectId, type AnyBulkWriteOperation } from "mongodb";
+import { ObjectId, type AnyBulkWriteOperation, type Filter } from "mongodb";
 import { blocklist, feeds, items } from "./db.ts";
 import { discover } from "./feeds/discover.ts";
 import { get, FetchError } from "./feeds/get.ts";
@@ -14,10 +14,30 @@ import { spamReason } from "./spam.ts";
 import { newToken, sha256 } from "./tokens.ts";
 import type { FeedDoc, ItemDoc } from "./types.ts";
 
-const HOUR = 3_600_000;
+const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 export const ITEM_TTL_DAYS = 90;
 export const FETCH_EVERY = HOUR;
+/** Feeds fetched side by side in one run. */
+const CONCURRENCY = 8;
+/** A run also takes feeds due in the next two minutes. The scheduler calls
+    every quarter hour and a feed's next turn is counted from when it was
+    fetched, a few seconds into the run — without this, a feed due an hour
+    later falls a few seconds after the next run starts and waits a quarter
+    of an hour more, every time. */
+const LOOKAHEAD = 2 * MINUTE;
+
+/** How long a feed waits for its next poll. A feed that posts several
+    times a day is read every quarter hour, as the big readers read it: its
+    followers expect a post from minutes ago. The rest hourly. The
+    conditional request makes a poll that finds nothing cost the site a
+    304 and no more. */
+export function interval(perWeek = 0): number {
+  if (perWeek >= 21) return 15 * MINUTE;
+  if (perWeek >= 7) return 30 * MINUTE;
+  return FETCH_EVERY;
+}
 const MAX_FAILS = 10;
 export const MAX_TAGS = 5;
 
@@ -200,31 +220,49 @@ export interface PollReport {
 }
 
 /** Polls feeds whose turn has come until `deadline` (ms since epoch). */
-export async function pollDue(deadline: number, batch = 40): Promise<PollReport> {
+export async function pollDue(deadline: number, batch = 200): Promise<PollReport> {
+  return pollWhere({}, deadline, batch, LOOKAHEAD);
+}
+
+/** Polls those of the named feeds whose turn has come, a few at a time.
+    Pages and the API call it once they have answered, so a feed someone
+    is reading is at most an hour behind its site — however late the
+    scheduler runs. The lock keeps a busy page from polling a feed twice. */
+export async function pollIfDue(slugs: string[], max = 4, budget = 20_000): Promise<PollReport> {
+  const wanted = [...new Set(slugs)].slice(0, 200);
+  if (!wanted.length) return { polled: 0, unchanged: 0, added: 0, failed: 0, disabled: [] };
+  return pollWhere({ slug: { $in: wanted } }, Date.now() + budget, max, 0);
+}
+
+async function pollWhere(filter: Filter<FeedDoc>, deadline: number, batch: number, ahead: number): Promise<PollReport> {
   const report: PollReport = { polled: 0, unchanged: 0, added: 0, failed: 0, disabled: [] };
   const col = await feeds();
-  const due = await col
-    .find({ status: "active", nextFetchAt: { $lte: new Date() } })
+  const queue = await col
+    .find({ ...filter, status: "active", nextFetchAt: { $lte: new Date(Date.now() + ahead) } })
     .sort({ nextFetchAt: 1 })
     .limit(batch)
     .toArray();
 
-  for (const feed of due) {
-    if (Date.now() > deadline) break;
-    if (!(await lock(`feed:${feed._id}`, 120))) continue;
-    try {
-      report.polled++;
-      const outcome = await pollOne(feed);
-      if (outcome === "unchanged") report.unchanged++;
-      else if (typeof outcome === "number") report.added += outcome;
-      else {
-        report.failed++;
-        if (outcome.disabled) report.disabled.push(feed.slug);
+  // A few workers share the queue, most overdue first: one slow site
+  // holds up one worker, not the run.
+  const worker = async () => {
+    for (let feed = queue.shift(); feed && Date.now() <= deadline; feed = queue.shift()) {
+      if (!(await lock(`feed:${feed._id}`, 120))) continue;
+      try {
+        report.polled++;
+        const outcome = await pollOne(feed);
+        if (outcome === "unchanged") report.unchanged++;
+        else if (typeof outcome === "number") report.added += outcome;
+        else {
+          report.failed++;
+          if (outcome.disabled) report.disabled.push(feed.slug);
+        }
+      } finally {
+        await unlock(`feed:${feed._id}`);
       }
-    } finally {
-      await unlock(`feed:${feed._id}`);
     }
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker));
   if (report.disabled.length) await alert(`disabled after ${MAX_FAILS} failed fetches: ${report.disabled.join(", ")}`);
   return report;
 }
@@ -237,7 +275,7 @@ async function pollOne(feed: FeedDoc): Promise<number | "unchanged" | { disabled
     const common = {
       lastFetchAt: now,
       failCount: 0,
-      nextFetchAt: new Date(now.getTime() + FETCH_EVERY),
+      nextFetchAt: new Date(now.getTime() + interval(feed.postsPerWeek)),
       etag: res.etag ?? feed.etag,
       lastModified: res.lastModified ?? feed.lastModified,
     };

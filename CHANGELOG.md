@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Busy feeds are polled every 15 minutes (three posts a day or more) or
+  30 (one a day); the rest hourly. A run polls eight feeds at a time and
+  takes those due in the next two minutes too: before, a feed due just
+  after a run began waited for the next, so "hourly" was really every
+  75 minutes. Pages, copies and the reader's API poll the feeds they
+  show once they have answered, through Vercel's `waitUntil`.
 - Topic pages are ranked lists, "Best <Topic> RSS Feeds in <year>": each
   feed with its place, icon, posting pace, last post and followers, and
   Follow, Copy RSS and Website beside it. The rank (`src/lib/activity.ts`)

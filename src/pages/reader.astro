@@ -113,7 +113,7 @@ const jsonLd = {
     <h2>How this RSS reader works</h2>
     <ul>
       <li>Following a feed adds it to a list kept in this browser. Nothing is sent to us but the list of feeds to fetch, and nothing identifies you.</li>
-      <li>Posts arrive as the directory checks each feed, about once an hour. Tap a title to read the whole post here, pictures and audio included, as its feed carries it; <strong>Open</strong> takes you to the publisher's site.</li>
+      <li>Posts arrive as the directory checks each feed: hourly, and every 15 minutes for feeds that post several times a day. Tap a title to read the whole post here, pictures and audio included, as its feed carries it; <strong>Open</strong> takes you to the publisher's site.</li>
       <li>To move your list to another phone or another app, export it as OPML — the file every reader imports.</li>
       <li>On a phone, use your browser's <em>Add to Home Screen</em> to open the reader like an app.</li>
     </ul>
@@ -226,7 +226,7 @@ const jsonLd = {
       for (const it of data.items) newest = Math.max(newest, new Date(it.publishedAt).getTime());
       next = data.next;
       more.hidden = !next;
-      state.textContent = list.childElementCount ? "" : "No posts yet from the feeds you follow. They are checked about once an hour.";
+      state.textContent = list.childElementCount ? "" : "No posts yet from the feeds you follow. They are checked at least once an hour.";
       if (!replace) track("reader_more");
     } catch {
       if (mine === generation) state.textContent = "Posts could not be loaded. Check your connection and try again.";

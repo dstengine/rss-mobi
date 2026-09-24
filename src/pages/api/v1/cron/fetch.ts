@@ -1,6 +1,8 @@
-// POST /api/v1/cron/fetch — polls the feeds whose turn has come. Called
-// every 15 minutes by .github/workflows/cron.yml with CRON_SECRET; Vercel's
-// own cron runs once a day on this plan, which is not a feed reader.
+// POST /api/v1/cron/fetch — polls the feeds whose turn has come, eight at
+// a time. Called every 15 minutes by QStash, with GitHub Actions as the
+// fallback, with CRON_SECRET; Vercel's own cron runs once a day on this
+// plan, which is not a feed reader. Pages poll the feeds they show, too
+// (src/lib/after.ts).
 import type { APIRoute } from "astro";
 import { pollDue } from "../../../../lib/catalog.ts";
 import { error, isCron, json } from "../../../../lib/http.ts";

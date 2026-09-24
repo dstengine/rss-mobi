@@ -17,7 +17,7 @@ const skip = !URI && "RSS_MOBI_TEST_MONGO not set";
 
 describe("with MongoDB", { skip }, async () => {
   const { client, feeds, items } = await import("../src/lib/db.ts");
-  const { store } = await import("../src/lib/catalog.ts");
+  const { pollDue, pollIfDue, store } = await import("../src/lib/catalog.ts");
   const { applyEdit, editable } = await import("../src/lib/edit.ts");
   const { noteSubscribers, storedPosts } = await import("../src/lib/copy.ts");
   const { itemJson, itemsFor, feedsByTag, tagPlace } = await import("../src/lib/views.ts");
@@ -139,5 +139,36 @@ describe("with MongoDB", { skip }, async () => {
     assert.deepEqual(listed.map((f) => f.slug)[0], lively.slug);
     assert.equal(listed.at(-1)?.slug, backlog.slug);
     assert.deepEqual(await tagPlace({ ...listed[0], status: "active" }), { tag, place: 1, of: 3 });
+  });
+
+  test("reading polls the feeds read whose turn has come, and only those, once", async () => {
+    const due = await feed();
+    const other = await feed();
+    const early = await feed();
+    const col = await feeds();
+    await col.updateOne({ _id: early._id }, { $set: { nextFetchAt: new Date(Date.now() + 3_600_000) } });
+    // Two pages asking at once: the lock lets one of them poll.
+    const reports = await Promise.all([pollIfDue([due.slug, early.slug]), pollIfDue([due.slug])]);
+    assert.equal(reports[0].polled + reports[1].polled, 1);
+    // .example never resolves, so the poll fails — and still takes its turn.
+    const polled = await col.findOne({ _id: due._id });
+    assert.equal(polled?.failCount, 1);
+    assert.ok(polled!.nextFetchAt.getTime() > Date.now());
+    assert.equal((await col.findOne({ _id: other._id }))?.failCount, 0);
+    assert.equal((await col.findOne({ _id: early._id }))?.failCount, 0);
+    assert.equal((await pollIfDue([due.slug])).polled, 0);
+    assert.equal((await pollIfDue([])).polled, 0);
+  });
+
+  test("the scheduler takes a feed due within two minutes; a reader does not", async () => {
+    const soon = await feed();
+    const col = await feeds();
+    // Only this feed is due: the others made here wait an hour.
+    await col.updateMany({ _id: { $in: created } }, { $set: { nextFetchAt: new Date(Date.now() + 3_600_000) } });
+    await col.updateOne({ _id: soon._id }, { $set: { nextFetchAt: new Date(Date.now() + 60_000) } });
+    assert.equal((await pollIfDue([soon.slug])).polled, 0);
+    const report = await pollDue(Date.now() + 20_000);
+    assert.ok(report.polled >= 1);
+    assert.equal((await col.findOne({ _id: soon._id }))?.failCount, 1);
   });
 });

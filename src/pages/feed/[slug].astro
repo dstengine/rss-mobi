@@ -6,6 +6,7 @@ import FollowButton from "../../components/FollowButton.astro";
 import { site } from "../../site.config.ts";
 import { policy, relFor } from "../../lib/policy.ts";
 import { cacheFor } from "../../lib/http.ts";
+import { freshen } from "../../lib/after.ts";
 import { assign, EXPERIMENTS } from "../../lib/experiments.ts";
 import { clip } from "../../lib/feeds/url.ts";
 import { feedBySlug, feedItems, fmtDate, fmtDay, followers, tagPlace } from "../../lib/views.ts";
@@ -23,6 +24,7 @@ if (feed.status === "hidden") {
 }
 
 const [items, place] = await Promise.all([feedItems(slug, 20), tagPlace(feed)]);
+freshen([slug]);
 const decision = policy({ type: "feed", feed });
 Astro.response.headers.set("Cache-Control", cacheFor(300));
 

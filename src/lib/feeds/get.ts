@@ -138,10 +138,14 @@ export function decode(bytes: Uint8Array, contentType = ""): string {
   }
 }
 
+/** Waits for the host's next free slot. The slot is taken before the
+    wait, so feeds polled side by side from one host queue up instead of
+    arriving together. */
 async function pause(host: string) {
-  const wait = (lastHit.get(host) ?? 0) + HOST_PAUSE - Date.now();
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  lastHit.set(host, Date.now());
+  const now = Date.now();
+  const at = Math.max(now, (lastHit.get(host) ?? 0) + HOST_PAUSE);
+  lastHit.set(host, at);
+  if (at > now) await new Promise((r) => setTimeout(r, at - now));
 }
 
 /** The URL, parsed, if it is safe for us to fetch; throws otherwise. */

@@ -1,6 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { perWeek, rankOf } from "../src/lib/activity.ts";
+import { interval } from "../src/lib/catalog.ts";
 import { iconCandidates, monogram, sniff } from "../src/lib/icon.ts";
 import { pace, topicName } from "../src/lib/words.ts";
 
@@ -29,6 +30,14 @@ describe("pace", () => {
     assert.equal(pace(0.5), "about 2 posts a month");
     assert.equal(pace(0), "");
   });
+});
+
+test("a feed that posts several times a day is polled every quarter hour, a quiet one hourly", () => {
+  assert.equal(interval(90), 15 * 60_000);
+  assert.equal(interval(21), 15 * 60_000);
+  assert.equal(interval(7), 30 * 60_000);
+  assert.equal(interval(3), 60 * 60_000);
+  assert.equal(interval(undefined), 60 * 60_000);
 });
 
 describe("rank", () => {
