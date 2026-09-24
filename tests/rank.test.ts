@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { perWeek, rankOf } from "../src/lib/activity.ts";
-import { interval } from "../src/lib/catalog.ts";
+import { backoff, interval } from "../src/lib/catalog.ts";
 import { iconCandidates, monogram, sniff } from "../src/lib/icon.ts";
 import { pace, topicName } from "../src/lib/words.ts";
 
@@ -38,6 +38,13 @@ test("a feed that posts several times a day is polled every quarter hour, a quie
   assert.equal(interval(7), 30 * 60_000);
   assert.equal(interval(3), 60 * 60_000);
   assert.equal(interval(undefined), 60 * 60_000);
+});
+
+test("a failure doubles the feed's own wait, up to a day", () => {
+  assert.equal(backoff(1, 90), 30 * 60_000);
+  assert.equal(backoff(1, 2), 2 * 60 * 60_000);
+  assert.equal(backoff(3, 90), 2 * 60 * 60_000);
+  assert.equal(backoff(10, 90), 24 * 60 * 60_000);
 });
 
 describe("rank", () => {

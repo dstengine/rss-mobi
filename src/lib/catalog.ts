@@ -38,6 +38,15 @@ export function interval(perWeek = 0): number {
   if (perWeek >= 7) return 30 * MINUTE;
   return FETCH_EVERY;
 }
+
+/** The wait after `fails` failures in a row: the feed's own interval,
+    doubled for each, up to a day. A site that is down for an afternoon is
+    not hammered, one that is gone stops costing anything after ten tries,
+    and one slow answer from a feed read every quarter hour costs half an
+    hour, not two. */
+export function backoff(fails: number, perWeek = 0): number {
+  return Math.min(DAY, interval(perWeek) * 2 ** Math.min(fails, 10));
+}
 const MAX_FAILS = 10;
 export const MAX_TAGS = 5;
 
@@ -294,10 +303,7 @@ async function pollOne(feed: FeedDoc): Promise<number | "unchanged" | { disabled
   } catch (e) {
     const fails = feed.failCount + 1;
     const disabled = fails >= MAX_FAILS;
-    // Backing off doubles the wait after each failure, up to a day: a site
-    // that is down for an afternoon is not hammered, and one that is gone
-    // stops costing anything after ten tries.
-    const wait = Math.min(DAY, FETCH_EVERY * 2 ** Math.min(fails, 10));
+    const wait = backoff(fails, feed.postsPerWeek);
     await col.updateOne(
       { _id: feed._id },
       {
