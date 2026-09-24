@@ -115,7 +115,7 @@ const jsonLd = {
       <li>Following a feed adds it to a list kept in this browser. Nothing is sent to us but the list of feeds to fetch, and nothing identifies you.</li>
       <li>Posts arrive as the directory checks each feed: hourly, and every 15 minutes for feeds that post several times a day. Tap a title to read the whole post here, pictures and audio included, as its feed carries it; <strong>Open</strong> takes you to the publisher's site.</li>
       <li>To move your list to another phone or another app, export it as OPML — the file every reader imports.</li>
-      <li>On a phone, use your browser's <em>Add to Home Screen</em> to open the reader like an app.</li>
+      <li>On a phone, use your browser's <em>Add to Home Screen</em> to open the reader like an app. It works offline too: with no signal it opens with the posts it loaded last, and the posts you opened.</li>
     </ul>
   </section>
 </Base>
@@ -177,6 +177,9 @@ const jsonLd = {
   // newer request was made is dropped, so following two feeds in quick
   // succession shows both rather than whichever answered last.
   let generation = 0;
+  // Set when the list on screen is a kept copy (public/sw.js): coming back
+  // online brings the real one.
+  let saved = false;
 
   function itemNode(it: Item, names: Map<string, string>) {
     // The title opens the post here. It stays a real link to the original
@@ -219,6 +222,8 @@ const jsonLd = {
       if (!res.ok) throw new Error(String(res.status));
       const data: { items: Item[]; next: string | null } = await res.json();
       if (mine !== generation) return;
+      const copy = res.headers.get("x-saved-copy");
+      if (replace) saved = copy !== null;
       const names = new Map(subs().map((s) => [s.slug, s.title]));
       const list = $("#items");
       if (replace) list.replaceChildren();
@@ -226,7 +231,12 @@ const jsonLd = {
       for (const it of data.items) newest = Math.max(newest, new Date(it.publishedAt).getTime());
       next = data.next;
       more.hidden = !next;
-      state.textContent = list.childElementCount ? "" : "No posts yet from the feeds you follow. They are checked at least once an hour.";
+      state.textContent =
+        copy !== null
+          ? `Offline: these are the posts as of ${copy ? date(copy) : "your last visit"}.`
+          : list.childElementCount
+            ? ""
+            : "No posts yet from the feeds you follow. They are checked at least once an hour.";
       if (!replace) track("reader_more");
     } catch {
       if (mine === generation) state.textContent = "Posts could not be loaded. Check your connection and try again.";
@@ -471,8 +481,15 @@ const jsonLd = {
     }
   }
 
+  window.addEventListener("online", () => saved && subs().length && firstPage());
   window.addEventListener("rssmobi:subs", render);
   window.addEventListener("storage", (e) => e.key === "rssmobi:subs" && render());
   if (location.hash === "#following") show("following");
   render();
+
+  // Offline, the reader opens with what it loaded last (public/sw.js).
+  // Registered once the page is up, so it never competes with it.
+  const keep = () => navigator.serviceWorker?.register("/sw.js", { scope: "/reader/" }).catch(() => {});
+  if (document.readyState === "complete") keep();
+  else window.addEventListener("load", keep);
 </script>

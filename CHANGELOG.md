@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The reader works offline. A service worker (`public/sw.js`, scope
+  `/reader/`) keeps the reader, its files, the last lists of posts, the
+  posts opened and the feed icons; with no signal, or no answer in four
+  seconds, the reader opens with them and says they are a copy, and
+  reloads when the connection returns. The directory's pages are outside
+  its scope and never wait for it.
 - Busy feeds are polled every 15 minutes (three posts a day or more) or
   30 (one a day); the rest hourly. A run polls eight feeds at a time and
   takes those due in the next two minutes too: before, a feed due just
