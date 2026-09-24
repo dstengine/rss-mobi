@@ -21,6 +21,7 @@ node --env-file=.env scripts/migrate.mjs rssmobi   # the same, against Atlas
 node scripts/retag.mjs [db] [--write]  # re-apply topic rules to stored tags
 node --env-file=.env scripts/retro-stats.mjs  # this week vs last, for the retro
 node scripts/gsc.mjs summary [days]  # our Search Console: clicks, pages, queries
+node scripts/gsc.mjs submit          # resubmit the sitemap index
 ```
 
 `.env.local` wins over `.env`; a script aimed at production needs

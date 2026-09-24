@@ -13,10 +13,10 @@ export const site = {
   titleSuffix: "RSS Feeds Directory",
   description:
     "A free directory of RSS feeds: find feeds by topic, follow them on your phone and submit your own. No account, no sign-up.",
-  /** Where complaints and takedown requests go besides the report form.
-      Empty until an address that actually receives mail is chosen; the
-      terms page says only what is true. */
-  contact: "" as string,
+  /** Where complaints and takedown requests go besides the report form:
+      a catch-all mailbox on vvm.space. Empty would hide it from the terms
+      and about pages, which say only what is true. */
+  contact: "rss-mobi@vvm.space" as string,
   nav: [
     { href: "/tags/", label: "Topics", title: "Browse RSS feeds by topic" },
     { href: "/reader/", label: "Reader", title: "Read the RSS feeds you follow on your phone" },
@@ -42,8 +42,8 @@ export const COPY_UPDATED: Record<string, string> = {
   "/tag/": "2026-09-23",
   "/feed/": "2026-09-23",
   "/submit/": "2026-09-23",
-  "/about/": "2026-09-23",
-  "/terms/": "2026-09-23",
+  "/about/": "2026-09-24",
+  "/terms/": "2026-09-24",
   "/reader/": "2026-09-23",
   "/c/new/": "2026-09-23",
 };

@@ -8,3 +8,7 @@ dist/
 .DS_Store
 *.age
 *.archive
+# Agent skills the Vercel Upstash integration installs locally
+.agents/
+.claude/
+skills-lock.json

@@ -14,11 +14,14 @@
   (`src/lib/gsc.ts`, `scripts/gsc.mjs`); the weekly retro stats include
   clicks, impressions and top pages. Publishers no longer connect their own
   Search Console: checks of their posts go to DataForSEO (ADR 0006).
-
+  The service account's key is in place, and `gsc.mjs submit` resubmits
+  the sitemap index.
+- The terms and about pages name an address for complaints and removal
+  requests, rss-mobi@vvm.space, besides the report form (#12).
 - Every new post's original is checked in Google, in the order posts
   arrived, through DataForSEO: `/api/v1/cron/index-check`, called by the
-  cron workflow. Spending is capped at $0.12 a day for now, a refusal pauses checks
-  until midnight UTC, and a low balance or a spent budget goes to Telegram
+  cron workflow. Spending is capped at $0.12 a day for now, a refusal
+  pauses checks until midnight UTC, and a low balance or a spent budget goes to Telegram
   once (#2).
 
 ## v0.2 — 23 Sep 2026 (slice 2: reader and collections)

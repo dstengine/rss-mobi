@@ -6,6 +6,7 @@
 //   node scripts/gsc.mjs sites          # what the account can see
 //   node scripts/gsc.mjs summary [days] # clicks, impressions, CTR, position
 //   node scripts/gsc.mjs sitemaps
+//   node scripts/gsc.mjs submit [sitemap]  # default: our sitemap index
 //   node scripts/gsc.mjs inspect <url>  # one of our pages; 2,000 a day
 //
 // set-key stores the key in .env as base64 and moves the file to
@@ -51,10 +52,14 @@ if (cmd === "set-key") {
   print({ property: gsc.PROPERTY, ...range, total: total ?? { clicks: 0, impressions: 0 }, pages, queries });
 } else if (cmd === "sitemaps") {
   print(await gsc.sitemaps());
+} else if (cmd === "submit") {
+  const url = arg ?? `${gsc.PROPERTY}sitemap-index.xml`;
+  await gsc.submitSitemap(url);
+  console.log(`✓ submitted ${url}`);
 } else if (cmd === "inspect") {
   if (!arg) throw new Error("usage: node scripts/gsc.mjs inspect <url on rss.mobi>");
   print(await gsc.inspect(arg));
 } else {
-  console.error("usage: node scripts/gsc.mjs set-key <key.json> | sites | summary [days] | sitemaps | inspect <url>");
+  console.error("usage: node scripts/gsc.mjs set-key <key.json> | sites | summary [days] | sitemaps | submit [sitemap] | inspect <url>");
   process.exit(2);
 }

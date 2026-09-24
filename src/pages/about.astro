@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import { site } from "../site.config.ts";
 import { policy } from "../lib/policy.ts";
 import { cacheFor } from "../lib/http.ts";
 import { UA } from "../lib/feeds/get.ts";
@@ -43,8 +44,9 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
 
     <h2>Taking a feed down</h2>
     <p>
-      If you run a site and do not want its feed here, open the feed's page and use <strong>Report a problem → I own this site</strong>. You can
-      also block the user agent above; a feed that keeps refusing is retired on its own.
+      If you run a site and do not want its feed here, open the feed's page and use <strong>Report a problem → I own this site</strong>, or write to
+      <a href={`mailto:${site.contact}`} title="Complaints and removal requests for the RSS feeds directory">{site.contact}</a>. You can also
+      block the user agent above; a feed that keeps refusing is retired on its own.
     </p>
 
     <h2>For developers</h2>
