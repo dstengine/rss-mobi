@@ -44,16 +44,20 @@ kernel (SERVER-121912). `.env.local` points at it and wins over `.env`.
   index.** Every other state keeps it `noindex`. The verdict comes from
   `src/lib/indexcheck.ts` through DataForSEO: every paid call is reserved
   against `LIMITS.serp` first, and an account-level refusal pauses the day
-  rather than retrying into it (`docs/operations.md`).
+  rather than retrying into it (`docs/operations.md`). A verdict that opens
+  or closes the page moves the item's `updatedAt` and sets `announce`,
+  which the end of each run turns into one IndexNow ping; the flag is
+  cleared only on a 200 or 202. Lists link a post's page (on its date)
+  only while it is open.
 - **SEO keyword.** `site.keyword` ("RSS feeds") goes in the title and meta
   description of every indexable page, and in the `h1` of pages we name
   ourselves (front page, topics, submit, about, terms). A feed's or post's
   `h1` is its real name. Titles end with `site.titleSuffix`; no brand in
   that slot until someone searches for it. Every `<a>` has a `title` that
   says something its label does not.
-- **Sitemap dates are per page.** A feed is dated by its `updatedAt`; a
-  page that lists feeds by the newest of what it lists, against its copy
-  date in `COPY_UPDATED` (`src/site.config.ts`). **Edit a page's text —
+- **Sitemap dates are per page.** A feed or a post is dated by its
+  `updatedAt`; a page that lists feeds by the newest of what it lists,
+  against its copy date in `COPY_UPDATED` (`src/site.config.ts`). **Edit a page's text —
   move its date there.** Only pages `policy()` indexes are listed.
 - **Topics go through `topic()`, filters through `tag()`**
   (`src/lib/feeds/parse.ts`). `topic()` drops `STOP_TAGS` — words like

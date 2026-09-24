@@ -6,7 +6,7 @@ import { LOW_BALANCE_DAYS, afterCheck, isPaused, nextCheckIn, runIndexCheck, typ
 import { CHECK_USD, SerpStop, dataForSeo, isStop, keywordFor, listed, type SerpApi } from "../src/lib/serp.ts";
 import type { IndexStatus } from "../src/lib/types.ts";
 
-type Row = Queued & { visible: boolean; indexNextCheckAt: Date | null; updatedAt?: Date };
+type Row = Queued & { visible: boolean; indexNextCheckAt: Date | null; updatedAt?: Date; announce?: true };
 
 function row(url: string, dueAt: Date, extra: Partial<Row> = {}): Row {
   return { _id: new ObjectId(), url, canonicalUrl: url.replace(/\/$/, ""), indexStatus: "queued", indexChecks: 0, visible: true, indexNextCheckAt: dueAt, ...extra };
@@ -43,6 +43,12 @@ function memStore(rows: Row[]) {
       log.push({ url: r.url, verdict: "lost", usd: r.serpCost ?? 0 });
       Object.assign(r, { indexNextCheckAt: at }, verdictOf(r.indexStatus) ? {} : { indexStatus: "queued" });
       clear(r);
+    },
+    async unannounced(limit) {
+      return rows.filter((r) => r.announce).slice(0, limit);
+    },
+    async announced(ids) {
+      for (const r of rows) if (ids.some((id) => id.equals(r._id))) delete r.announce;
     },
   };
   return { store, log };
@@ -162,6 +168,44 @@ describe("index check", () => {
     assert.equal(afterCheck({ indexStatus: "pending", indexChecks: 0 }, "indexed", at).updatedAt, undefined);
     assert.equal(afterCheck({ indexStatus: "pending", indexChecks: 0 }, "not_indexed", at).updatedAt, at);
     assert.equal(afterCheck({ indexStatus: "not_indexed", indexChecks: 1 }, "indexed", at).updatedAt, at);
+    // IndexNow hears about exactly the same moments.
+    assert.equal(afterCheck({ indexStatus: "pending", indexChecks: 0 }, "not_indexed", at).announce, true);
+    assert.equal(afterCheck({ indexStatus: "not_indexed", indexChecks: 1 }, "indexed", at).announce, true);
+    assert.equal("announce" in afterCheck({ indexStatus: "pending", indexChecks: 0 }, "indexed", at), false);
+    assert.equal("announce" in afterCheck({ indexStatus: "not_indexed", indexChecks: 1 }, "not_indexed", at), false);
+  });
+
+  test("pages that opened or closed go to IndexNow, and stay flagged until it accepts them", async () => {
+    const now = new Date("2026-10-05T10:00:00Z");
+    const rows = [row("https://a.example/1", later(now, -2000)), row("https://b.example/2", later(now, -1000))];
+    const { store } = memStore(rows);
+    const { api } = fakeApi({ indexed: ["https://a.example/1"] });
+    const sent: string[][] = [];
+    let answer: number | null = null;
+    const deps = {
+      api,
+      store,
+      ledger: fakeLedger(),
+      alert: async () => {},
+      indexNow: async (paths: string[]) => (sent.push(paths), answer),
+      now: () => now,
+    };
+    await runIndexCheck(Date.now() + 10_000, deps);
+    deps.now = () => later(now, 120_000);
+    // No key, or the engine said no: nothing is cleared.
+    const first = await runIndexCheck(Date.now() + 10_000, deps);
+    assert.equal(first.announced, 0);
+    assert.deepEqual(sent.at(-1), [`/item/${rows[1]._id}/`]);
+    assert.equal(rows[1].announce, true);
+    assert.equal(rows[0].announce, undefined, "a first verdict of indexed opens nothing");
+
+    answer = 202;
+    const second = await runIndexCheck(Date.now() + 10_000, deps);
+    assert.equal(second.announced, 1);
+    assert.equal(rows[1].announce, undefined);
+    const calls = sent.length;
+    await runIndexCheck(Date.now() + 10_000, deps);
+    assert.equal(sent.length, calls, "nothing left to announce, nothing sent");
   });
 
   test("posts go out oldest first, as many as the budget covers, and are settled to the real cost", async () => {

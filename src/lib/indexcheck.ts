@@ -11,12 +11,16 @@
 // account-level refusal (payment, rate limit, credentials) pauses checks
 // until 00:00 UTC instead of retrying into it. And each check's cost is
 // logged in `index_checks` beside its verdict.
+//
+// A verdict that opens or closes a post's page flags it for IndexNow, and
+// the end of every run tells Bing and Yandex about the flagged pages.
 import type { ObjectId } from "mongodb";
 import { indexChecks, items, spend } from "./db.ts";
 import { count, counter, lock, unlock } from "./cache.ts";
-import { alert as telegram } from "./notify.ts";
+import { alert as telegram, indexNow } from "./notify.ts";
 import { BudgetExceeded, LIMITS, headroom, reserve, settle, utcDay, type Ledger } from "./budget.ts";
 import { CHECK_USD, MAX_TASKS, SerpStop, dataForSeo, keywordFor, listed, type Collected, type Posted, type SerpApi } from "./serp.ts";
+import { itemPath } from "./views.ts";
 import type { IndexStatus, ItemDoc } from "./types.ts";
 
 const DAY = 86_400_000;
@@ -48,7 +52,7 @@ export function nextCheckIn(n: number, verdict: Verdict): number {
 /** What a check changes on the item. A failed recheck keeps the last
     verdict, so a page does not leave the index because an API hiccuped;
     and the page's date moves only when its robots do, so the sitemap's
-    `lastmod` means something. */
+    `lastmod` means something. The same moment flags it for IndexNow. */
 export function afterCheck(item: Pick<ItemDoc, "indexStatus" | "indexChecks">, verdict: Verdict, at: Date) {
   const indexStatus: IndexStatus = verdict === "error" && hasVerdict(item.indexStatus) ? item.indexStatus : verdict;
   const checks = item.indexChecks + (verdict === "error" ? 0 : 1);
@@ -58,7 +62,7 @@ export function afterCheck(item: Pick<ItemDoc, "indexStatus" | "indexChecks">, v
     indexChecks: checks,
     indexCheckedAt: at,
     indexNextCheckAt: new Date(at.getTime() + nextCheckIn(checks, verdict) * DAY),
-    ...(opens(indexStatus) !== opens(item.indexStatus) ? { updatedAt: at } : {}),
+    ...(opens(indexStatus) !== opens(item.indexStatus) ? { updatedAt: at, announce: true as const } : {}),
   };
 }
 
@@ -73,6 +77,9 @@ export interface Store {
   checked(item: Queued, verdict: Verdict, at: Date, note?: string): Promise<void>;
   /** Back to the front of the queue: the task was lost. */
   requeue(item: Queued, at: Date, note: string): Promise<void>;
+  /** Items whose page opened or closed since IndexNow last heard. */
+  unannounced(limit: number): Promise<{ _id: ObjectId }[]>;
+  announced(ids: ObjectId[]): Promise<void>;
 }
 
 const FIELDS = { url: 1, canonicalUrl: 1, indexStatus: 1, indexChecks: 1, serpTaskId: 1, serpPostedAt: 1, serpCost: 1 } as const;
@@ -109,6 +116,12 @@ export function mongoStore(): Store {
       );
       await log(item._id, at, "lost", item.serpCost ?? 0, note);
     },
+    async unannounced(limit) {
+      return (await items()).find({ announce: true }, { projection: { _id: 1 } }).limit(limit).toArray();
+    },
+    async announced(ids) {
+      await (await items()).updateMany({ _id: { $in: ids } }, { $unset: { announce: "" } });
+    },
   };
 }
 
@@ -122,6 +135,8 @@ export interface Report {
   requeued: number;
   posted: number;
   usd: number;
+  /** Pages IndexNow accepted news of in this run. */
+  announced: number;
   balance?: number;
   stopped?: string;
 }
@@ -131,6 +146,8 @@ export interface Deps {
   store: Store;
   ledger: Ledger;
   alert: (text: string) => Promise<void>;
+  /** Returns the HTTP status, or null when nothing was sent. */
+  indexNow: (paths: string[]) => Promise<number | null>;
   now: () => Date;
 }
 
@@ -150,23 +167,39 @@ export async function runIndexCheck(deadline: number, deps: Partial<Deps> = {}):
     store: deps.store ?? mongoStore(),
     ledger: deps.ledger ?? (await spend()),
     alert: deps.alert ?? telegram,
+    indexNow: deps.indexNow ?? indexNow,
     now: deps.now ?? (() => new Date()),
   };
-  const report: Report = { collected: 0, indexed: 0, notIndexed: 0, failed: 0, requeued: 0, posted: 0, usd: 0 };
+  const report: Report = { collected: 0, indexed: 0, notIndexed: 0, failed: 0, requeued: 0, posted: 0, usd: 0, announced: 0 };
   if (!d.api) return { ...report, stopped: "DataForSEO credentials are not set" };
   if (!(await lock("index-check", 90))) return { ...report, stopped: "another run is in progress" };
   const day = utcDay(d.now());
   try {
-    await collect(d, deadline, report);
-    if (Date.now() < deadline) await post(d, day, report);
-  } catch (e) {
-    if (!(e instanceof SerpStop)) throw e;
-    report.stopped = e.message;
-    await pause(d.alert, day, e.message);
+    try {
+      await collect(d, deadline, report);
+      if (Date.now() < deadline) await post(d, day, report);
+    } catch (e) {
+      if (!(e instanceof SerpStop)) throw e;
+      report.stopped = e.message;
+      await pause(d.alert, day, e.message);
+    }
+    await announce(d, report);
   } finally {
     await unlock("index-check");
   }
   return report;
+}
+
+/** Tells IndexNow about every page that opened or closed. The flag is
+    cleared only once a search engine accepted the list, so a missing key
+    or a failed ping leaves it for the next run. */
+async function announce(d: Deps, report: Report): Promise<void> {
+  const rows = await d.store.unannounced(1_000);
+  if (!rows.length) return;
+  const status = await d.indexNow(rows.map((r) => itemPath(String(r._id))));
+  if (status !== 200 && status !== 202) return;
+  await d.store.announced(rows.map((r) => r._id));
+  report.announced = rows.length;
 }
 
 async function collect(d: Deps, deadline: number, report: Report): Promise<void> {

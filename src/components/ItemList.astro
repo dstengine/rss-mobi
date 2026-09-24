@@ -1,9 +1,12 @@
 ---
 // A list of posts. Each links to its original, marked the way policy()
 // says: a followed link when we stand in for an original the index has
-// not seen, ugc otherwise.
+// not seen, ugc otherwise. The date links to the post's own page, the way
+// a blog's permalink does, but only while that page is open to search:
+// the rest are stand-ins nobody needs, and linking them would spend a
+// crawler's visits on noindex pages.
 import { linkTo } from "../lib/policy.ts";
-import { fmtDate, type PublicItem } from "../lib/views.ts";
+import { fmtDate, itemPageOpen, itemPath, type PublicItem } from "../lib/views.ts";
 import type { FeedDoc } from "../lib/types.ts";
 
 interface Props {
@@ -31,7 +34,13 @@ const { items, feed, showFeed = false } = Astro.props;
             )}
           </h3>
           <span class="meta">
-            <time datetime={new Date(it.publishedAt).toISOString()}>{fmtDate(it.publishedAt)}</time>
+            {itemPageOpen(it) ? (
+              <a href={itemPath(it.id)} title={`“${it.title}”: the post in the RSS feeds directory`}>
+                <time datetime={new Date(it.publishedAt).toISOString()}>{fmtDate(it.publishedAt)}</time>
+              </a>
+            ) : (
+              <time datetime={new Date(it.publishedAt).toISOString()}>{fmtDate(it.publishedAt)}</time>
+            )}
             {" · "}
             {showFeed ? (
               <a href={`/feed/${it.feedSlug}/`} title={`The ${it.host} RSS feed`}>

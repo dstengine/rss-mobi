@@ -36,6 +36,8 @@ const INDEXES = {
     // The index-check queue: due items, the longest-waiting first.
     [{ visible: 1, indexNextCheckAt: 1 }],
     [{ serpTaskId: 1 }, { sparse: true }],
+    // Pages whose robots changed and IndexNow has not heard yet.
+    [{ announce: 1 }, { sparse: true }],
     [{ expiresAt: 1 }, { expireAfterSeconds: 0 }],
     // default_language "none": items arrive in every language, and English
     // stemming applied to Spanish titles finds worse matches than none.

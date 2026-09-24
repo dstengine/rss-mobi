@@ -75,6 +75,10 @@ export interface ItemDoc {
   serpCost?: number;
   robots: Robots | null;
   linkMode: LinkMode | null;
+  /** Set when the page's robots changed and IndexNow has not yet accepted
+      the news; cleared only after a 200 or 202, so a failed ping is tried
+      again on the next run. */
+  announce?: true;
   /** TTL: the item disappears after this date unless a story needs it. */
   expiresAt: Date | null;
   createdAt: Date;

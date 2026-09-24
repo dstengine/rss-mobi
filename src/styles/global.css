@@ -585,6 +585,17 @@ details.report summary {
   cursor: pointer;
 }
 
+/* ------------------------------------------------------------------ post */
+
+.post .excerpt {
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+.post .original {
+  margin: 20px 0;
+}
+
 /* ----------------------------------------------------------------- prose */
 
 .prose {

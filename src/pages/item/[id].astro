@@ -1,0 +1,152 @@
+---
+// One post: its title, an excerpt, where it came from and a link to the
+// original. It exists for the reader who searched for a post Google has
+// not indexed at its source: policy() opens it to search exactly then, and
+// closes it once the original is found. Everything on it is what a feed
+// reader shows, so the page is the same whether it is open or not.
+import Base from "../../layouts/Base.astro";
+import ItemList from "../../components/ItemList.astro";
+import { site } from "../../site.config.ts";
+import { linkTo, policy } from "../../lib/policy.ts";
+import { cacheFor } from "../../lib/http.ts";
+import { clip } from "../../lib/feeds/url.ts";
+import { feedBySlug, fmtDate, itemById, itemPath, relatedItems } from "../../lib/views.ts";
+
+const item = await itemById(String(Astro.params.id ?? ""));
+const feed = item ? await feedBySlug(item.feedSlug) : null;
+if (!item || !feed) return Astro.rewrite("/404");
+
+// Taken down with its feed or its site: 410, so a crawler drops the page
+// at once instead of retrying a 404 for weeks.
+const gone = !item.visible || feed.status === "hidden";
+if (gone) {
+  Astro.response.status = 410;
+  Astro.response.headers.set("Cache-Control", "public, max-age=0, s-maxage=3600");
+} else {
+  Astro.response.headers.set("Cache-Control", cacheFor(300));
+}
+
+const decision = policy({ type: "item", item, feed });
+const link = linkTo(item, feed);
+const related = gone ? { sameFeed: [], sameTopics: [] } : await relatedItems(item);
+const path = itemPath(item.id);
+
+// The tail carries the keyword and is never cut; the excerpt gets what is
+// left of 160 characters.
+const tail = ` From ${clip(feed.title, 40)}, in the rss.mobi directory of RSS feeds.`;
+const lead = item.excerpt ? clip(item.excerpt, 158 - tail.length) : `A post from ${item.host}.`;
+const description = `${/[.!?…]$/.test(lead) ? lead : `${lead}.`}${tail}`;
+const published = new Date(item.publishedAt).toISOString();
+
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: item.title,
+    url: `${site.url}${path}`,
+    description,
+    inLanguage: item.lang || undefined,
+    dateModified: new Date(item.updatedAt).toISOString(),
+    isPartOf: { "@type": "WebSite", name: site.name, url: `${site.url}/` },
+    // The post itself lives at its source; this page describes it.
+    mainEntity: {
+      "@type": "CreativeWork",
+      headline: item.title,
+      url: item.url,
+      datePublished: published,
+      author: item.author ? { "@type": "Person", name: item.author } : undefined,
+      publisher: { "@type": "Organization", name: feed.title, url: feed.siteUrl || undefined },
+    },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "RSS feeds", item: `${site.url}/` },
+      { "@type": "ListItem", position: 2, name: feed.title, item: `${site.url}/feed/${feed.slug}/` },
+      { "@type": "ListItem", position: 3, name: item.title },
+    ],
+  },
+];
+---
+
+{
+  gone ? (
+    <Base title="Post removed" description="This post has been removed from the rss.mobi directory of RSS feeds." robots={policy({ type: "search" }).robots}>
+      <h1>This post has been removed</h1>
+      <p>Its feed or its site was taken out of the directory, so its posts are no longer shown here.</p>
+      <p>
+        <a class="button" href="/" title="RSS feeds directory: newest feeds">
+          Browse other feeds
+        </a>
+      </p>
+    </Base>
+  ) : (
+    <Base title={clip(item.title, 70)} description={description} robots={decision.robots} path={path} jsonLd={jsonLd}>
+      <article class="post">
+        <h1>{item.title}</h1>
+        <p class="muted small">
+          <time datetime={published}>{fmtDate(item.publishedAt)}</time>
+          {" · "}
+          <a href={`/feed/${feed.slug}/`} title={`The ${feed.title} RSS feed: latest posts and how to subscribe`}>
+            {feed.title}
+          </a>
+          {item.author && ` · ${item.author}`}
+          {item.lang && ` · ${item.lang.toUpperCase()}`}
+        </p>
+
+        {item.excerpt && item.excerpt !== item.title && <p class="excerpt">{item.excerpt}</p>}
+
+        <p class="original">
+          {link.mode === "none" ? (
+            <span class="muted">{item.url}</span>
+          ) : (
+            <a class="button" href={item.url} rel={link.rel ?? undefined} title={`The whole post on ${item.host}`} data-original>
+              Read on {item.host}
+            </a>
+          )}
+        </p>
+
+        {item.tags.length > 0 && (
+          <ul class="tags">
+            {item.tags.map((t) => (
+              <li>
+                <a class="tag" href={`/tag/${t}/`} title={`More ${t.replace(/-/g, " ")} RSS feeds`}>
+                  {t.replace(/-/g, " ")}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </article>
+
+      {related.sameFeed.length > 0 && (
+        <section>
+          <h2>
+            More from{" "}
+            <a href={`/feed/${feed.slug}/`} title={`Every recent post in the ${feed.title} RSS feed`}>
+              {feed.title}
+            </a>
+          </h2>
+          <ItemList items={related.sameFeed} feed={feed} />
+        </section>
+      )}
+
+      {related.sameTopics.length > 0 && (
+        <section>
+          <h2>On the same topics</h2>
+          <ItemList items={related.sameTopics} showFeed />
+        </section>
+      )}
+    </Base>
+  )
+}
+
+<script>
+  import { track } from "../../scripts/track.ts";
+  // Not data-outbound: the lists below count those, and one click would
+  // be counted twice.
+  document.querySelector<HTMLAnchorElement>("[data-original]")?.addEventListener("click", (e) => {
+    track("outbound", { label: (e.currentTarget as HTMLAnchorElement).hostname });
+  });
+</script>

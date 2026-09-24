@@ -19,6 +19,8 @@ async function pages(): Promise<string[]> {
     list.push(`/feed/${f.slug}/`);
     if (f.tags[0]) list.push(`/tag/${f.tags[0]}/`);
   }
+  const posts = await (await fetch(`${BASE}/api/v1/items?limit=3`)).json();
+  for (const it of posts.items ?? []) list.push(`/item/${it.id}/`);
   return [...new Set(list)];
 }
 

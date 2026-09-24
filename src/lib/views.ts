@@ -5,7 +5,7 @@ import { ObjectId, type Filter } from "mongodb";
 import { feeds, items } from "./db.ts";
 import { cached } from "./cache.ts";
 import { toQuery, type Cursor, type Filters } from "./filters.ts";
-import { linkTo } from "./policy.ts";
+import { linkTo, policy } from "./policy.ts";
 import type { FeedDoc, ItemDoc } from "./types.ts";
 
 export type PublicFeed = Pick<
@@ -32,7 +32,7 @@ export type PublicFeed = Pick<
 
 export type PublicItem = Pick<
   ItemDoc,
-  "feedSlug" | "url" | "host" | "title" | "excerpt" | "image" | "author" | "tags" | "lang" | "publishedAt" | "indexStatus" | "linkMode" | "updatedAt"
+  "feedSlug" | "url" | "host" | "title" | "excerpt" | "image" | "author" | "tags" | "lang" | "publishedAt" | "indexStatus" | "robots" | "linkMode" | "updatedAt"
 > & { id: string };
 
 const FEED_FIELDS = {
@@ -70,6 +70,7 @@ const ITEM_FIELDS = {
   lang: 1,
   publishedAt: 1,
   indexStatus: 1,
+  robots: 1,
   linkMode: 1,
   updatedAt: 1,
 } as const;
@@ -99,6 +100,37 @@ export async function feedItems(slug: string, limit = 20): Promise<PublicItem[]>
     .toArray();
   return rows.map(toItem);
 }
+
+/** A post, visible or not: its page answers 410 rather than 404 for one
+    that was taken down. Null for an id that is not one. */
+export async function itemById(id: string): Promise<(PublicItem & { visible: boolean }) | null> {
+  if (!/^[0-9a-f]{24}$/.test(id)) return null;
+  const row = await (await items()).findOne({ _id: new ObjectId(id) }, { projection: { ...ITEM_FIELDS, visible: 1 } });
+  return row ? (toItem(row) as PublicItem & { visible: boolean }) : null;
+}
+
+/** Posts to show beside one: the newest others from its feed, and the
+    newest from other feeds on its topics. */
+export async function relatedItems(it: PublicItem, limit = 5): Promise<{ sameFeed: PublicItem[]; sameTopics: PublicItem[] }> {
+  const col = await items();
+  const id = new ObjectId(it.id);
+  const [sameFeed, sameTopics] = await Promise.all([
+    col.find({ feedSlug: it.feedSlug, visible: true, _id: { $ne: id } }, { projection: ITEM_FIELDS }).sort({ publishedAt: -1 }).limit(limit).toArray(),
+    it.tags.length
+      ? col.find({ tags: { $in: it.tags }, visible: true, feedSlug: { $ne: it.feedSlug } }, { projection: ITEM_FIELDS }).sort({ publishedAt: -1 }).limit(limit).toArray()
+      : [],
+  ]);
+  return { sameFeed: sameFeed.map(toItem), sameTopics: sameTopics.map(toItem) };
+}
+
+export const itemPath = (id: string) => `/item/${id}/`;
+
+/** Whether a listed post's page is one search may index — the only
+    kind a list links to. Lists show visible posts only, and a post is
+    visible exactly while its feed is active, so the verdict is policy()'s
+    on those two facts. */
+export const itemPageOpen = (it: Pick<PublicItem, "indexStatus" | "robots">) =>
+  policy({ type: "item", item: { ...it, visible: true }, feed: { status: "active" } }).sitemap;
 
 /** Items matching `f`, newest first, starting after `after`. */
 export async function itemsFor(f: Filters, after?: Cursor): Promise<PublicItem[]> {

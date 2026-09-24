@@ -8,6 +8,7 @@ import { reserve, headroom, BudgetExceeded, LIMITS } from "../src/lib/budget.ts"
 import { spamReason } from "../src/lib/spam.ts";
 import { feedTags } from "../src/lib/catalog.ts";
 import { tag, topic, ownName } from "../src/lib/feeds/parse.ts";
+import { itemPageOpen } from "../src/lib/views.ts";
 import { matches, sha256, newToken } from "../src/lib/tokens.ts";
 
 const DAY = 86_400_000;
@@ -32,6 +33,13 @@ describe("policy", () => {
     }
     assert.equal(policy({ type: "item", item: item("not_indexed", false), feed: active }).robots, "noindex,follow");
     assert.equal(policy({ type: "item", item: item("not_indexed"), feed: { status: "hidden" } }).robots, "noindex,follow");
+  });
+
+  test("lists link a post's page only while it is open", () => {
+    assert.equal(itemPageOpen({ indexStatus: "not_indexed", robots: null }), true);
+    for (const s of ["queued", "pending", "indexed", "error"] as const) assert.equal(itemPageOpen({ indexStatus: s, robots: null }), false, s);
+    assert.equal(itemPageOpen({ indexStatus: "not_indexed", robots: "noindex,follow" }), false);
+    assert.equal(itemPageOpen({ indexStatus: "indexed", robots: "index,follow" }), true);
   });
 
   test("sitemap membership follows robots", () => {

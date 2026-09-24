@@ -16,6 +16,13 @@
   Search Console: checks of their posts go to DataForSEO (ADR 0006).
   The service account's key is in place, and `gsc.mjs submit` resubmits
   the sitemap index.
+- Every post has a page at `/item/<id>/`: title, excerpt, source feed, a
+  link to the original and related posts from the same feed and topics.
+  It is open to search exactly while Google lacks the original, and a post
+  taken down with its feed answers 410 (#3). Lists link a post's page from
+  its date while the page is open.
+- Open post pages are listed in `sitemap-items-<n>.xml`, dated by the
+  moment they opened, and IndexNow hears when a page opens or closes (#4).
 - The terms and about pages name an address for complaints and removal
   requests, rss-mobi@vvm.space, besides the report form (#12).
 - Every new post's original is checked in Google, in the order posts
