@@ -33,6 +33,8 @@ const INDEXES = {
     [{ feedSlug: 1, publishedAt: -1 }],
     [{ tags: 1, publishedAt: -1 }],
     [{ indexStatus: 1, indexNextCheckAt: 1 }],
+    // The index-check queue: due items, the longest-waiting first.
+    [{ visible: 1, indexNextCheckAt: 1 }],
     [{ serpTaskId: 1 }, { sparse: true }],
     [{ expiresAt: 1 }, { expireAfterSeconds: 0 }],
     // default_language "none": items arrive in every language, and English

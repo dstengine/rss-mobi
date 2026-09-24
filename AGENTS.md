@@ -40,7 +40,10 @@ kernel (SERVER-121912). `.env.local` points at it and wins over `.env`.
   something else than readers is cloaking. `tests/live/cloaking.test.ts`
   checks it against a running server.
 - **An item page is indexable exactly when its original is not in Google's
-  index.** Every other state keeps it `noindex`.
+  index.** Every other state keeps it `noindex`. The verdict comes from
+  `src/lib/indexcheck.ts` through DataForSEO: every paid call is reserved
+  against `LIMITS.serp` first, and an account-level refusal pauses the day
+  rather than retrying into it (`docs/operations.md`).
 - **SEO keyword.** `site.keyword` ("RSS feeds") goes in the title and meta
   description of every indexable page, and in the `h1` of pages we name
   ourselves (front page, topics, submit, about, terms). A feed's or post's

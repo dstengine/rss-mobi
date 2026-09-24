@@ -33,6 +33,32 @@ node --env-file=.env scripts/migrate.mjs rssmobi
 `CRON_SECRET`, once the repository variable `CRON_ENABLED` is `true`. Why
 GitHub Actions and not Vercel cron: [ADR 0003](decisions/0003-cron-via-github-actions.md).
 
+- `/api/v1/cron/fetch` polls the feeds whose turn has come.
+- `/api/v1/cron/index-check` asks DataForSEO whether each post's original is
+  in Google (`src/lib/indexcheck.ts`). A run collects the answers to earlier
+  tasks, then files up to 100 new ones, oldest first.
+
+### Index-check spending
+
+A check is one `site:` query in DataForSEO's standard queue, $0.003. What
+stops it spending:
+
+- **The daily ceiling**, `LIMITS.serp` in `src/lib/budget.ts` ($1, about
+  330 checks). A batch is reserved before its POST and settled to the real
+  cost after. At the ceiling, posts wait in the queue with their pages at
+  `noindex`, and Telegram hears once that day.
+- **A refusal** — no money, a rate limit, bad credentials (HTTP 401/402/429,
+  DataForSEO's 401xx/402xx) — pauses checks until 00:00 UTC, with one
+  message. To resume sooner, after fixing the cause, delete the Redis key
+  `n:serp:paused:<YYYY-MM-DD>`.
+- **The balance** is read once a day; under ten days of the ceiling, one
+  message a day until it is topped up at https://app.dataforseo.com/.
+- **Every check** is logged in `index_checks` with its verdict and cost.
+
+Rechecks: days 1, 3 and 7, then weekly while the original is missing, and
+monthly once Google has it. A failed check is retried the next day and
+keeps the item's last verdict.
+
 ## Backups and restore
 
 Nightly at 02:00 UTC (`.github/workflows/backup.yml`, once the repository

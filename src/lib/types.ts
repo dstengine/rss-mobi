@@ -42,8 +42,9 @@ export interface FeedDoc {
 }
 
 /** Where an item stands in the index-check queue. `queued` waits for its
-    turn; `pending` has a SERP task in flight; the two verdicts are what the
-    policy reads. */
+    first check; `pending` has that check in flight; the two verdicts are
+    what the policy reads. A recheck keeps the last verdict until the new
+    one arrives, so a page does not blink out of the index while it runs. */
 export type IndexStatus = "queued" | "pending" | "indexed" | "not_indexed" | "error";
 
 export interface ItemDoc {
@@ -68,7 +69,10 @@ export interface ItemDoc {
   indexNextCheckAt: Date | null;
   indexCheckedAt?: Date;
   indexChecks: number;
+  /** The DataForSEO task in flight, when it was filed and what it cost. */
   serpTaskId?: string;
+  serpPostedAt?: Date;
+  serpCost?: number;
   robots: Robots | null;
   linkMode: LinkMode | null;
   /** TTL: the item disappears after this date unless a story needs it. */

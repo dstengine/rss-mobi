@@ -27,6 +27,17 @@ jobs:
             -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" -d '{}')
           echo "fetch: HTTP $code"
           [ "$code" -lt 300 ]
+      - name: Check originals in Google
+        # Runs even when polling failed: the queue it works on is already
+        # stored, and the two jobs fail for different reasons.
+        if: ${{ !cancelled() }}
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          code=$(curl -sS --max-time 75 -o /dev/null -w '%{http_code}' -X POST https://rss.mobi/api/v1/cron/index-check \
+            -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" -d '{}')
+          echo "index-check: HTTP $code"
+          [ "$code" -lt 300 ]
 
   keepalive:
     # GitHub switches schedules off in a public repository after 60 days

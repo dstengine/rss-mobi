@@ -15,6 +15,12 @@
   clicks, impressions and top pages. Publishers no longer connect their own
   Search Console: checks of their posts go to DataForSEO (ADR 0006).
 
+- Every new post's original is checked in Google, in the order posts
+  arrived, through DataForSEO: `/api/v1/cron/index-check`, called by the
+  cron workflow. Spending is capped at $1 a day, a refusal pauses checks
+  until midnight UTC, and a low balance or a spent budget goes to Telegram
+  once (#2).
+
 ## v0.2 — 23 Sep 2026 (slice 2: reader and collections)
 
 - The reader at `/reader/`: follow feeds with no account, the list kept in

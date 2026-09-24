@@ -14,7 +14,8 @@ import type { Collection } from "mongodb";
 
 /** Dollars per UTC day. */
 export const LIMITS = {
-  /** DataForSEO index checks, v1.0. At ~$0.0006 a check, about 1,600 a day. */
+  /** DataForSEO index checks, v1.0. A check is a `site:` query, which
+      DataForSEO bills at five times a plain one: $0.003, about 330 a day. */
   serp: 1,
   /** Claude rewrites, v1.1. */
   llm: 5,
@@ -26,12 +27,12 @@ export class BudgetExceeded extends Error {}
 
 export const utcDay = (d = new Date()) => d.toISOString().slice(0, 10);
 
-type Ledger = Pick<Collection<{ _id: string; usd: number; updatedAt: Date }>, "updateOne" | "findOneAndUpdate" | "findOne">;
+export type Ledger = Pick<Collection<{ _id: string; usd: number; updatedAt: Date }>, "updateOne" | "findOneAndUpdate" | "findOne">;
 
 /** Reserves `usd` against today's `name` budget, or throws BudgetExceeded. */
-export async function reserve(ledger: Ledger, name: BudgetName, usd: number, what = ""): Promise<number> {
+export async function reserve(ledger: Ledger, name: BudgetName, usd: number, what = "", day = utcDay()): Promise<number> {
   const limit = LIMITS[name];
-  const _id = `${name}:${utcDay()}`;
+  const _id = `${name}:${day}`;
   const amount = Math.round(usd * 1e6) / 1e6;
   await ledger.updateOne({ _id }, { $setOnInsert: { usd: 0, updatedAt: new Date() } }, { upsert: true });
   const after = await ledger.findOneAndUpdate(
@@ -46,8 +47,19 @@ export async function reserve(ledger: Ledger, name: BudgetName, usd: number, wha
   return after.usd;
 }
 
+/** Corrects today's ledger by `delta` dollars once a call's real cost is
+    known — negative when it cost less than was reserved, or was refused
+    before anything was charged. Unconditional: the money is already spent,
+    so a day can end a few cents past its limit, and the next reservation
+    then fails. */
+export async function settle(ledger: Ledger, name: BudgetName, delta: number, day = utcDay()): Promise<void> {
+  const amount = Math.round(delta * 1e6) / 1e6;
+  if (!amount) return;
+  await ledger.updateOne({ _id: `${name}:${day}` }, { $inc: { usd: amount }, $set: { updatedAt: new Date() } });
+}
+
 /** Dollars left today; never negative. */
-export async function headroom(ledger: Ledger, name: BudgetName): Promise<number> {
-  const spent = (await ledger.findOne({ _id: `${name}:${utcDay()}` }))?.usd ?? 0;
+export async function headroom(ledger: Ledger, name: BudgetName, day = utcDay()): Promise<number> {
+  const spent = (await ledger.findOne({ _id: `${name}:${day}` }))?.usd ?? 0;
   return Math.max(0, LIMITS[name] - spent);
 }
