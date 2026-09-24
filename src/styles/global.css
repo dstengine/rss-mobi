@@ -712,6 +712,30 @@ details.report summary {
   align-items: center;
 }
 
+/* On a phone the button moves into the card, under its text: beside it
+   the text column was about 110px, and a host like smashingmagazine.com
+   broke mid-word. Both share one grid cell; the card makes room only
+   once the script has shown the button. */
+@media (max-width: 479px) {
+  .cards > li:has(> .follow:not([hidden])) {
+    grid-template-columns: 1fr;
+  }
+
+  .cards > li:has(> .follow:not([hidden])) > * {
+    grid-area: 1 / 1;
+  }
+
+  .cards > li:has(> .follow:not([hidden])) > .feed-card {
+    padding-bottom: 68px;
+  }
+
+  .cards > li:has(> .follow:not([hidden])) > .follow {
+    align-self: end;
+    justify-self: start;
+    margin: 0 0 12px 66px;
+  }
+}
+
 .linklike {
   padding: 0;
   border: 0;

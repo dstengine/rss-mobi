@@ -31,7 +31,9 @@
   checks it against a real MongoDB, which CI now starts.
 - The header no longer breaks words on narrow phones ("rss.m obi",
   "Sub mit" at 320 px): the wordmark and menu labels never wrap inside a
-  word, and below 340 px the wordmark shows only its icon.
+  word, and below 340 px the wordmark shows only its icon. In the
+  reader's starter feeds the Follow button moves inside the card on
+  phones, so a host like smashingmagazine.com no longer splits.
 - The terms and about pages name an address for complaints and removal
   requests, rss-mobi@vvm.space, besides the report form (#12).
 - Every new post's original is checked in Google, in the order posts
