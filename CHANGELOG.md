@@ -29,6 +29,9 @@
   topic pages, collections, the reader and the API — not only the feed's
   own page: items carry the feed's `linkMode` (#13). `tests/db.test.ts`
   checks it against a real MongoDB, which CI now starts.
+- The header no longer breaks words on narrow phones ("rss.m obi",
+  "Sub mit" at 320 px): the wordmark and menu labels never wrap inside a
+  word, and below 340 px the wordmark shows only its icon.
 - The terms and about pages name an address for complaints and removal
   requests, rss-mobi@vvm.space, besides the report form (#12).
 - Every new post's original is checked in Google, in the order posts
