@@ -135,12 +135,18 @@ describe("service worker", () => {
     assert.equal(w.calls.length, 1);
   });
 
-  test("install keeps the reader and the files it loads", async () => {
+  test("install keeps the reader, the files it names and the chunks they import", async () => {
     const html = `<link rel="stylesheet" href="/_astro/base.x1.css"><script type="module" src="/_astro/reader.y2.js"></script>`;
-    const w = worker(async (u) => (u.endsWith("/reader/") ? new Response(html, { headers: { "content-type": "text/html" } }) : ok("asset")));
+    const files: Record<string, string> = {
+      "/reader/": html,
+      "/_astro/reader.y2.js": `import{s as a}from"./subs.z3.js";import"./track.w4.js";`,
+      "/_astro/subs.z3.js": `import{t}from"./track.w4.js";`,
+    };
+    const w = worker(async (u) => new Response(files[new URL(u).pathname] ?? "asset"));
     await w.install();
     assert.deepEqual(await w.kept("shell"), ["/reader/"]);
-    assert.deepEqual((await w.kept("assets")).sort(), ["/_astro/base.x1.css", "/_astro/reader.y2.js"]);
+    assert.deepEqual((await w.kept("assets")).sort(), ["/_astro/base.x1.css", "/_astro/reader.y2.js", "/_astro/subs.z3.js", "/_astro/track.w4.js"]);
+    assert.equal(w.calls.filter((u) => u.endsWith("track.w4.js")).length, 1);
   });
 
   test("the reader page opens offline from its kept copy", async () => {

@@ -27,9 +27,20 @@ self.addEventListener("install", (event) => {
       if (res.ok) {
         const html = await res.clone().text();
         await (await caches.open(SHELL)).put("/reader/", res);
+        // The page names its scripts; the scripts import shared chunks the
+        // page never names, and the reader is dead offline without them.
         const assets = await caches.open(ASSETS);
-        const wanted = [...new Set(html.match(/\/_astro\/[^"'\s)?#]+/g) ?? [])];
-        await Promise.all(wanted.map((a) => assets.add(a).catch(() => {})));
+        const queue = html.match(/\/_astro\/[^"'\s)?#]+/g) ?? [];
+        const seen = new Set();
+        while (queue.length) {
+          const path = queue.shift();
+          if (seen.has(path)) continue;
+          seen.add(path);
+          const file = await fetch(path).catch(() => null);
+          if (!file?.ok) continue;
+          if (path.endsWith(".js")) for (const m of (await file.clone().text()).matchAll(/["']\.\/([\w.-]+\.js)["']/g)) queue.push(`/_astro/${m[1]}`);
+          await assets.put(path, file);
+        }
       }
       await self.skipWaiting();
     })(),
