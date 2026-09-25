@@ -1,0 +1,284 @@
+---
+// /rss/ — every export the directory has, and a builder for the one a
+// reader wants: pick a topic, words, a site or a language and copy the
+// address. Indexable: "custom RSS feed by keyword" is something people
+// search for, and this is the page that answers it. With filters in its
+// query, /rss/?tag=ai is the feed itself, under the address /rss.xml
+// spells one way.
+import Base from "../layouts/Base.astro";
+import FeedAddress from "../components/FeedAddress.astro";
+import { policy } from "../lib/policy.ts";
+import { cacheFor } from "../lib/http.ts";
+import { parseFilters, toSearch } from "../lib/filters.ts";
+import { rssPath } from "../lib/exports.ts";
+import { feedLanguages, listedCount, tagStats } from "../lib/views.ts";
+import { counted, topicName } from "../lib/words.ts";
+import { site } from "../site.config.ts";
+
+const f = parseFilters(Astro.url.searchParams);
+if (toSearch(f)) return Astro.redirect(rssPath(f), 301);
+
+const [tags, langs, total] = await Promise.all([tagStats(500), feedLanguages(), listedCount()]);
+const decision = policy({ type: "static" });
+Astro.response.headers.set("Cache-Control", cacheFor(600));
+
+// The ready-made list is the topics with an indexable page of their own;
+// the field suggests any topic with three feeds, and takes any other too.
+const open = tags.filter((t) => policy({ type: "tag", feeds: t.feeds, hosts: t.hosts }).sitemap);
+const suggest = tags.filter((t) => t.feeds >= 3).map((t) => t.tag).sort();
+const names = new Intl.DisplayNames(["en"], { type: "language" });
+const langName = (code: string) => {
+  try {
+    return names.of(code) ?? code;
+  } catch {
+    return code;
+  }
+};
+const all = `${site.url}/rss.xml`;
+const enc = encodeURIComponent(all);
+const readers = [
+  { name: "Feedly", href: `https://feedly.com/i/subscription/feed/${enc}`, base: "https://feedly.com/i/subscription/feed/" },
+  { name: "Inoreader", href: `https://www.inoreader.com/?add_feed=${enc}`, base: "https://www.inoreader.com/?add_feed=" },
+  { name: "NetNewsWire", href: `feed:${all}`, base: "feed:" },
+];
+
+const params = [
+  { name: "tag", example: "ai,robotics", text: "Posts filed under any of these topics — the last part of a topic page's address." },
+  { name: "q", example: "open source", text: "Posts whose title or excerpt mentions these words." },
+  { name: "exclude", example: "deal,sponsored", text: "Leaves out a post whose title contains any of these words." },
+  { name: "host", example: "theverge.com", text: "Posts from these sites only, by address, without www." },
+  { name: "feed", example: "hacker-news", text: "Posts from these feeds only — the last part of a feed page's address." },
+  { name: "lang", example: "en", text: "Posts in one language, by its two-letter code." },
+  { name: "since", example: "2026-09-01", text: "Posts published on or after this date." },
+  { name: "limit", example: "50", text: "How many posts the feed carries: 30 unless you say, 100 at most." },
+];
+
+const title = "Custom RSS feeds by topic, keyword or site";
+const description = `Make an RSS feed of the newest posts on any topic, keyword or site across ${counted(total, "feed")}, or take a topic's RSS feeds as OPML. Free, no account.`;
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: title,
+    url: `${site.url}/rss/`,
+    description,
+    isPartOf: { "@type": "WebSite", name: site.name, url: `${site.url}/` },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "RSS feeds", item: `${site.url}/` },
+      { "@type": "ListItem", position: 2, name: "Custom RSS feeds" },
+    ],
+  },
+];
+---
+
+<Base title={title} description={description} robots={decision.robots} path="/rss/" jsonLd={jsonLd} alternate={{ href: all, title: "Newest posts · rss.mobi" }}>
+  <h1>{title}</h1>
+  <p class="lede">
+    Every topic, word and site in the directory can be a feed of its own. Say what you want below, copy the address into any RSS reader, and new posts arrive
+    there as the feeds publish them.
+  </p>
+
+  <form class="builder" id="builder" action="/rss.xml" method="get">
+    <label for="b-tag">Topics <span class="hint">One or several, separated by commas.</span></label>
+    <input id="b-tag" name="tag" type="text" list="b-topics" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. ai, robotics" />
+    <datalist id="b-topics">{suggest.map((t) => <option value={t} />)}</datalist>
+
+    <label for="b-q">Posts that mention</label>
+    <input id="b-q" name="q" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. open source" />
+
+    <details class="more" id="b-more">
+      <summary>More filters</summary>
+      <label for="b-exclude">Leave out titles with</label>
+      <input id="b-exclude" name="exclude" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. deal, sponsored" />
+
+      <div class="pair">
+        <div>
+          <label for="b-host">Site</label>
+          <input id="b-host" name="host" type="text" inputmode="url" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. theverge.com" />
+        </div>
+        <div>
+          <label for="b-lang">Language</label>
+          <select id="b-lang" name="lang">
+            <option value="">Any</option>
+            {langs.map((l) => <option value={l.lang}>{langName(l.lang)}</option>)}
+          </select>
+        </div>
+      </div>
+    </details>
+
+    <section class="subscribe" aria-labelledby="b-h">
+      <h2 id="b-h">Your feed</h2>
+      <p class="small muted" id="b-what" aria-live="polite">The newest posts from every feed in the directory.</p>
+      <FeedAddress id="b-rss" url={all} title="The RSS feed these filters make: copy this address into any reader" data-origin={site.url} />
+      <div class="readers">
+        {
+          readers.map((r) => (
+            <a
+              class="button secondary"
+              href={r.href}
+              rel="nofollow noopener"
+              data-reader={r.name}
+              data-base={r.base}
+              title={r.href.startsWith("feed:") ? `Hands the feed to ${r.name} or whichever reader app this device uses` : `Opens ${r.name} with this feed ready to follow`}
+            >
+              {r.name}
+            </a>
+          ))
+        }
+      </div>
+      <noscript><p><button class="button" type="submit">Open the feed</button></p></noscript>
+    </section>
+
+    <section aria-labelledby="b-now-h" id="b-now" hidden>
+      <h2 id="b-now-h">In it right now</h2>
+      <ul class="items compact" id="b-items"></ul>
+      <p class="small muted" id="b-empty" hidden>Nothing matches yet. The feed still works: posts arrive in it as they are published.</p>
+    </section>
+  </form>
+
+  <section>
+    <h2>Ready-made RSS feeds and OPML</h2>
+    <ul class="exports">
+      <li>
+        <span>Everything</span>
+        <a href="/rss.xml" title="The newest posts from every feed in the directory, as RSS">RSS</a>
+        <a href="/opml.xml" title={`All ${counted(total, "feed")} in the directory as an OPML file`}>OPML · {total}</a>
+      </li>
+      {
+        open.map((t) => (
+          <li>
+            <a href={`/tag/${t.tag}/`} title={`The best ${topicName(t.tag, false)} RSS feeds, ranked`}>
+              {topicName(t.tag)}
+            </a>
+            <a href={`/tag/${t.tag}/rss.xml`} title={`The newest ${topicName(t.tag, false)} posts as one RSS feed`}>
+              RSS
+            </a>
+            <a href={`/tag/${t.tag}/opml.xml`} title={`Every ${topicName(t.tag, false)} feed as an OPML file`}>
+              OPML · {t.feeds}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="small muted">
+      RSS gives you one feed of a topic's newest posts. OPML is a list of the topic's feeds themselves: import it into a reader and you follow each one from its
+      publisher. Every <a href="/tags/" title="Browse RSS feeds by topic">topic page</a> has both.
+    </p>
+  </section>
+
+  <section class="prose">
+    <h2>Building the address by hand</h2>
+    <p>
+      Add any of these to <code>{site.url}/rss.xml</code>. Filters combine — a post has to pass every one — and several values in one filter, separated by
+      commas, mean any of them. A filter the directory cannot read is left out rather than answered with an error, since a reader app has no way to show one.
+    </p>
+    <dl class="params">
+      {
+        params.map((p) => (
+          <>
+            <dt>
+              <code>
+                {p.name}={p.example}
+              </code>
+            </dt>
+            <dd>{p.text}</dd>
+          </>
+        ))
+      }
+    </dl>
+    <p>
+      For example, <a href="/rss.xml?tag=gaming&lang=en&exclude=deal" title="English gaming posts without deals, as RSS"><code>/rss.xml?tag=gaming&amp;lang=en&amp;exclude=deal</code></a>.
+      The same filters work on <a href="/api/v1/items?tag=gaming&limit=5" title="The directory's posts as JSON, filtered the same way">the JSON API</a>, and a <a href="/c/new/" title="Combine several RSS feeds into one">combined feed</a> keeps a set of them under a name of your own.
+    </p>
+    <h2>What arrives in them</h2>
+    <p>
+      Each post's title, a short excerpt, its picture and a link to the original — the whole post is on the publisher's site. Posts arrive as the directory
+      checks its feeds: within an hour for a feed people read, less often for one nobody has opened in a while.
+    </p>
+  </section>
+</Base>
+
+<script>
+  import { describe, narrowed, parseFilters, toSearch } from "../lib/filters.ts";
+  import { track } from "../scripts/track.ts";
+  import { wireCopyButtons } from "../scripts/copy.ts";
+
+  const form = document.querySelector<HTMLFormElement>("#builder")!;
+  const address = document.querySelector<HTMLAnchorElement>("#b-rss")!;
+  const what = document.querySelector<HTMLElement>("#b-what")!;
+  const now = document.querySelector<HTMLElement>("#b-now")!;
+  const list = document.querySelector<HTMLUListElement>("#b-items")!;
+  const empty = document.querySelector<HTMLElement>("#b-empty")!;
+  const origin = address.dataset.origin ?? location.origin;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let asked = "";
+
+  const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> = {}, ...kids: (Node | string)[]) => {
+    const e = Object.assign(document.createElement(tag), props);
+    e.append(...kids);
+    return e;
+  };
+
+  function current() {
+    const p = new URLSearchParams();
+    for (const [k, v] of new FormData(form)) if (String(v).trim()) p.set(k, String(v));
+    return parseFilters(p);
+  }
+
+  function update() {
+    const f = current();
+    const q = toSearch(f);
+    const url = `${origin}/rss.xml${q ? `?${q}` : ""}`;
+    address.href = url;
+    const parts = url.replace(/^https?:\/\//, "").split("/");
+    address.querySelector(".url")!.replaceChildren(...parts.map((p, i) => el("span", { textContent: i < parts.length - 1 ? `${p}/` : p })));
+    what.textContent = narrowed(f) ? `${describe(f)}, newest first.` : "The newest posts from every feed in the directory.";
+    for (const a of document.querySelectorAll<HTMLAnchorElement>("[data-base]")) {
+      a.href = a.dataset.base === "feed:" ? `feed:${url}` : `${a.dataset.base}${encodeURIComponent(url)}`;
+    }
+    clearTimeout(timer);
+    timer = setTimeout(() => preview(q), 500);
+  }
+
+  // What the feed would carry right now: the same filters asked of the
+  // JSON API, five posts. Only after a pause in typing, and only once per
+  // filter.
+  async function preview(q: string) {
+    if (q === asked) return;
+    asked = q;
+    const p = new URLSearchParams(q);
+    p.set("limit", "5");
+    const res = await fetch(`/api/v1/items?${p}`).catch(() => null);
+    if (!res?.ok || q !== asked) return;
+    const { items } = (await res.json()) as { items: { id: string; title: string; host: string; publishedAt: string }[] };
+    list.replaceChildren(
+      ...items.map((it) =>
+        el(
+          "li",
+          {},
+          el("a", { href: `/item/${it.id}/`, textContent: it.title, title: `${it.title}, from ${it.host}` }),
+          el("span", { className: "small muted" }, ` · ${it.host}`),
+        ),
+      ),
+    );
+    empty.hidden = items.length > 0;
+    now.hidden = false;
+  }
+
+  form.addEventListener("input", update);
+  form.addEventListener("change", update);
+  // Enter in a field would open the XML; the address above is the result.
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    update();
+  });
+  update();
+  wireCopyButtons(() => track("subscribe_copy", { label: "builder" }));
+  for (const a of document.querySelectorAll<HTMLAnchorElement>("[data-reader]")) {
+    a.addEventListener("click", () => track("subscribe_open", { label: a.dataset.reader }));
+  }
+</script>

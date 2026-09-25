@@ -36,6 +36,7 @@ export const site = {
   /** The phone menu, under its search box: what the tab bar leaves out. */
   menu: [
     { href: "/submit/", label: "Submit a feed", icon: "plus", title: "Submit an RSS feed to the directory" },
+    { href: "/rss/", label: "Custom feeds", icon: "rss", title: "Make an RSS feed of any topic, keyword or site" },
     { href: "/about/", label: "About", icon: "about", title: "About the rss.mobi RSS feeds directory" },
     { href: "/terms/", label: "Terms", icon: "terms", title: "Terms for submitting and reading RSS feeds" },
   ],
@@ -43,6 +44,7 @@ export const site = {
     { href: "/about/", label: "About", title: "About the rss.mobi RSS feeds directory" },
     { href: "/terms/", label: "Terms", title: "Terms for submitting and reading RSS feeds" },
     { href: "/c/new/", label: "Combine feeds", title: "Combine several RSS feeds into one" },
+    { href: "/rss/", label: "RSS & OPML", title: "Make an RSS feed of any topic, keyword or site, or take the directory as OPML" },
     { href: "/api/v1/feeds", label: "API", title: "The RSS feeds directory as JSON" },
     // AGPL-3.0 §13: the people using the site are offered its source.
     { href: "https://github.com/dstengine/rss-mobi", label: "Source", title: "Source code of this RSS feeds directory, AGPL-3.0" },
@@ -54,15 +56,16 @@ export const site = {
     entries at all is dated by this alone. Edit a page's text, move its
     date — that is the whole rule, and seo-check cannot enforce it. */
 export const COPY_UPDATED: Record<string, string> = {
-  "/": "2026-09-23",
+  "/": "2026-09-25",
   "/tags/": "2026-09-23",
-  "/tag/": "2026-09-23",
+  "/tag/": "2026-09-25",
   "/feed/": "2026-09-23",
-  "/submit/": "2026-09-23",
-  "/about/": "2026-09-24",
+  "/submit/": "2026-09-25",
+  "/about/": "2026-09-25",
   "/terms/": "2026-09-24",
-  "/reader/": "2026-09-23",
+  "/reader/": "2026-09-25",
   "/c/new/": "2026-09-23",
+  "/rss/": "2026-09-25",
 };
 
 export const copyDate = (path: string) => new Date(`${COPY_UPDATED[path] ?? "2026-09-23"}T00:00:00Z`);

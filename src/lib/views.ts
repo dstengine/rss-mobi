@@ -100,6 +100,24 @@ export async function recentFeeds(limit = 20, skip = 0): Promise<PublicFeed[]> {
   return (await feeds()).find<PublicFeed>(LISTED, { projection: FEED_FIELDS }).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray();
 }
 
+/** Every listed feed, the most followed and liveliest first, as a topic
+    list ranks them. */
+export async function rankedFeeds(limit = 1_000): Promise<PublicFeed[]> {
+  return (await feeds()).find<PublicFeed>(LISTED, { projection: FEED_FIELDS }).sort({ rank: -1, itemCount: -1, slug: 1 }).limit(limit).toArray();
+}
+
+/** The languages listed feeds are written in, most common first. */
+export async function feedLanguages(): Promise<{ lang: string; feeds: number }[]> {
+  const rows = await (await feeds())
+    .aggregate<{ _id: string; n: number }>([
+      { $match: { ...LISTED, lang: { $regex: /^[a-z]{2,3}$/ } } },
+      { $group: { _id: "$lang", n: { $sum: 1 } } },
+      { $sort: { n: -1, _id: 1 } },
+    ])
+    .toArray();
+  return rows.map((r) => ({ lang: r._id, feeds: r.n }));
+}
+
 export async function listedCount(): Promise<number> {
   return (await feeds()).countDocuments(LISTED);
 }

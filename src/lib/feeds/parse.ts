@@ -5,7 +5,9 @@
 // public sends, so the four real formats are parsed properly: RSS 2.0
 // (and 0.9x), RSS 1.0 / RDF, Atom, and JSON Feed.
 import { XMLParser } from "fast-xml-parser";
-import { absolute, canonical, clip, unescape, unhtml } from "./url.ts";
+import { absolute, canonical, clip, tag, unescape, unhtml } from "./url.ts";
+
+export { tag };
 
 export const EXCERPT_MAX = 300;
 const ITEMS_MAX = 100;
@@ -256,16 +258,6 @@ const first = <T,>(v: T | T[] | undefined): T | undefined => (Array.isArray(v) ?
 function categories(v: any): string[] {
   const list = Array.isArray(v) ? v : v ? [v] : [];
   return [...new Set(list.map((c) => topic(text(c))).filter(Boolean))].slice(0, 10);
-}
-
-/** A category as a tag: lower case, hyphenated, short. Categories are
-    whatever the publisher's CMS emits, so anything long is a sentence rather
-    than a topic and is dropped. Filters normalise with this too, so it
-    keeps every word: a filter word dropped in silence would widen the
-    answer to the whole directory — `?tag=links` would return everything. */
-export function tag(s: unknown): string {
-  const t = unescape(s).toLowerCase().normalize("NFKC").replace(/[\s_/]+/g, "-").replace(/[^\p{L}\p{N}-]+/gu, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
-  return t.length >= 2 && t.length <= 32 ? t : "";
 }
 
 /** A tag worth storing as a topic: `tag()` minus STOP_TAGS. Everything

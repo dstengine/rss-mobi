@@ -125,3 +125,15 @@ export function slugify(s: string, fallback = "feed"): string {
   }
   return out || words[0]?.slice(0, SLUG_MAX) || fallback;
 }
+
+/** A category as a tag: lower case, hyphenated, short. Categories are
+    whatever the publisher's CMS emits, so anything long is a sentence rather
+    than a topic and is dropped. Filters normalise with this too, so it
+    keeps every word: a filter word dropped in silence would widen the
+    answer to the whole directory — `?tag=links` would return everything.
+    It lives here rather than in parse.ts because the /rss/ builder runs
+    the filters in the browser, and the XML parser has no business there. */
+export function tag(s: unknown): string {
+  const t = unescape(s).toLowerCase().normalize("NFKC").replace(/[\s_/]+/g, "-").replace(/[^\p{L}\p{N}-]+/gu, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  return t.length >= 2 && t.length <= 32 ? t : "";
+}

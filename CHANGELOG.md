@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- The directory is followable as files. `/rss.xml` gives the newest
+  posts under any filter the API takes (`?tag=ai,robotics&q=agents`),
+  `/tag/<tag>/rss.xml` a topic's, and `/opml.xml` and
+  `/tag/<tag>/opml.xml` the feeds themselves, by their publishers'
+  addresses, to import into a reader. Every other spelling of a filter
+  redirects to one, commas left bare, so readers of the same filter share
+  a cached file. Following an export does not count as reading its feeds:
+  one subscriber to `/rss.xml` would otherwise hold the whole catalogue
+  at full pace. `/rss/` is the page for all of it — a builder that shows
+  the address, what it selects and the five posts in it now as you type,
+  every topic's two files, and the parameters — and topic pages gain a
+  "Follow the whole topic" box and a feed `<link rel="alternate">`.
+  `tag()` moved to `feeds/url.ts` so the builder runs the same filter
+  code in the browser (4.7 KB).
 - Posts have pictures: a thumbnail beside each post in lists and in the
   reader, a picture at the top of a post's page, and the card a shared
   link unfolds into (`og:image`, 1200×630). A background job looks once

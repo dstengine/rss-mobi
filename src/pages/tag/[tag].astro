@@ -2,6 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import RankedFeed from "../../components/RankedFeed.astro";
 import ItemList from "../../components/ItemList.astro";
+import FeedAddress from "../../components/FeedAddress.astro";
 import { site } from "../../site.config.ts";
 import { policy } from "../../lib/policy.ts";
 import { cacheFor } from "../../lib/http.ts";
@@ -67,7 +68,14 @@ const jsonLd = [
 ];
 ---
 
-<Base title={heading} description={description} robots={decision.robots} path={path} jsonLd={jsonLd}>
+<Base
+  title={heading}
+  description={description}
+  robots={decision.robots}
+  path={path}
+  jsonLd={jsonLd}
+  alternate={{ href: `${site.url}${path}rss.xml`, title: `${name} · rss.mobi` }}
+>
   <p class="muted small"><a href="/tags/" title="Browse RSS feeds by topic">Topics</a> /</p>
   <h1>{heading}</h1>
   <p class="lede">
@@ -89,6 +97,16 @@ const jsonLd = [
   <ol class="ranked">
     {feeds.map((f, i) => <RankedFeed feed={f} place={i + 1} />)}
   </ol>
+
+  <section class="subscribe" aria-labelledby="topic-h">
+    <h2 id="topic-h">Follow the whole topic</h2>
+    <p class="small muted">The newest {label} posts from across the directory as one feed, for any reader:</p>
+    <FeedAddress id="topic-rss" url={`${site.url}${path}rss.xml`} title={`The newest ${label} posts as one RSS feed: copy this address into any reader`} />
+    <p class="links">
+      <a href={`${path}opml.xml`} title={`The ${label} feeds as an OPML file, to import into a reader and follow each one`}>All {counted(n, "feed")} as OPML</a>
+      <a href="/rss/" title="Make an RSS feed of any topic, keyword or site">Narrow it down</a>
+    </p>
+  </section>
 
   {
     items.length > 0 && (

@@ -2,7 +2,8 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { policy, linkTo } from "../src/lib/policy.ts";
 import { urlset, sitemapIndex, changefreqFor, priorityFor, newest } from "../src/lib/sitemap.ts";
-import { parseFilters, toQuery, toSearch } from "../src/lib/filters.ts";
+import { describe as said, narrowed, parseFilters, spelling, toQuery, toSearch } from "../src/lib/filters.ts";
+import { feedsOpml, rssPath } from "../src/lib/exports.ts";
 import { assign, zTest, hash32, type Experiment } from "../src/lib/experiments.ts";
 import { reserve, headroom, BudgetExceeded, LIMITS } from "../src/lib/budget.ts";
 import { spamReason } from "../src/lib/spam.ts";
@@ -123,6 +124,50 @@ describe("filters", () => {
     const a = toSearch(parseFilters(new URLSearchParams("tag=b,a&lang=en")));
     const b = toSearch(parseFilters(new URLSearchParams("lang=en&tags=a,b")));
     assert.equal(a, b);
+  });
+
+  // /rss.xml redirects any other spelling to this one, so it must read back
+  // as itself — or the redirect would never end.
+  test("the canonical spelling reads back as itself", () => {
+    const long = `${"word ".repeat(19)}abcd 😀😀`;
+    for (const raw of [
+      "",
+      "tag=b,a,a&lang=EN&junk=1",
+      "q=open%20source&exclude=Deal, sponsored,x",
+      "tag=Новости&host=WWW.Example.com&since=2026-09-01&limit=50",
+      `q=${encodeURIComponent(long)}`,
+      "feed=hacker-news,Bad Slug&tags=web dev",
+    ]) {
+      const once = toSearch(parseFilters(new URLSearchParams(raw)));
+      assert.equal(toSearch(parseFilters(new URLSearchParams(once))), once, raw);
+      assert.equal(spelling(`?${once}`), once, raw);
+    }
+    assert.equal(rssPath(parseFilters(new URLSearchParams("tag=robotics,ai"))), "/rss.xml?tag=ai,robotics");
+    assert.equal(rssPath(parseFilters(new URLSearchParams("utm_source=x"))), "/rss.xml");
+  });
+
+  test("a filter says what it selects", () => {
+    const f = parseFilters(new URLSearchParams("tag=ai,robotics&lang=en&q=agents&exclude=crypto&host=www.example.com"));
+    assert.equal(said(f), "AI or Robotics posts from example.com in English matching “agents” without “crypto”");
+    assert.equal(narrowed(f), true);
+    assert.equal(narrowed(parseFilters(new URLSearchParams("limit=50"))), false);
+  });
+});
+
+describe("exports", () => {
+  test("OPML lists each feed by its publisher's address, dated by the newest", () => {
+    const feed = (slug: string, url: string, updatedAt: string, siteUrl = "") => ({ slug, title: `${slug} & co`, url, siteUrl, updatedAt: new Date(updatedAt) }) as any;
+    const xml = feedsOpml("Topic RSS feeds", [
+      feed("a", "https://a.example/feed", "2026-09-20T00:00:00Z", "https://a.example/"),
+      feed("b", "https://b.example/rss?x=1&y=2", "2026-09-24T12:00:00Z"),
+    ]);
+    assert.match(xml, /<title>Topic RSS feeds<\/title>/);
+    assert.match(xml, /xmlUrl="https:\/\/a\.example\/feed"/);
+    assert.match(xml, /htmlUrl="https:\/\/a\.example\/"/);
+    assert.match(xml, /xmlUrl="https:\/\/b\.example\/rss\?x=1&amp;y=2"/);
+    assert.match(xml, /text="a &amp; co"/);
+    assert.match(xml, /<dateModified>Thu, 24 Sep 2026 12:00:00 GMT<\/dateModified>/);
+    assert.doesNotMatch(xml, /rss\.mobi\/feed\//);
   });
 });
 

@@ -3,7 +3,8 @@
 // and a network site reading /rss/?tag=… gets exactly what /api/v1/items
 // would have given it.
 import type { Filter } from "mongodb";
-import { tag as toTag } from "./feeds/parse.ts";
+import { tag as toTag } from "./feeds/url.ts";
+import { topicName } from "./words.ts";
 import type { ItemDoc } from "./types.ts";
 
 export const LIMIT_DEFAULT = 30;
@@ -36,7 +37,10 @@ export function parseFilters(p: URLSearchParams | Record<string, string | undefi
   const since = get("since") ? new Date(get("since")!) : undefined;
   const limit = Number(get("limit") ?? LIMIT_DEFAULT);
   const lang = (get("lang") ?? "").toLowerCase().match(/^[a-z]{2,3}$/)?.[0];
-  const q = (get("q") ?? "").trim().slice(0, 100) || undefined;
+  // Cut by characters, not UTF-16 units, and trimmed after the cut: the
+  // canonical spelling has to read back as itself, or /rss.xml would
+  // redirect a second time.
+  const q = [...(get("q") ?? "").trim()].slice(0, 100).join("").trim() || undefined;
   return {
     tags: list(get("tag") ?? get("tags")).map(toTag).filter(Boolean),
     lang,
@@ -47,6 +51,32 @@ export function parseFilters(p: URLSearchParams | Record<string, string | undefi
     since: since && !Number.isNaN(since.getTime()) ? since : undefined,
     limit: Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), LIMIT_MAX) : LIMIT_DEFAULT,
   };
+}
+
+/** Whether `f` narrows anything, or is the whole directory. */
+export const narrowed = (f: Filters) => !!(f.tags.length || f.lang || f.feeds.length || f.hosts.length || f.q || f.exclude.length || f.since);
+
+/** What a filter selects, in words: "AI or Robotics posts in English
+    matching “agents”, without “crypto”". */
+export function describe(f: Filters): string {
+  const parts: string[] = [];
+  const topics = f.tags.map((t) => topicName(t));
+  parts.push(topics.length ? `${topics.join(" or ")} posts` : "Posts");
+  if (f.hosts.length) parts.push(`from ${f.hosts.join(", ")}`);
+  if (f.feeds.length) parts.push(`from ${f.feeds.length === 1 ? "one feed" : `${f.feeds.length} feeds`}`);
+  if (f.lang) parts.push(`in ${languageName(f.lang)}`);
+  if (f.q) parts.push(`matching “${f.q}”`);
+  if (f.exclude.length) parts.push(`without ${f.exclude.map((w) => `“${w}”`).join(", ")}`);
+  if (f.since) parts.push(`since ${f.since.toISOString().slice(0, 10)}`);
+  return parts.join(" ");
+}
+
+function languageName(code: string): string {
+  try {
+    return new Intl.DisplayNames(["en"], { type: "language" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
 }
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -77,8 +107,14 @@ export function toSearch(f: Filters): string {
   if (f.exclude.length) p.set("exclude", [...f.exclude].sort().join(","));
   if (f.since) p.set("since", f.since.toISOString());
   if (f.limit !== LIMIT_DEFAULT) p.set("limit", String(f.limit));
-  return p.toString();
+  return spelling(p.toString());
 }
+
+/** Any query string, encoded the one way toSearch encodes: as
+    URLSearchParams does, but with the commas between values left bare —
+    the address is one people read and copy, and ?tag=ai,robotics reads
+    where ?tag=ai%2Crobotics does not. */
+export const spelling = (search: string) => new URLSearchParams(search).toString().replace(/%2C/g, ",");
 
 /** Where the next page of items starts: the last item's date and id. The
     date alone is not enough — a feed that gives no dates stores a whole

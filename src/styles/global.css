@@ -1242,6 +1242,21 @@ label {
   font-size: 1rem;
 }
 
+/* Links under a feed's address, each a full-height tap target. */
+.subscribe .links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 20px;
+  margin: 4px 0 -8px;
+  font-size: 0.875rem;
+}
+
+.subscribe .links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
 .readers {
   display: flex;
   flex-wrap: wrap;
@@ -1264,7 +1279,8 @@ details.report summary {
 /* A flex summary loses the browser's own triangle, and without it the line
    reads as a heading with nothing under it. A chevron says it opens. */
 details.report summary::before,
-.collection-form summary::before {
+.collection-form summary::before,
+.builder summary::before {
   content: "";
   flex: none;
   width: 7px;
@@ -1277,13 +1293,15 @@ details.report summary::before,
 }
 
 details.report[open] > summary::before,
-.collection-form details[open] > summary::before {
+.collection-form details[open] > summary::before,
+.builder details[open] > summary::before {
   transform: translateY(-2px) rotate(45deg);
 }
 
 @media (prefers-reduced-motion: reduce) {
   details.report summary::before,
-  .collection-form summary::before {
+  .collection-form summary::before,
+  .builder summary::before {
     transition: none;
   }
 }
@@ -1358,6 +1376,77 @@ details.report[open] > summary::before,
   .cards.two {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+/* --------------------------------------------------------------- exports */
+
+.builder {
+  max-width: 38rem;
+}
+
+/* Site and language share a row once there is room for both. */
+.builder .pair {
+  display: grid;
+  gap: 0 12px;
+}
+
+@media (min-width: 520px) {
+  .builder .pair {
+    grid-template-columns: 3fr 2fr;
+  }
+}
+
+.builder details {
+  margin-top: 12px;
+}
+
+.builder summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.builder .subscribe {
+  margin-top: 16px;
+}
+
+.items.compact li {
+  padding: 10px 0;
+}
+
+.exports {
+  max-width: 38rem;
+  margin: 8px 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+/* A topic, then its two files: the name takes what the row leaves, and
+   the files line up in columns down the list. */
+.exports li {
+  display: grid;
+  grid-template-columns: 1fr 3.5rem 5.5rem;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.exports li > * {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 0;
+}
+
+.params dt {
+  margin-top: 14px;
+}
+
+.params dd {
+  margin: 4px 0 0;
+  color: var(--muted);
 }
 
 /* ---------------------------------------------------------------- reader */
