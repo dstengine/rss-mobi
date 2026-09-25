@@ -62,6 +62,13 @@ describe("parseFeed", () => {
     assert.deepEqual(f.items[0].tags, ["noticias"]);
   });
 
+  test("a home link that cannot be a site gives way to the feed's own", () => {
+    const rss = (link: string) => `<rss version="2.0"><channel><title>T</title><link>${link}</link><item><title>a</title><link>https://www.entrepreneur.com/a</link></item></channel></rss>`;
+    assert.equal(parseFeed(rss("https://www.entrepreneur.comrss-feed/latest"), "https://www.entrepreneur.com/rss-feed/latest").siteUrl, "https://www.entrepreneur.com/");
+    assert.equal(parseFeed(rss("https://news.example.co.uk/world"), "https://feeds.example.net/rss").siteUrl, "https://news.example.co.uk/world");
+    assert.equal(parseFeed(rss("https://пример.xn--p1ai/"), "https://feeds.example.net/rss").siteUrl, "https://xn--e1afmkfd.xn--p1ai/");
+  });
+
   test("broken XML yields nothing usable; non-feeds are NotAFeed", () => {
     // The parser is lenient on purpose — real feeds are often slightly
     // invalid — so a broken one either throws or comes back empty, and an
@@ -119,6 +126,12 @@ describe("url helpers", () => {
   });
   test("key", () => assert.equal(key("Café — Déjà Vu!"), "cafe deja vu"));
   test("unescape keeps astral characters whole", () => assert.equal(unescape("&#x1F600; ok"), "😀 ok"));
+  test("a description's markup is dropped even escaped twice; a title's named tag is kept", () => {
+    const xml = `<rss version="2.0"><channel><title>The &amp;lt;dialog&amp;gt; element</title><description>A suite of &#60;a href=&#34;/features/&#34;&#62;social tools&#60;/a&#62; for a &amp;lt; b &amp;gt; c</description><item><title>a</title><link>https://x.test/a</link></item></channel></rss>`;
+    const f = parseFeed(xml, "https://x.test/feed");
+    assert.equal(f.description, "A suite of social tools for a < b > c");
+    assert.equal(f.title, "The <dialog> element");
+  });
   test("clip cuts at a word", () => assert.equal(clip("one two three four", 14), "one two three…"));
   test("slugify falls back when nothing latin is left", () => {
     assert.equal(slugify("Hello, World"), "hello-world");

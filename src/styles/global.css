@@ -1152,8 +1152,36 @@ label {
 }
 
 .items li {
+  display: flow-root;
   padding: 14px 0;
   border-bottom: 1px solid var(--line);
+}
+
+/* A post's picture beside its title, as the readers people know show it;
+   on a phone the excerpt runs on beneath it. */
+.items .thumb {
+  float: right;
+  width: 84px;
+  height: 84px;
+  margin: 2px 0 6px 14px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.items .thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 360px) {
+  .items .thumb {
+    width: 72px;
+    height: 72px;
+    margin-left: 12px;
+  }
 }
 
 .items li:last-child {
@@ -1261,6 +1289,17 @@ details.report[open] > summary::before,
 }
 
 /* ------------------------------------------------------------------ post */
+
+.post .hero {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 720 / 378;
+  margin: 12px 0 4px;
+  border-radius: var(--radius);
+  object-fit: cover;
+  background: var(--line);
+}
 
 .post .excerpt {
   font-size: 1.0625rem;

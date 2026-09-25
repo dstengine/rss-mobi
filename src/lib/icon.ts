@@ -49,7 +49,8 @@ export function iconCandidates(html: string, page: string, feedImage?: string): 
   return [...new Set(all.filter((u) => /^https?:\/\//.test(u)))].slice(0, 5);
 }
 
-function attrs(tag: string): Record<string, string> {
+/** A tag's attributes, names lower-cased. */
+export function attrs(tag: string): Record<string, string> {
   const out: Record<string, string> = {};
   for (const m of tag.matchAll(/([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g)) out[m[1].toLowerCase()] = m[2] ?? m[3] ?? m[4] ?? "";
   return out;

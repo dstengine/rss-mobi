@@ -10,12 +10,14 @@
 //   when it was fetched so the reader can say so.
 // - /_astro/ files carry a hash in their names: once fetched, kept.
 // - Feed icons: the kept one at once, refreshed behind it.
+// - Posts' thumbnails never change: once fetched, kept.
 
 const SHELL = "shell";
 const ASSETS = "assets";
 const DATA = "data";
 const ICONS = "icons";
-const LIMITS = { [SHELL]: 1, [ASSETS]: 80, [DATA]: 60, [ICONS]: 300 };
+const PICTURES = "pictures";
+const LIMITS = { [SHELL]: 1, [ASSETS]: 80, [DATA]: 60, [ICONS]: 300, [PICTURES]: 300 };
 const PATIENCE = 4_000;
 
 self.addEventListener("install", (event) => {
@@ -67,7 +69,9 @@ self.addEventListener("fetch", (event) => {
   if (req.mode === "navigate" && (path === "/reader/" || path === "/reader")) {
     event.respondWith(networkFirst(event, SHELL, "/reader/"));
   } else if (path.startsWith("/_astro/")) {
-    event.respondWith(kept(req));
+    event.respondWith(kept(req, ASSETS));
+  } else if (/^\/item\/[0-9a-f]{24}\/image\/thumb\.webp$/.test(path)) {
+    event.respondWith(kept(req, PICTURES));
   } else if (path === "/api/v1/items" || /^\/api\/v1\/items\/[^/]+\/content$/.test(path)) {
     event.respondWith(networkFirst(event, DATA, req.url));
   } else if (/^\/feed\/[a-z0-9-]+\/icon$/.test(path)) {
@@ -107,14 +111,14 @@ async function networkFirst(event, name, key) {
   });
 }
 
-async function kept(req) {
-  const cache = await caches.open(ASSETS);
+async function kept(req, name) {
+  const cache = await caches.open(name);
   const hit = await cache.match(req);
   if (hit) return hit;
   const res = await fetch(req);
   if (res.ok) {
     await cache.put(req, res.clone());
-    await trim(ASSETS);
+    await trim(name);
   }
   return res;
 }

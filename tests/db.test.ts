@@ -88,6 +88,22 @@ describe("with MongoDB", { skip }, async () => {
     assert.ok(after.every((it) => it.linkMode === null));
   });
 
+  test("a seeded publisher's posts stay out of the index-check queue", async () => {
+    const plain = await feed();
+    const seeded = { ...(await feed()), checkIndex: false };
+    await store(plain as any, parsed(plain.host, [1]));
+    await store(seeded as any, parsed(seeded.host, [1]));
+    const [a] = await (await items()).find({ feedId: plain._id }).toArray();
+    const [b] = await (await items()).find({ feedId: seeded._id }).toArray();
+    assert.equal(a.indexStatus, "queued");
+    assert.ok(a.indexNextCheckAt);
+    assert.equal(b.indexStatus, "skipped");
+    assert.equal(b.indexNextCheckAt, null);
+    const days = (d: Date | null) => Math.round((d!.getTime() - Date.now()) / 86_400_000);
+    assert.equal(days(a.expiresAt), 90);
+    assert.equal(days(b.expiresAt), 30);
+  });
+
   test("the owner keeps the copy to excerpts and back; readers' counts are recorded", async () => {
     const f = await feed();
     await store(f as any, parsed(f.host, [1, 2]));
@@ -158,6 +174,20 @@ describe("with MongoDB", { skip }, async () => {
     assert.equal((await col.findOne({ _id: early._id }))?.failCount, 0);
     assert.equal((await pollIfDue([due.slug])).polled, 0);
     assert.equal((await pollIfDue([])).polled, 0);
+  });
+
+  test("a read polls a feed past its own pace, however long the scheduler would let it wait", async () => {
+    const idle = await feed();
+    const col = await feeds();
+    await col.updateMany({ _id: { $in: created } }, { $set: { nextFetchAt: new Date(Date.now() + 3_600_000) } });
+    await col.updateOne({ _id: idle._id }, { $set: { nextFetchAt: new Date(Date.now() + 3 * 3_600_000), freshBy: new Date(Date.now() - 60_000) } });
+    assert.equal((await pollDue(Date.now() + 20_000)).polled, 0);
+    assert.equal((await pollIfDue([idle.slug])).polled, 1);
+    const after = await col.findOne({ _id: idle._id });
+    assert.ok(after?.readAt && Date.now() - after.readAt.getTime() < 60_000);
+    // Failed (.example never resolves): a reader waits out the back-off too.
+    assert.ok(after!.freshBy!.getTime() > Date.now());
+    assert.equal((await pollIfDue([idle.slug])).polled, 0);
   });
 
   test("the scheduler takes a feed due within two minutes; a reader does not", async () => {

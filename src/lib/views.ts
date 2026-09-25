@@ -7,6 +7,8 @@ import { cached } from "./cache.ts";
 import { toQuery, type Cursor, type Filters } from "./filters.ts";
 import { subscriberTotal } from "./followers.ts";
 import { linkTo, policy } from "./policy.ts";
+import { pictureUrl } from "./pictures.ts";
+import { site } from "../site.config.ts";
 import type { FeedDoc, ItemDoc } from "./types.ts";
 
 export type PublicFeed = Pick<
@@ -37,7 +39,7 @@ export type PublicFeed = Pick<
 
 export type PublicItem = Pick<
   ItemDoc,
-  "feedSlug" | "url" | "host" | "title" | "excerpt" | "image" | "author" | "tags" | "lang" | "publishedAt" | "indexStatus" | "robots" | "linkMode" | "updatedAt"
+  "feedSlug" | "url" | "host" | "title" | "excerpt" | "image" | "picture" | "author" | "tags" | "lang" | "publishedAt" | "indexStatus" | "robots" | "linkMode" | "updatedAt"
 > & { id: string };
 
 const FEED_FIELDS = {
@@ -74,6 +76,7 @@ const ITEM_FIELDS = {
   title: 1,
   excerpt: 1,
   image: 1,
+  picture: 1,
   author: 1,
   tags: 1,
   lang: 1,
@@ -290,6 +293,7 @@ export function feedJson(f: PublicFeed) {
 
 export function itemJson(it: PublicItem) {
   const link = linkTo(it);
+  const thumb = pictureUrl(it, "thumb.webp");
   return {
     id: it.id,
     feed: it.feedSlug,
@@ -298,6 +302,9 @@ export function itemJson(it: PublicItem) {
     host: it.host,
     excerpt: it.excerpt,
     image: safeImage(it.image) ?? null,
+    /** Our 168×168 copy of the post's picture, for a list; null when it
+        has none, or none has been looked for yet. */
+    thumbnail: thumb ? `${site.url}${thumb}` : null,
     author: it.author ?? null,
     tags: it.tags,
     lang: it.lang,

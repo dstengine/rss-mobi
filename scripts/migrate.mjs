@@ -41,6 +41,8 @@ const INDEXES = {
     // Pages whose robots changed and IndexNow has not heard yet.
     [{ announce: 1 }, { sparse: true }],
     [{ expiresAt: 1 }, { expireAfterSeconds: 0 }],
+    // Posts whose picture nobody has looked for yet, newest first.
+    [{ pictureAt: 1, publishedAt: -1 }],
     // default_language "none": items arrive in every language, and English
     // stemming applied to Spanish titles finds worse matches than none.
     [{ title: "text", excerpt: "text" }, { default_language: "none", weights: { title: 3, excerpt: 1 }, name: "text" }],

@@ -44,7 +44,7 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
 
     <h2>How feeds are checked</h2>
     <p>
-      Every feed is fetched at least once an hour — every quarter hour if it posts several times a day — by a crawler that identifies itself as <code>{UA}</code>. It sends the ETag and Last-Modified the
+      A feed people read is fetched at least once an hour — every quarter hour if it posts several times a day — and one nobody has opened for a day four times less often, by a crawler that identifies itself as <code>{UA}</code>. It sends the ETag and Last-Modified the
       site gave last time, so an unchanged feed costs a 304 and nothing else. A feed that fails is tried less and less often, and after ten
       failures in a row it is retired.
     </p>

@@ -28,6 +28,14 @@ export interface FeedDoc {
   etag?: string;
   lastModified?: string;
   nextFetchAt: Date;
+  /** When a reader would find the feed behind: the last poll plus its own
+      pace. Later than that, reading it polls it (catalog.ts schedule). */
+  freshBy?: Date;
+  /** When a page, our copy or the reader last showed it; hourly at most. */
+  readAt?: Date;
+  /** The last body read, hashed: a site that answers every request in
+      full is not parsed again for the same bytes. */
+  bodyHash?: string;
   lastFetchAt?: Date;
   lastError?: string;
   failCount: number;
@@ -54,6 +62,11 @@ export interface FeedDoc {
       use (icon.ts). */
   icon?: string | null;
   iconAt?: Date;
+  /** False for a big publisher we seeded (scripts/seed.mts): Google has
+      its posts within minutes, so they skip the index-check queue and
+      their pages stay noindex, instead of spending the day's checks while
+      the webmasters' posts the queue exists for wait behind them. */
+  checkIndex?: boolean;
   submittedIpHash?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -62,8 +75,9 @@ export interface FeedDoc {
 /** Where an item stands in the index-check queue. `queued` waits for its
     first check; `pending` has that check in flight; the two verdicts are
     what the policy reads. A recheck keeps the last verdict until the new
-    one arrives, so a page does not blink out of the index while it runs. */
-export type IndexStatus = "queued" | "pending" | "indexed" | "not_indexed" | "error";
+    one arrives, so a page does not blink out of the index while it runs.
+    `skipped` is never checked: its feed does not take part (FeedDoc.checkIndex). */
+export type IndexStatus = "queued" | "pending" | "indexed" | "not_indexed" | "error" | "skipped";
 
 export interface ItemDoc {
   _id: ObjectId;
@@ -76,6 +90,11 @@ export interface ItemDoc {
   title: string;
   excerpt: string;
   image?: string;
+  /** The picture lists and the post's page show, served resized from
+      /item/<id>/image/ (pictures.ts): where it is and its size. Null when
+      we looked and found none; absent until we look, at `pictureAt`. */
+  picture?: { url: string; w: number; h: number } | null;
+  pictureAt?: Date;
   author?: string;
   tags: string[];
   lang: string;

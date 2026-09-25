@@ -20,9 +20,13 @@ interface Props {
   /** A feed a reader app can discover from this page. */
   alternate?: { href: string; title: string; type?: string };
   ogType?: string;
+  /** What a shared link to the page unfolds into: a post's own picture,
+      or the directory's card. A path on this site. */
+  image?: { src: string; width: number; height: number };
 }
 
-const { title, fullTitle, description, robots, jsonLd, alternate, ogType = "website" } = Astro.props;
+const DEFAULT_IMAGE = { src: "/og.png", width: 1200, height: 630 };
+const { title, fullTitle, description, robots, jsonLd, alternate, ogType = "website", image = DEFAULT_IMAGE } = Astro.props;
 const path = Astro.props.path ?? Astro.url.pathname;
 const canonical = new URL(path, site.url).toString();
 const pageTitle = fullTitle ?? (title ? `${title} · ${site.titleSuffix}` : site.titleSuffix);
@@ -66,7 +70,10 @@ const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content={new URL(image.src, site.url).toString()} />
+    <meta property="og:image:width" content={String(image.width)} />
+    <meta property="og:image:height" content={String(image.height)} />
+    <meta name="twitter:card" content="summary_large_image" />
     {alternate && <link rel="alternate" type={alternate.type ?? "application/rss+xml"} href={alternate.href} title={alternate.title} />}
     {ld.map((o) => <script type="application/ld+json" set:html={JSON.stringify(o).replace(/</g, "\\u003c")} />)}
     <script type="speculationrules" is:inline set:html={JSON.stringify(speculation)} />

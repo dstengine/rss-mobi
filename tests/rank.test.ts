@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { perWeek, rankOf } from "../src/lib/activity.ts";
-import { backoff, interval } from "../src/lib/catalog.ts";
+import { backoff, interval, schedule } from "../src/lib/catalog.ts";
 import { iconCandidates, monogram, sniff } from "../src/lib/icon.ts";
 import { pace, topicName } from "../src/lib/words.ts";
 
@@ -38,6 +38,19 @@ test("a feed that posts several times a day is polled every quarter hour, a quie
   assert.equal(interval(7), 30 * 60_000);
   assert.equal(interval(3), 60 * 60_000);
   assert.equal(interval(undefined), 60 * 60_000);
+});
+
+test("a feed read in the last day keeps its pace; one nobody reads waits four times as long", () => {
+  const t = Date.UTC(2026, 8, 25, 12);
+  const H = 3_600_000;
+  const wait = (f: Parameters<typeof schedule>[0]) => {
+    const s = schedule(f, t);
+    return [(s.nextFetchAt.getTime() - t) / 60_000, (s.freshBy.getTime() - t) / 60_000];
+  };
+  assert.deepEqual(wait({ postsPerWeek: 90, readAt: new Date(t - 2 * H) }), [15, 15]);
+  assert.deepEqual(wait({ postsPerWeek: 90 }), [60, 15]);
+  assert.deepEqual(wait({ postsPerWeek: 90, readAt: new Date(t - 25 * H) }), [60, 15]);
+  assert.deepEqual(wait({ postsPerWeek: 2 }), [240, 60]);
 });
 
 test("a failure doubles the feed's own wait, up to a day", () => {

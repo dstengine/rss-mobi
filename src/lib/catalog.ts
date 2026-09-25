@@ -18,6 +18,11 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 export const ITEM_TTL_DAYS = 90;
+/** Posts of a feed that takes no part in index checks are kept a month:
+    the 90 days above are there for the checks' schedule, and these posts'
+    pages never open to search. A seeded catalogue is mostly such feeds,
+    and the free database tier holds 512 MB. */
+export const UNCHECKED_TTL_DAYS = 30;
 export const FETCH_EVERY = HOUR;
 /** Feeds fetched side by side in one run. */
 const CONCURRENCY = 8;
@@ -47,6 +52,26 @@ export function interval(perWeek = 0): number {
 export function backoff(fails: number, perWeek = 0): number {
   return Math.min(DAY, interval(perWeek) * 2 ** Math.min(fails, 10));
 }
+
+/** A feed nobody has read for a day is polled four times less often:
+    every one, two or four hours instead of every 15, 30 or 60 minutes.
+    Reading it — its page, our copy of it, the reader — polls it then if
+    its own pace says it is due, and puts it back on that pace. A poll
+    costs the same CPU whether anyone looks or not, the free plan has four
+    hours of it a month, and on most days most of a seeded catalogue is
+    read by no one. */
+const IDLE = 4;
+/** How long one read keeps a feed on its own pace. */
+const READ_KEEPS = DAY;
+
+/** When a poll at `now` that went fine makes the feed due again: for the
+    scheduler, and for a reader (`freshBy`), who never waits longer than
+    the feed's own pace. */
+export function schedule(feed: Pick<FeedDoc, "postsPerWeek" | "readAt">, now: number): { nextFetchAt: Date; freshBy: Date } {
+  const pace = interval(feed.postsPerWeek);
+  const read = !!feed.readAt && now - new Date(feed.readAt).getTime() < READ_KEEPS;
+  return { nextFetchAt: new Date(now + pace * (read ? 1 : IDLE)), freshBy: new Date(now + pace) };
+}
 const MAX_FAILS = 10;
 export const MAX_TAGS = 5;
 
@@ -69,8 +94,10 @@ export interface Submitted {
 }
 
 /** Everything a submission goes through, in order. There is no moderation
-    queue: a feed that passes is live when this returns. */
-export async function submit(input: string, opts: { tags?: string[]; ipHash?: string } = {}): Promise<Submitted> {
+    queue: a feed that passes is live when this returns. `title` replaces
+    the one the feed gives itself, which is often a page title — "Home -
+    CBSNews.com" — and would name its page and address. */
+export async function submit(input: string, opts: { tags?: string[]; ipHash?: string; checkIndex?: boolean; title?: string } = {}): Promise<Submitted> {
   let found;
   try {
     found = await discover(input);
@@ -79,6 +106,7 @@ export async function submit(input: string, opts: { tags?: string[]; ipHash?: st
     throw e;
   }
   const { feed: parsed, feedUrl } = found;
+  const title = (opts.title?.trim() || parsed.title).slice(0, 200);
   const host = hostOf(parsed.siteUrl) || hostOf(feedUrl);
 
   if (!parsed.items.length) throw new Refused("That feed has no items yet. Submit it once it has published something.");
@@ -96,15 +124,15 @@ export async function submit(input: string, opts: { tags?: string[]; ipHash?: st
   const userTags = (opts.tags ?? []).map(topic).filter(Boolean).slice(0, MAX_TAGS);
   const doc: FeedDoc = {
     _id: new ObjectId(),
-    slug: await freeSlug(parsed.title, host),
+    slug: await freeSlug(title, host),
     url: feedUrl,
     canonicalUrl,
     siteUrl: parsed.siteUrl,
     host,
-    title: parsed.title.slice(0, 200),
+    title,
     description: parsed.description,
     lang: parsed.lang,
-    tags: feedTags(userTags, parsed, { title: parsed.title, host }),
+    tags: feedTags(userTags, parsed, { title, host }),
     image: parsed.image,
     format: parsed.format,
     status: "active",
@@ -118,6 +146,7 @@ export async function submit(input: string, opts: { tags?: string[]; ipHash?: st
     itemCount: 0,
     robots: null,
     linkMode: null,
+    ...(opts.checkIndex === false ? { checkIndex: false } : {}),
     submittedIpHash: opts.ipHash,
     createdAt: now,
     updatedAt: now,
@@ -172,11 +201,13 @@ export function feedTags(userTags: string[], parsed: Pick<ParsedFeed, "items">, 
 
 /* --------------------------------------------------------------- storing */
 
-/** Upserts the feed's items. New ones join the index-check queue at once;
-    existing ones are left alone, so a poll that finds nothing new changes
-    nothing and moves no dates. Returns how many were new. */
+/** Upserts the feed's items. New ones join the index-check queue at once,
+    unless their feed takes no part in it; existing ones are left alone, so
+    a poll that finds nothing new changes nothing and moves no dates.
+    Returns how many were new. */
 export async function store(feed: FeedDoc, parsed: ParsedFeed): Promise<number> {
   const now = new Date();
+  const checked = feed.checkIndex !== false;
   const ops: AnyBulkWriteOperation<ItemDoc>[] = parsed.items.map((it) => {
     const doc: Omit<ItemDoc, "_id"> = {
       feedId: feed._id,
@@ -193,15 +224,15 @@ export async function store(feed: FeedDoc, parsed: ParsedFeed): Promise<number> 
       lang: feed.lang,
       publishedAt: it.publishedAt ?? now,
       visible: feed.status === "active",
-      indexStatus: "queued",
-      indexNextCheckAt: now,
+      indexStatus: checked ? "queued" : "skipped",
+      indexNextCheckAt: checked ? now : null,
       indexChecks: 0,
       robots: null,
       // The owner's choice travels with each post, so every list, the
       // reader and the API mark its links the same way (applyEdit keeps
       // it in step).
       linkMode: feed.linkMode ?? null,
-      expiresAt: new Date(now.getTime() + ITEM_TTL_DAYS * DAY),
+      expiresAt: new Date(now.getTime() + (checked ? ITEM_TTL_DAYS : UNCHECKED_TTL_DAYS) * DAY),
       createdAt: now,
       updatedAt: now,
     };
@@ -230,24 +261,36 @@ export interface PollReport {
 
 /** Polls feeds whose turn has come until `deadline` (ms since epoch). */
 export async function pollDue(deadline: number, batch = 200): Promise<PollReport> {
-  return pollWhere({}, deadline, batch, LOOKAHEAD);
+  return pollWhere({ nextFetchAt: { $lte: new Date(Date.now() + LOOKAHEAD) } }, deadline, batch);
 }
 
-/** Polls those of the named feeds whose turn has come, a few at a time.
-    Pages and the API call it once they have answered, so a feed someone
-    is reading is at most an hour behind its site — however late the
-    scheduler runs. The lock keeps a busy page from polling a feed twice. */
-export async function pollIfDue(slugs: string[], max = 4, budget = 20_000): Promise<PollReport> {
+/** Marks the named feeds read and polls those a reader would find
+    behind: past their own pace, however long the scheduler would let an
+    unread feed wait. Pages and the API call it once they have answered,
+    so a feed someone is reading is at most an hour behind its site —
+    however late the scheduler runs. The lock keeps a busy page from
+    polling a feed twice. */
+export async function pollIfDue(slugs: string[], max = 8, budget = 20_000): Promise<PollReport> {
   const wanted = [...new Set(slugs)].slice(0, 200);
   if (!wanted.length) return { polled: 0, unchanged: 0, added: 0, failed: 0, disabled: [] };
-  return pollWhere({ slug: { $in: wanted } }, Date.now() + budget, max, 0);
+  const now = new Date();
+  // Written at most hourly per feed: a read keeps a feed on its pace for a day.
+  await (await feeds()).updateMany(
+    { slug: { $in: wanted }, $or: [{ readAt: { $exists: false } }, { readAt: { $lt: new Date(now.getTime() - HOUR) } }] },
+    { $set: { readAt: now } },
+  );
+  return pollWhere(
+    { slug: { $in: wanted }, $or: [{ freshBy: { $lte: now } }, { freshBy: { $exists: false }, nextFetchAt: { $lte: now } }] },
+    Date.now() + budget,
+    max,
+  );
 }
 
-async function pollWhere(filter: Filter<FeedDoc>, deadline: number, batch: number, ahead: number): Promise<PollReport> {
+async function pollWhere(filter: Filter<FeedDoc>, deadline: number, batch: number): Promise<PollReport> {
   const report: PollReport = { polled: 0, unchanged: 0, added: 0, failed: 0, disabled: [] };
   const col = await feeds();
   const queue = await col
-    .find({ ...filter, status: "active", nextFetchAt: { $lte: new Date(Date.now() + ahead) } })
+    .find({ ...filter, status: "active" })
     .sort({ nextFetchAt: 1 })
     .limit(batch)
     .toArray();
@@ -281,14 +324,18 @@ async function pollOne(feed: FeedDoc): Promise<number | "unchanged" | { disabled
   const now = new Date();
   try {
     const res = await get(feed.url, { etag: feed.etag, lastModified: feed.lastModified, subscribers: subscriberTotal(feed.subscribers) });
+    // A site that ignores conditional requests often sends the same bytes
+    // again; those are not read twice either.
+    const bodyHash = res.notModified ? feed.bodyHash : sha256(res.body);
     const common = {
       lastFetchAt: now,
       failCount: 0,
-      nextFetchAt: new Date(now.getTime() + interval(feed.postsPerWeek)),
+      ...schedule(feed, now.getTime()),
       etag: res.etag ?? feed.etag,
       lastModified: res.lastModified ?? feed.lastModified,
+      ...(bodyHash ? { bodyHash } : {}),
     };
-    if (res.notModified) {
+    if (res.notModified || bodyHash === feed.bodyHash) {
       await col.updateOne({ _id: feed._id }, { $set: common, $inc: { okCount: 1 }, $unset: { lastError: "" } });
       await activity(feed);
       await announceIfIndexable(feed._id);
@@ -312,6 +359,7 @@ async function pollOne(feed: FeedDoc): Promise<number | "unchanged" | { disabled
           lastError: (e as Error).message.slice(0, 300),
           lastFetchAt: now,
           nextFetchAt: new Date(now.getTime() + wait),
+          freshBy: new Date(now.getTime() + wait),
           ...(disabled ? { status: "disabled" as const } : {}),
         },
       },

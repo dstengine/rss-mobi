@@ -5,7 +5,7 @@
 // for little else, and the text is the publisher's). A reader following
 // our copy should still get what the original gives: the whole post, its
 // pictures, a podcast's episode, and new posts within minutes rather than
-// at our next hourly poll. So each time the CDN asks for the document, the
+// at our next poll. So each time the CDN asks for the document, the
 // original is fetched and read then and there, its posts cleaned and
 // passed on, and nothing of it is kept. When the original does not answer
 // in time, the stored excerpts go out instead; a copy is never empty

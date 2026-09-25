@@ -7,6 +7,7 @@
 // crawler's visits on noindex pages.
 import { linkTo } from "../lib/policy.ts";
 import { fmtDate, itemPageOpen, itemPath, type PublicItem } from "../lib/views.ts";
+import { pictureUrl } from "../lib/pictures.ts";
 import type { FeedDoc } from "../lib/types.ts";
 
 interface Props {
@@ -22,8 +23,20 @@ const { items, feed, showFeed = false } = Astro.props;
   {
     items.map((it) => {
       const link = linkTo(it, feed);
+      const thumb = pictureUrl(it, "thumb.webp");
+      // The picture repeats the title's link, so it is left out of the
+      // tab order and of what a screen reader reads.
+      const img = thumb && <img src={thumb} width="84" height="84" alt="" loading="lazy" decoding="async" />;
       return (
         <li>
+          {img &&
+            (link.mode === "none" ? (
+              <span class="thumb">{img}</span>
+            ) : (
+              <a class="thumb" href={it.url} rel={link.rel ?? undefined} tabindex="-1" aria-hidden="true" data-outbound>
+                {img}
+              </a>
+            ))}
           <h3>
             {link.mode === "none" ? (
               it.title

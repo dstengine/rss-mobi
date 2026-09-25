@@ -113,7 +113,7 @@ const jsonLd = {
     <h2>How this RSS reader works</h2>
     <ul>
       <li>Following a feed adds it to a list kept in this browser. Nothing is sent to us but the list of feeds to fetch, and nothing identifies you.</li>
-      <li>Posts arrive as the directory checks each feed: hourly, and every 15 minutes for feeds that post several times a day. Tap a title to read the whole post here, pictures and audio included, as its feed carries it; <strong>Open</strong> takes you to the publisher's site.</li>
+      <li>Posts arrive as the directory checks the feeds you read: hourly, and every 15 minutes for feeds that post several times a day. Tap a title to read the whole post here, pictures and audio included, as its feed carries it; <strong>Open</strong> takes you to the publisher's site.</li>
       <li>To move your list to another phone or another app, export it as OPML — the file every reader imports.</li>
       <li>On a phone, use your browser's <em>Add to Home Screen</em> to open the reader like an app. It works offline too: with no signal it opens with the posts it loaded last, and the posts you opened.</li>
     </ul>
@@ -133,6 +133,7 @@ const jsonLd = {
     url: string;
     host: string;
     excerpt: string;
+    thumbnail: string | null;
     author: string | null;
     publishedAt: string;
     link: { mode: string; rel: string | null };
@@ -190,12 +191,25 @@ const jsonLd = {
         ? el("button", { type: "button", className: "linklike" }, it.title)
         : el("a", { href: it.url, title: `Read “${it.title}” from ${it.host}` }, it.title);
     if (title instanceof HTMLAnchorElement && it.link.rel) title.rel = it.link.rel;
-    title.addEventListener("click", (e) => {
+    const open = (e: Event) => {
       const me = e as MouseEvent;
       if (me.metaKey || me.ctrlKey || me.shiftKey || me.altKey || me.button > 0) return track("outbound", { label: it.host });
       e.preventDefault();
       openPost(it, names.get(it.feed) ?? it.host, title);
-    });
+    };
+    title.addEventListener("click", open);
+    // The post's picture opens it too. It repeats the title's link, so it
+    // stays out of the tab order and of what a screen reader reads. The
+    // API gives its address on rss.mobi; the path works on any host.
+    const pic = it.thumbnail && new URL(it.thumbnail, location.href).pathname;
+    let thumb: HTMLElement | null = null;
+    if (pic) {
+      const img = el("img", { loading: "lazy", decoding: "async", alt: "", width: 84, height: 84, src: pic });
+      thumb = it.link.mode === "none" ? el("span", { className: "thumb" }, img) : el("a", { className: "thumb", href: it.url, tabIndex: -1 }, img);
+      if (thumb instanceof HTMLAnchorElement && it.link.rel) thumb.rel = it.link.rel;
+      thumb.setAttribute("aria-hidden", "true");
+      thumb.addEventListener("click", open);
+    }
     const at = new Date(it.publishedAt).getTime();
     const meta = el(
       "span",
@@ -205,7 +219,7 @@ const jsonLd = {
       el("a", { href: `/feed/${it.feed}/`, title: `The ${names.get(it.feed) ?? it.host} RSS feed` }, icon(it.feed, 16), names.get(it.feed) ?? it.host),
       it.author ? ` · ${it.author}` : "",
     );
-    const li = el("li", {}, el("h3", {}, title), meta);
+    const li = el("li", {}, ...(thumb ? [thumb] : []), el("h3", {}, title), meta);
     if (seen && at > seen) li.prepend(el("span", { className: "new" }, "New"));
     if (it.excerpt && it.excerpt !== it.title) li.append(el("p", {}, it.excerpt));
     return li;

@@ -135,6 +135,16 @@ describe("service worker", () => {
     assert.equal(w.calls.length, 1);
   });
 
+  test("a post's thumbnail is fetched once and kept", async () => {
+    const w = worker(async () => ok("webp"));
+    const thumb = "/item/0123456789abcdef01234567/image/thumb.webp";
+    await w.get(thumb);
+    await w.get(thumb);
+    assert.equal(w.calls.length, 1);
+    assert.deepEqual(await w.kept("pictures"), [thumb]);
+    assert.equal(await w.get("/item/0123456789abcdef01234567/image/og.jpg"), null);
+  });
+
   test("install keeps the reader, the files it names and the chunks they import", async () => {
     const html = `<link rel="stylesheet" href="/_astro/base.x1.css"><script type="module" src="/_astro/reader.y2.js"></script>`;
     const files: Record<string, string> = {

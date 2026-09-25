@@ -12,6 +12,7 @@ import { cacheFor } from "../../lib/http.ts";
 import { clip } from "../../lib/feeds/url.ts";
 import { feedBySlug, fmtDate, itemById, itemPath, relatedItems } from "../../lib/views.ts";
 import Icon from "../../components/Icon.astro";
+import { pictureUrl } from "../../lib/pictures.ts";
 
 const item = await itemById(String(Astro.params.id ?? ""));
 const feed = item ? await feedBySlug(item.feedSlug) : null;
@@ -38,6 +39,8 @@ const tail = ` From ${clip(feed.title, 40)}, in the rss.mobi directory of RSS fe
 const lead = item.excerpt ? clip(item.excerpt, 158 - tail.length) : `A post from ${item.host}.`;
 const description = `${/[.!?…]$/.test(lead) ? lead : `${lead}.`}${tail}`;
 const published = new Date(item.publishedAt).toISOString();
+const hero = pictureUrl(item, "card.webp");
+const og = pictureUrl(item, "og.jpg");
 
 const jsonLd = [
   {
@@ -55,6 +58,7 @@ const jsonLd = [
       headline: item.title,
       url: item.url,
       datePublished: published,
+      image: og ? `${site.url}${og}` : undefined,
       author: item.author ? { "@type": "Person", name: item.author } : undefined,
       publisher: { "@type": "Organization", name: feed.title, url: feed.siteUrl || undefined },
     },
@@ -83,7 +87,14 @@ const jsonLd = [
       </p>
     </Base>
   ) : (
-    <Base title={clip(item.title, 70)} description={description} robots={decision.robots} path={path} jsonLd={jsonLd}>
+    <Base
+      title={clip(item.title, 70)}
+      description={description}
+      robots={decision.robots}
+      path={path}
+      jsonLd={jsonLd}
+      image={og ? { src: og, width: 1200, height: 630 } : undefined}
+    >
       <article class="post">
         <h1>{item.title}</h1>
         <p class="muted small">
@@ -95,6 +106,8 @@ const jsonLd = [
           {item.author && ` · ${item.author}`}
           {item.lang && ` · ${item.lang.toUpperCase()}`}
         </p>
+
+        {hero && <img class="hero" src={hero} width="720" height="378" alt="" decoding="async" fetchpriority="high" />}
 
         {item.excerpt && item.excerpt !== item.title && <p class="excerpt">{item.excerpt}</p>}
 

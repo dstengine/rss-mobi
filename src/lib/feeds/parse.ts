@@ -5,7 +5,7 @@
 // public sends, so the four real formats are parsed properly: RSS 2.0
 // (and 0.9x), RSS 1.0 / RDF, Atom, and JSON Feed.
 import { XMLParser } from "fast-xml-parser";
-import { absolute, canonical, clip, unescape } from "./url.ts";
+import { absolute, canonical, clip, unescape, unhtml } from "./url.ts";
 
 export const EXCERPT_MAX = 300;
 const ITEMS_MAX = 100;
@@ -92,11 +92,11 @@ function parseAny(body: string, base: string): ParsedFeed {
 /* ---------------------------------------------------------------- RSS */
 
 function parseRss(ch: any, base: string): ParsedFeed {
-  const siteUrl = absolute(text(first(ch.link)), base) || origin(base);
+  const siteUrl = home(text(first(ch.link)), base);
   return {
     format: "rss",
     title: unescape(text(ch.title)) || hostName(siteUrl),
-    description: clip(unescape(text(ch.description)), 500),
+    description: clip(unhtml(text(ch.description)), 500),
     siteUrl,
     lang: lang(text(ch.language)),
     image: absolute(text(ch.image?.url) || text(ch["itunes:image"]?.["@href"]), siteUrl) || undefined,
@@ -107,7 +107,7 @@ function parseRss(ch: any, base: string): ParsedFeed {
 function rssItem(it: any, base: string): ParsedItem {
   const url = absolute(text(first(it.link)) || guidLink(it.guid), base);
   const html = text(it["content:encoded"]) || text(it.description);
-  const excerpt = clip(unescape(text(it.description) || html), EXCERPT_MAX);
+  const excerpt = clip(unhtml(text(it.description) || html), EXCERPT_MAX);
   return {
     guid: text(it.guid) || url || text(it.title),
     url,
@@ -134,11 +134,11 @@ function guidLink(guid: any): string {
 
 function parseRdf(rdf: any, base: string): ParsedFeed {
   const ch = rdf.channel ?? {};
-  const siteUrl = absolute(text(first(ch.link)), base) || origin(base);
+  const siteUrl = home(text(first(ch.link)), base);
   return {
     format: "rdf",
     title: unescape(text(ch.title)) || hostName(siteUrl),
-    description: clip(unescape(text(ch.description)), 500),
+    description: clip(unhtml(text(ch.description)), 500),
     siteUrl,
     lang: lang(text(ch["dc:language"])),
     items: (rdf.item ?? []).slice(0, ITEMS_MAX).map((it: any) => {
@@ -147,7 +147,7 @@ function parseRdf(rdf: any, base: string): ParsedFeed {
         guid: text(it["@rdf:about"]) || url,
         url,
         title: unescape(text(it.title)),
-        excerpt: clip(unescape(text(it.description)), EXCERPT_MAX),
+        excerpt: clip(unhtml(text(it.description)), EXCERPT_MAX),
         content: text(it["content:encoded"]) || text(it.description) || undefined,
         author: unescape(text(it["dc:creator"])) || undefined,
         publishedAt: date(text(it["dc:date"])),
@@ -160,11 +160,11 @@ function parseRdf(rdf: any, base: string): ParsedFeed {
 /* --------------------------------------------------------------- Atom */
 
 function parseAtom(feed: any, base: string): ParsedFeed {
-  const siteUrl = absolute(atomLink(feed.link, "alternate"), base) || origin(base);
+  const siteUrl = home(atomLink(feed.link, "alternate"), base);
   return {
     format: "atom",
     title: unescape(text(feed.title)) || hostName(siteUrl),
-    description: clip(unescape(text(feed.subtitle)), 500),
+    description: clip(unhtml(text(feed.subtitle)), 500),
     siteUrl,
     lang: lang(text(feed["@xml:lang"])),
     image: absolute(text(feed.logo) || text(feed.icon), siteUrl) || undefined,
@@ -175,7 +175,7 @@ function parseAtom(feed: any, base: string): ParsedFeed {
         guid: text(e.id) || url,
         url,
         title: unescape(text(e.title)),
-        excerpt: clip(unescape(text(e.summary) || html), EXCERPT_MAX),
+        excerpt: clip(unhtml(text(e.summary) || html), EXCERPT_MAX),
         content: html || undefined,
         media: [
           ...media(e, siteUrl),
@@ -211,7 +211,7 @@ function parseJson(body: string, base: string): ParsedFeed {
     throw new NotAFeed("JSON does not parse");
   }
   if (!String(f?.version ?? "").includes("jsonfeed.org")) throw new NotAFeed("JSON but not JSON Feed");
-  const siteUrl = absolute(f.home_page_url ?? "", base) || origin(base);
+  const siteUrl = home(f.home_page_url ?? "", base);
   return {
     format: "json",
     title: unescape(f.title) || hostName(siteUrl),
@@ -364,6 +364,19 @@ function date(s: string): Date | undefined {
 function lang(s: string): string {
   const m = s.trim().toLowerCase().match(/^[a-z]{2,3}/);
   return m ? m[0] : "";
+}
+
+/** The site a feed names as its home, or the feed's own origin when it
+    names none — or one that cannot be a site: a publisher's template that
+    runs a path into the domain gives "entrepreneur.comrss-feed", and no
+    top-level domain has a hyphen in it. */
+function home(href: string, base: string): string {
+  const url = absolute(href, base);
+  try {
+    const tld = new URL(url).hostname.split(".").at(-1)!;
+    if (/^(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/i.test(tld)) return url;
+  } catch {}
+  return origin(base);
 }
 
 function origin(url: string): string {

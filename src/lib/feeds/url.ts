@@ -59,6 +59,17 @@ export const unescape = (s: unknown): string =>
     .replace(/\s+/g, " ")
     .trim();
 
+/** A description to plain text. A description is HTML, escaped to sit in
+    XML, so tags that appear only once entities are decoded —
+    `&#60;a href=&#34;…&#34;&#62;` — are markup too, and dropped. Titles
+    keep them: "The &lt;dialog&gt; element" names a tag, it is not one. A
+    tag here must start with its name, which keeps "a < b > c" whole. */
+export const unhtml = (s: unknown): string =>
+  unescape(s)
+    .replace(/<\/?[a-z][a-z0-9-]*(?:\s[^<>]*)?\/?>/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 // fromCharCode in the original broke astral characters (emoji) in half.
 function safeChar(n: number): string {
   try {

@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+- Posts have pictures: a thumbnail beside each post in lists and in the
+  reader, a picture at the top of a post's page, and the card a shared
+  link unfolds into (`og:image`, 1200×630). A background job looks once
+  for each post of the last week — the feed's own image, else the
+  article's og:image, twitter:image or image_src — and records it when it
+  is a raster image of a usable size (`src/lib/pictures.ts`).
+  `/item/<id>/image/<name>` serves it resized with sharp, from our own
+  address, kept a month by the CDN. The reader keeps the last 300
+  thumbnails offline, and the API's posts carry `thumbnail`. Pages
+  without a picture of their own share a default card (`public/og.png`,
+  drawn by `scripts/og-card.mjs`).
+- The catalogue is seeded with about 330 well-known feeds across 40
+  topics (`scripts/seed.mts`, `scripts/seed-feeds.json`), through the
+  path a visitor's submission takes. A dry run reads each source first
+  and leaves out those that fail, have not posted in six months or post
+  more than 45 times a day; `scripts/seed-names.json` names the feeds
+  whose own title is a page title. Seeded feeds' posts skip the
+  index-check queue (`FeedDoc.checkIndex`, status `skipped`) — Google has
+  a big publisher's posts within minutes — and are kept 30 days, not 90.
+- Polling follows reading. A feed someone read in the last day keeps its
+  own pace; one nobody read waits four times as long, and a reader who
+  opens it polls it past that wait (`freshBy`). A body identical to the
+  last one counts as unchanged, for servers that answer every request in
+  full. On the free plan's four hours of CPU a month, an unread catalogue
+  costs about a quarter as much.
+- A feed whose home link cannot be a site (`entrepreneur.comrss-feed`)
+  takes its feed's own origin, and markup escaped twice in a description
+  (`&#60;a href=…&#62;`) no longer shows as text.
 - The reader works offline. A service worker (`public/sw.js`, scope
   `/reader/`) keeps the reader, its files, the last lists of posts, the
   posts opened and the feed icons; with no signal, or no answer in four
