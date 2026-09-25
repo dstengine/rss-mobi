@@ -225,7 +225,10 @@ export async function store(feed: FeedDoc, parsed: ParsedFeed): Promise<number> 
       author: it.author,
       tags: [...new Set([...it.tags.filter((t) => !ownName(t, feed)), ...feed.tags])].slice(0, 10),
       lang: feed.lang,
-      publishedAt: it.publishedAt ?? now,
+      // A post dated ahead of now — a scheduled post, a clock a time zone
+      // off — is dated when it was first seen: a future date would hold it
+      // at the top of every list until then.
+      publishedAt: it.publishedAt && it.publishedAt < now ? it.publishedAt : now,
       visible: feed.status === "active",
       indexStatus: checked ? "queued" : "skipped",
       indexNextCheckAt: checked ? now : null,

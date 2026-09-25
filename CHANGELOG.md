@@ -16,6 +16,10 @@
   "Follow the whole topic" box and a feed `<link rel="alternate">`.
   `tag()` moved to `feeds/url.ts` so the builder runs the same filter
   code in the browser (4.7 KB).
+- A post dated ahead of now (ESPN and the Stack Overflow blog schedule
+  theirs) is dated when it was first seen, instead of sitting at the top
+  of every list until its date comes — which the W3C validator also
+  flagged in `/rss.xml` as an implausible date.
 - Posts have pictures: a thumbnail beside each post in lists and in the
   reader, a picture at the top of a post's page, and the card a shared
   link unfolds into (`og:image`, 1200×630). A background job looks once

@@ -104,6 +104,18 @@ describe("with MongoDB", { skip }, async () => {
     assert.equal(days(b.expiresAt), 30);
   });
 
+  test("a post dated in the future is dated when it was first seen", async () => {
+    const f = await feed();
+    const ahead = parsed(f.host, [1, 2]);
+    ahead.items[0].publishedAt = new Date(Date.now() + 3_600_000);
+    ahead.items[1].publishedAt = new Date("2026-09-01T00:00:00Z");
+    const before = Date.now();
+    await store(f as any, ahead);
+    const got = Object.fromEntries((await (await items()).find({ feedId: f._id }).toArray()).map((it) => [it.guid, it.publishedAt.getTime()]));
+    assert.ok(got.g1 >= before && got.g1 <= Date.now());
+    assert.equal(got.g2, Date.parse("2026-09-01T00:00:00Z"));
+  });
+
   test("the owner keeps the copy to excerpts and back; readers' counts are recorded", async () => {
     const f = await feed();
     await store(f as any, parsed(f.host, [1, 2]));
