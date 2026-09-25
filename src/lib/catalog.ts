@@ -124,7 +124,9 @@ export async function submit(input: string, opts: { tags?: string[]; ipHash?: st
   const userTags = (opts.tags ?? []).map(topic).filter(Boolean).slice(0, MAX_TAGS);
   const doc: FeedDoc = {
     _id: new ObjectId(),
-    slug: await freeSlug(title, host),
+    // A title chosen here is a name whole: the colon in "The Guardian:
+    // Music" is part of it, not the start of a tagline to cut off.
+    slug: await freeSlug(opts.title ? title.replace(/\s*[:|·–—]\s*/g, " ") : title, host),
     url: feedUrl,
     canonicalUrl,
     siteUrl: parsed.siteUrl,
@@ -190,13 +192,14 @@ async function freeSlug(title: string, host: string): Promise<string> {
 }
 
 /** The submitter's tags first, then the categories the feed itself uses
-    most, up to five; never the site's own name. */
+    most, up to five. A category that is the site's own name is left out;
+    a tag the submitter chose is kept even when it is — "apple" for Apple
+    Newsroom, "science" for science.org name their subject too. */
 export function feedTags(userTags: string[], parsed: Pick<ParsedFeed, "items">, self?: Site): string[] {
   const counts = new Map<string, number>();
   for (const it of parsed.items) for (const t of it.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
   const popular = [...counts.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).map(([t]) => t);
-  const all = [...new Set([...userTags, ...popular])];
-  return (self ? all.filter((t) => !ownName(t, self)) : all).slice(0, MAX_TAGS);
+  return [...new Set([...userTags, ...popular.filter((t) => !self || !ownName(t, self))])].slice(0, MAX_TAGS);
 }
 
 /* --------------------------------------------------------------- storing */

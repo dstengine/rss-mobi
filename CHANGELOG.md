@@ -29,7 +29,9 @@
   costs about a quarter as much.
 - A feed whose home link cannot be a site (`entrepreneur.comrss-feed`)
   takes its feed's own origin, and markup escaped twice in a description
-  (`&#60;a href=…&#62;`) no longer shows as text.
+  (`&#60;a href=…&#62;`) no longer shows as text. A tag the submitter
+  chose stays even when it is the site's own name ("apple" for Apple
+  Newsroom); only the feed's own categories are held to that rule.
 - The reader works offline. A service worker (`public/sw.js`, scope
   `/reader/`) keeps the reader, its files, the last lists of posts, the
   posts opened and the feed icons; with no signal, or no answer in four

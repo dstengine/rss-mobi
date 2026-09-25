@@ -230,6 +230,9 @@ describe("catalog helpers", () => {
     assert.ok(ownName("example", { title: "A blog", host: "blog.example.co.uk" }));
     const parsed = { items: [{ tags: ["daring-fireball", "apple"] }, { tags: ["daring-fireball", "apple"] }] } as any;
     assert.deepEqual(feedTags(["tech"], parsed, site), ["tech", "apple"]);
+    // Chosen by the submitter, the name stays: it is the subject too.
+    const newsroom = { items: [{ tags: ["apple", "press"] }, { tags: ["apple", "press"] }] } as any;
+    assert.deepEqual(feedTags(["apple"], newsroom, { title: "Apple Newsroom", host: "apple.com" }), ["apple", "press"]);
   });
 
   test("tokens are stored as hashes and compared in constant time", () => {
