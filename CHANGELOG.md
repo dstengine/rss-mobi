@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- API keys (`scripts/api-key.mjs`, `src/lib/keys.ts`, #6). A key reads
+  at its own per-minute rate instead of the anonymous 120; `read:full`
+  adds each post's index-check status and each page's robots to the
+  JSON; `write:feeds` submits at the key's rate and in batches of up to
+  20, four fetched at a time; `admin` holds every scope. An unknown or
+  revoked key gets a 401 rather than falling back to anonymous, and
+  keyed answers are never cached by the CDN. `--save file:VAR` writes a
+  new key into an env file without printing it.
 - The directory is followable as files. `/rss.xml` gives the newest
   posts under any filter the API takes (`?tag=ai,robotics&q=agents`),
   `/tag/<tag>/rss.xml` a topic's, and `/opml.xml` and

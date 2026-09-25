@@ -22,11 +22,17 @@ describe("with MongoDB", { skip }, async () => {
   const { noteSubscribers, storedPosts } = await import("../src/lib/copy.ts");
   const { itemJson, itemsFor, feedsByTag, tagPlace } = await import("../src/lib/views.ts");
   const { noteActivity } = await import("../src/lib/activity.ts");
+  const { apiKeys } = await import("../src/lib/db.ts");
+  const { createKey, revokeKey } = await import("../src/lib/keys.ts");
+  const { access, requireScope } = await import("../src/lib/http.ts");
   const { parseFilters } = await import("../src/lib/filters.ts");
   const { linkTo } = await import("../src/lib/policy.ts");
   const created: ObjectId[] = [];
 
+  const keysMade: ObjectId[] = [];
+
   after(async () => {
+    if (keysMade.length) await (await apiKeys()).deleteMany({ _id: { $in: keysMade } });
     if (!created.length) return;
     await (await items()).deleteMany({ feedId: { $in: created } });
     await (await feeds()).deleteMany({ _id: { $in: created } });
@@ -212,5 +218,59 @@ describe("with MongoDB", { skip }, async () => {
     const report = await pollDue(Date.now() + 20_000);
     assert.ok(report.polled >= 1);
     assert.equal((await col.findOne({ _id: soon._id }))?.failCount, 1);
+  });
+
+  describe("API keys", () => {
+    const call = (token?: string, ip = "203.0.113.9") =>
+      ({
+        request: new Request("https://rss.mobi/api/v1/items", { headers: token ? { authorization: `Bearer ${token}` } : {} }),
+        url: new URL("https://rss.mobi/api/v1/items"),
+        clientAddress: ip,
+      }) as any;
+    const make = async (scopes: string[], rate?: number) => {
+      const made = await createKey("test-site", scopes, rate);
+      keysMade.push(made.key._id);
+      return made;
+    };
+
+    test("a key reads at its own rate, and nothing but its hash is stored", async () => {
+      const { token, key } = await make(["read:full"], 2);
+      assert.match(token, /^rmk_[\w-]{32}$/);
+      const stored = await (await apiKeys()).findOne({ _id: key._id });
+      assert.equal(stored?.prefix, token.slice(4, 12));
+      assert.ok(!JSON.stringify(stored).includes(token));
+
+      const a = await access(call(token));
+      assert.ok(!(a instanceof Response) && a.key?.name === "test-site");
+      await access(call(token));
+      const over = await access(call(token));
+      assert.ok(over instanceof Response && over.status === 429);
+      assert.ok(Number(over.headers.get("retry-after")) >= 1);
+      // Nobody's key: the anonymous allowance, untouched by the key's.
+      const anon = await access(call(undefined, "198.51.100.7"));
+      assert.ok(!(anon instanceof Response) && anon.key === null);
+    });
+
+    test("a revoked or unknown key is refused, not read as anonymous", async () => {
+      const { token, key } = await make([]);
+      assert.ok(!((await access(call(token))) instanceof Response));
+      assert.equal((await revokeKey(key.prefix))?.name, "test-site");
+      const gone = await access(call(token));
+      assert.ok(gone instanceof Response && gone.status === 401);
+      const made_up = await access(call("rmk_notakeynotakeynotakeynotakey00"));
+      assert.ok(made_up instanceof Response && made_up.status === 401);
+      assert.equal(await revokeKey(key.prefix), null);
+    });
+
+    test("scopes: admin holds them all, a reading key none", async () => {
+      const reader = await make([]);
+      const admin = await make(["admin"]);
+      const r = await requireScope(call(reader.token), "write:feeds");
+      assert.ok(r instanceof Response && r.status === 403);
+      assert.ok(!((await requireScope(call(admin.token), "write:feeds")) instanceof Response));
+      const none = await requireScope(call(), "admin");
+      assert.ok(none instanceof Response && none.status === 401);
+      await assert.rejects(createKey("x", ["root"]), /unknown scope/);
+    });
   });
 });

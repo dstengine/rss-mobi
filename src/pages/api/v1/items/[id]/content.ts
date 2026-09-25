@@ -6,13 +6,13 @@
 // /item/<id>/, which shows the excerpt only.
 import type { APIRoute } from "astro";
 import { postContent } from "../../../../../lib/copy.ts";
-import { cacheFor, error, json, limitIp } from "../../../../../lib/http.ts";
+import { access, error, json, readCache } from "../../../../../lib/http.ts";
 
 export const GET: APIRoute = async (ctx) => {
-  const limited = await limitIp(ctx, "api-read", 120, "1 m");
-  if (limited) return limited;
+  const who = await access(ctx);
+  if (who instanceof Response) return who;
   const post = await postContent(String(ctx.params.id ?? ""));
   if (!post) return error(404, "No such post.");
   if ("gone" in post) return error(410, "This post was taken down with its feed.");
-  return json(post, { cache: cacheFor(300), headers: { "X-Robots-Tag": "noindex" } });
+  return json(post, { cache: readCache(who.key, 300), headers: { "X-Robots-Tag": "noindex" } });
 };

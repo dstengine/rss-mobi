@@ -9,7 +9,8 @@ import { reserve, headroom, BudgetExceeded, LIMITS } from "../src/lib/budget.ts"
 import { spamReason } from "../src/lib/spam.ts";
 import { feedTags } from "../src/lib/catalog.ts";
 import { tag, topic, ownName } from "../src/lib/feeds/parse.ts";
-import { itemPageOpen } from "../src/lib/views.ts";
+import { itemJson, itemPageOpen } from "../src/lib/views.ts";
+import { hasScope, mint } from "../src/lib/keys.ts";
 import { matches, sha256, newToken } from "../src/lib/tokens.ts";
 
 const DAY = 86_400_000;
@@ -151,6 +152,31 @@ describe("filters", () => {
     assert.equal(said(f), "AI or Robotics posts from example.com in English matching “agents” without “crypto”");
     assert.equal(narrowed(f), true);
     assert.equal(narrowed(parseFilters(new URLSearchParams("limit=50"))), false);
+  });
+});
+
+describe("API keys", () => {
+  test("a key is rmk_ and 32 characters; its prefix names it; its hash is what is kept", () => {
+    const a = mint();
+    const b = mint();
+    assert.match(a.token, /^rmk_[\w-]{32}$/);
+    assert.equal(a.prefix, a.token.slice(4, 12));
+    assert.equal(a.hash, sha256(a.token));
+    assert.notEqual(a.token, b.token);
+  });
+
+  test("admin holds every scope; nothing holds one it was not given", () => {
+    assert.equal(hasScope({ scopes: ["admin"] }, "write:feeds"), true);
+    assert.equal(hasScope({ scopes: ["read:full"] }, "read:full"), true);
+    assert.equal(hasScope({ scopes: ["read:full"] }, "write:feeds"), false);
+    assert.equal(hasScope(null, "read:full"), false);
+  });
+
+  test("read:full adds where a post stands in the index check, and only then", () => {
+    const it = { id: "a".repeat(24), feedSlug: "f", url: "https://x.test/a", host: "x.test", title: "T", excerpt: "", tags: [], lang: "en", publishedAt: new Date(), updatedAt: new Date(), indexStatus: "not_indexed", indexChecks: 2, indexCheckedAt: new Date("2026-09-24T00:00:00Z"), robots: null, linkMode: null } as any;
+    assert.equal("index" in itemJson(it), false);
+    assert.deepEqual(itemJson(it, true).index, { status: "not_indexed", checkedAt: it.indexCheckedAt, checks: 2, page: "index,follow" });
+    assert.equal(itemJson({ ...it, indexStatus: "indexed" }, true).index?.page, "noindex,follow");
   });
 });
 

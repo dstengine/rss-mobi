@@ -1,9 +1,11 @@
 // Response helpers and request guards shared by every endpoint.
 import type { APIContext } from "astro";
+import { after } from "./after.ts";
 import { apiKeys } from "./db.ts";
 import { env } from "./env.ts";
 import { rateLimit } from "./cache.ts";
-import { ipHash, sha256 } from "./tokens.ts";
+import { hasScope, lookup, type Scope } from "./keys.ts";
+import { ipHash } from "./tokens.ts";
 import type { ApiKeyDoc } from "./types.ts";
 
 /** CDN caching: fresh for `sMaxAge`, served stale while revalidating for a
@@ -17,6 +19,9 @@ export function json(data: unknown, init: ResponseInit & { cache?: string } = {}
   headers.set("Content-Type", "application/json; charset=utf-8");
   headers.set("Cache-Control", init.cache ?? NO_STORE);
   headers.set("Access-Control-Allow-Origin", "*");
+  // A key's answer may carry more than the anonymous one (read:full), and
+  // is never stored; the anonymous one is, and must not be handed to a key.
+  headers.set("Vary", "Authorization");
   return new Response(JSON.stringify(data), { ...init, headers });
 }
 
@@ -36,32 +41,58 @@ export function clientIp(ctx: APIContext): string {
 /** Per-IP limit for anonymous calls; returns a 429 Response or null. */
 export async function limitIp(ctx: APIContext, bucket: string, max: number, window: `${number} ${"s" | "m" | "h" | "d"}`) {
   const r = await rateLimit(bucket, ipHash(clientIp(ctx)), max, window);
-  if (r.ok) return null;
-  return json(
-    { error: "Too many requests. Try again shortly." },
-    { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((r.reset - Date.now()) / 1000))) } },
-  );
+  return r.ok ? null : tooMany(r.reset, "Too many requests. Try again shortly.");
 }
 
-/** The API key presented in `Authorization: Bearer …`, if valid. */
-export async function apiKey(ctx: APIContext): Promise<ApiKeyDoc | null> {
-  const token = ctx.request.headers.get("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
-  if (!token || !token.startsWith("rmk_")) return null;
-  const key = await (await apiKeys()).findOne({ hash: sha256(token), revokedAt: { $exists: false } });
-  if (key) void (await apiKeys()).updateOne({ _id: key._id }, { $set: { lastUsedAt: new Date() } });
-  return key;
+const bearer = (ctx: APIContext) => ctx.request.headers.get("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
+
+const tooMany = (reset: number, message: string) =>
+  json({ error: message }, { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((reset - Date.now()) / 1000))) } });
+
+const INVALID = () => error(401, "This API key is not valid, or has been revoked.");
+
+/** Notes when a key was last used, at most once a minute per key. */
+function touch(key: ApiKeyDoc) {
+  const now = new Date();
+  if (key.lastUsedAt && now.getTime() - key.lastUsedAt.getTime() < 60_000) return;
+  after("key", async () => (await apiKeys()).updateOne({ _id: key._id }, { $set: { lastUsedAt: now } }));
 }
 
-/** A valid key with `scope`, rate-limited by its own allowance; otherwise
-    the Response to send back. */
-export async function requireScope(ctx: APIContext, scope: string): Promise<ApiKeyDoc | Response> {
-  const key = await apiKey(ctx);
-  if (!key) return error(401, "An API key is required: Authorization: Bearer rmk_…");
-  if (!key.scopes.includes(scope) && !key.scopes.includes("admin")) return error(403, `This key lacks the ${scope} scope.`);
-  const r = await rateLimit("key", key.prefix, key.rate, "1 m");
-  if (!r.ok) return error(429, "Rate limit for this key reached.");
-  return key;
+/** Who is calling, within their allowance. With no key, the anonymous
+    per-IP limit; with a key, the key's own per-minute rate. A key that is
+    presented but unknown or revoked is refused outright rather than read
+    as anonymous: a site whose key was revoked should hear it, not find
+    itself quietly throttled. Returns the key (null for nobody) or the
+    Response to send back. */
+export async function access(
+  ctx: APIContext,
+  anon: { bucket: string; max: number; window: `${number} ${"s" | "m" | "h" | "d"}` } = { bucket: "api-read", max: 120, window: "1 m" },
+): Promise<{ key: ApiKeyDoc | null } | Response> {
+  const found = await lookup(bearer(ctx));
+  if (found === "invalid") return INVALID();
+  if (!found) return (await limitIp(ctx, anon.bucket, anon.max, anon.window)) ?? { key: null };
+  const r = await rateLimit("key", found.prefix, found.rate, "1 m");
+  if (!r.ok) return tooMany(r.reset, "Rate limit for this key reached.");
+  touch(found);
+  return { key: found };
 }
+
+/** A valid key with `scope` (admin holds every scope), within its rate;
+    otherwise the Response to send back. */
+export async function requireScope(ctx: APIContext, scope: Scope): Promise<ApiKeyDoc | Response> {
+  const found = await lookup(bearer(ctx));
+  if (found === "invalid") return INVALID();
+  if (!found) return error(401, "An API key is required: Authorization: Bearer rmk_…");
+  if (!hasScope(found, scope)) return error(403, `This key lacks the ${scope} scope.`);
+  const r = await rateLimit("key", found.prefix, found.rate, "1 m");
+  if (!r.ok) return tooMany(r.reset, "Rate limit for this key reached.");
+  touch(found);
+  return found;
+}
+
+/** Caching for a read: shared by the CDN when nobody's key is in it, never
+    when one is. */
+export const readCache = (key: ApiKeyDoc | null, sMaxAge: number) => (key ? NO_STORE : cacheFor(sMaxAge));
 
 /** The scheduler's shared secret; constant-time compare. */
 export function isCron(ctx: APIContext): boolean {

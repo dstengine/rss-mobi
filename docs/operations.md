@@ -27,6 +27,35 @@ local database. To aim one at production, load `.env` first:
 node --env-file=.env scripts/migrate.mjs rssmobi
 ```
 
+## API keys
+
+Anyone may read the API at 120 requests a minute per address. A site that
+needs more, or more than the public fields, gets a key
+(`src/lib/keys.ts`): its own per-minute rate (600 unless made with
+another) and any of these scopes —
+
+| Scope | Adds |
+|---|---|
+| `read:full` | `index` on every post (the original's index-check status, when and how often it was checked, and our page's robots) and on every feed (its page's robots) |
+| `write:feeds` | submitting at the key's rate instead of five an hour, and `{"feeds": [...]}` batches of up to 20 in one `POST /api/v1/feeds` |
+| `admin` | every scope, and `/api/v1/admin/…` |
+
+A key is sent as `Authorization: Bearer rmk_…`. One that is unknown or
+revoked gets a 401 rather than the anonymous allowance. Answers to a key
+are never cached by the CDN (`private, no-store`); anonymous ones are, and
+say `Vary: Authorization`.
+
+```
+node --env-file=.env scripts/api-key.mjs create --name cmx --scopes read:full --save ~/dst/.env:RSS_MOBI_KEY_CMX
+node --env-file=.env scripts/api-key.mjs list
+node --env-file=.env scripts/api-key.mjs revoke <prefix>
+```
+
+A key is shown once, and with `--save` not at all: it goes into that
+variable of that file and only its prefix — the eight characters after
+`rmk_` — is printed. The database keeps the hash, the prefix, the name and
+when it was last used.
+
 ## Scheduled jobs
 
 Upstash QStash calls `/api/v1/cron/*` every 15 minutes with

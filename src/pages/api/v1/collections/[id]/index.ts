@@ -4,20 +4,25 @@
 import type { APIRoute } from "astro";
 import { authorise, byId, collectionItems, collectionJson, update, type CollectionInput } from "../../../../../lib/collections.ts";
 import { cursorOf, parseCursor } from "../../../../../lib/filters.ts";
-import { body, cacheFor, error, json, limitIp, NO_STORE } from "../../../../../lib/http.ts";
+import { access, body, error, json, NO_STORE, readCache } from "../../../../../lib/http.ts";
+import { hasScope } from "../../../../../lib/keys.ts";
 import { feedJson, feedsBySlugs, itemJson } from "../../../../../lib/views.ts";
 
 const PAGE = 30;
 
 export const GET: APIRoute = async (ctx) => {
-  const limited = await limitIp(ctx, "api-read", 120, "1 m");
-  if (limited) return limited;
+  const who = await access(ctx);
+  if (who instanceof Response) return who;
   const c = await byId(String(ctx.params.id ?? ""));
   if (!c) return error(404, "No such collection.");
   const [list, items] = await Promise.all([feedsBySlugs(c.feeds), collectionItems(c, PAGE, parseCursor(ctx.url.searchParams.get("before")))]);
   const last = items.at(-1);
   const next = items.length === PAGE && last ? `${ctx.url.pathname}?before=${encodeURIComponent(cursorOf(last))}` : null;
-  return json({ collection: collectionJson(c, ctx.url.origin), feeds: list.map(feedJson), items: items.map(itemJson), next }, { cache: cacheFor(60) });
+  const full = hasScope(who.key, "read:full");
+  return json(
+    { collection: collectionJson(c, ctx.url.origin), feeds: list.map((f) => feedJson(f, full)), items: items.map((it) => itemJson(it, full)), next },
+    { cache: readCache(who.key, 60) },
+  );
 };
 
 export const PUT: APIRoute = async (ctx) => {

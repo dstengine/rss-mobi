@@ -10,5 +10,5 @@ export const GET: APIRoute = async (ctx) => {
   const doc = await authorise(ctx);
   if (doc instanceof Response) return doc;
   const list = await feedsBySlugs(doc.feeds);
-  return json({ collection: collectionJson(publicOf(doc), ctx.url.origin), feeds: list.map(feedJson) }, { cache: NO_STORE });
+  return json({ collection: collectionJson(publicOf(doc), ctx.url.origin), feeds: list.map((f) => feedJson(f)) }, { cache: NO_STORE });
 };

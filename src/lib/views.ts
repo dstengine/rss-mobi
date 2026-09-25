@@ -40,7 +40,8 @@ export type PublicFeed = Pick<
 export type PublicItem = Pick<
   ItemDoc,
   "feedSlug" | "url" | "host" | "title" | "excerpt" | "image" | "picture" | "author" | "tags" | "lang" | "publishedAt" | "indexStatus" | "robots" | "linkMode" | "updatedAt"
-> & { id: string };
+> &
+  Partial<Pick<ItemDoc, "indexCheckedAt" | "indexChecks">> & { id: string };
 
 const FEED_FIELDS = {
   _id: 0,
@@ -82,6 +83,8 @@ const ITEM_FIELDS = {
   lang: 1,
   publishedAt: 1,
   indexStatus: 1,
+  indexCheckedAt: 1,
+  indexChecks: 1,
   robots: 1,
   linkMode: 1,
   updatedAt: 1,
@@ -284,7 +287,16 @@ export function fmtDay(d: Date | string, now = new Date()): string {
 export const safeImage = (src?: string) => (src && /^https:\/\//i.test(src) ? src : undefined);
 
 /** A feed as the public API returns it. */
-export function feedJson(f: PublicFeed) {
+/** A feed as the API gives it. `full` (the read:full scope) adds whether
+    its page is open to search engines. */
+export function feedJson(f: PublicFeed, full = false) {
+  return {
+    ...feedFields(f),
+    ...(full && { index: { page: policy({ type: "feed", feed: f }).robots } }),
+  };
+}
+
+function feedFields(f: PublicFeed) {
   return {
     slug: f.slug,
     title: f.title,
@@ -309,7 +321,24 @@ export function feedJson(f: PublicFeed) {
   };
 }
 
-export function itemJson(it: PublicItem) {
+/** A post as the API gives it. `full` (the read:full scope) adds where it
+    stands in the index check: the original's status, when and how often
+    it was checked, and whether our page for it is open to search engines. */
+export function itemJson(it: PublicItem, full = false) {
+  return {
+    ...itemFields(it),
+    ...(full && {
+      index: {
+        status: it.indexStatus,
+        checkedAt: it.indexCheckedAt ?? null,
+        checks: it.indexChecks ?? 0,
+        page: itemPageOpen(it) ? "index,follow" : "noindex,follow",
+      },
+    }),
+  };
+}
+
+function itemFields(it: PublicItem) {
   const link = linkTo(it);
   const thumb = pictureUrl(it, "thumb.webp");
   return {
