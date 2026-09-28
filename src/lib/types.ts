@@ -82,7 +82,8 @@ export interface FeedDoc {
     first check; `pending` has that check in flight; the two verdicts are
     what the policy reads. A recheck keeps the last verdict until the new
     one arrives, so a page does not blink out of the index while it runs.
-    `skipped` is never checked: its feed does not take part (FeedDoc.checkIndex). */
+    `skipped` is never checked: its feed does not take part
+    (FeedDoc.checkIndex), or it left a full queue (`indexSkipped`). */
 export type IndexStatus = "queued" | "pending" | "indexed" | "not_indexed" | "error" | "skipped";
 
 export interface ItemDoc {
@@ -110,6 +111,9 @@ export interface ItemDoc {
   visible: boolean;
   indexStatus: IndexStatus;
   indexNextCheckAt: Date | null;
+  /** Why a post of a checked feed is `skipped`: it waited in a full queue
+      (QUEUE_MAX in indexcheck.ts). Absent otherwise. */
+  indexSkipped?: "queue";
   indexCheckedAt?: Date;
   indexChecks: number;
   /** The DataForSEO task in flight, when it was filed and what it cost. */

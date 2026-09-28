@@ -94,6 +94,8 @@ try {
           items: await count("items", {}),
           itemsVisible: await count("items", { visible: true }),
           indexStatus,
+          // Posts that left a full index-check queue unchecked (QUEUE_MAX).
+          skippedByQueue: await count("items", { indexSkipped: "queue" }),
           // Post pages open to search (the sitemap's OPEN_ITEMS), and what
           // URL Inspection last said about them: PASS is in Google.
           openPages: {

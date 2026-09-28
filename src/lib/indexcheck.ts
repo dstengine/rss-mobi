@@ -14,6 +14,11 @@
 //
 // A verdict that opens or closes a post's page flags it for IndexNow, and
 // the end of every run tells Bing and Yandex about the flagged pages.
+//
+// The queue for a first check holds at most QUEUE_MAX posts: a post whose
+// original is not in Google yet is most likely a fresh one, so when more
+// arrive than the budget can check, the oldest waiting ones leave the
+// queue as `skipped`, with `indexSkipped: "queue"` to find them by.
 import type { ObjectId } from "mongodb";
 import { indexChecks, items, spend } from "./db.ts";
 import { count, counter, lock, unlock } from "./cache.ts";
@@ -30,6 +35,9 @@ const SETTLE_MS = 60_000;
 const LOST_MS = DAY;
 /** Below this many days of the ceiling, the balance is worth a message. */
 export const LOW_BALANCE_DAYS = 10;
+/** Posts waiting for their first check, at most: about ten days of the
+    $0.12 ceiling. */
+export const QUEUE_MAX = 420;
 
 export type Verdict = "indexed" | "not_indexed" | "error";
 
@@ -77,6 +85,9 @@ export interface Store {
   checked(item: Queued, verdict: Verdict, at: Date, note?: string): Promise<void>;
   /** Back to the front of the queue: the task was lost. */
   requeue(item: Queued, at: Date, note: string): Promise<void>;
+  /** Skips the visible posts still waiting for a first check, beyond the
+      newest `max`; returns how many. */
+  trim(max: number): Promise<number>;
   /** Items whose page opened or closed since IndexNow last heard. */
   unannounced(limit: number): Promise<{ _id: ObjectId }[]>;
   announced(ids: ObjectId[]): Promise<void>;
@@ -116,6 +127,14 @@ export function mongoStore(): Store {
       );
       await log(item._id, at, "lost", item.serpCost ?? 0, note);
     },
+    async trim(max) {
+      const waiting = { visible: true, indexStatus: "queued" as const };
+      const col = await items();
+      const over = await col.find(waiting, { projection: { _id: 1 } }).sort({ indexNextCheckAt: -1 }).skip(max).toArray();
+      if (!over.length) return 0;
+      const r = await col.updateMany({ ...waiting, _id: { $in: over.map((o) => o._id) } }, { $set: { indexStatus: "skipped", indexNextCheckAt: null, indexSkipped: "queue" } });
+      return r.modifiedCount;
+    },
     async unannounced(limit) {
       return (await items()).find({ announce: true }, { projection: { _id: 1 } }).limit(limit).toArray();
     },
@@ -137,6 +156,8 @@ export interface Report {
   usd: number;
   /** Pages IndexNow accepted news of in this run. */
   announced: number;
+  /** Posts that left a full queue unchecked. */
+  trimmed: number;
   balance?: number;
   stopped?: string;
 }
@@ -170,13 +191,14 @@ export async function runIndexCheck(deadline: number, deps: Partial<Deps> = {}):
     indexNow: deps.indexNow ?? indexNow,
     now: deps.now ?? (() => new Date()),
   };
-  const report: Report = { collected: 0, indexed: 0, notIndexed: 0, failed: 0, requeued: 0, posted: 0, usd: 0, announced: 0 };
+  const report: Report = { collected: 0, indexed: 0, notIndexed: 0, failed: 0, requeued: 0, posted: 0, usd: 0, announced: 0, trimmed: 0 };
   if (!d.api) return { ...report, stopped: "DataForSEO credentials are not set" };
   if (!(await lock("index-check", 90))) return { ...report, stopped: "another run is in progress" };
   const day = utcDay(d.now());
   try {
     try {
       await collect(d, deadline, report);
+      report.trimmed = await d.store.trim(QUEUE_MAX);
       if (Date.now() < deadline) await post(d, day, report);
     } catch (e) {
       if (!(e instanceof SerpStop)) throw e;
