@@ -9,6 +9,7 @@ import { ObjectId } from "mongodb";
 import { items, stories } from "./db.ts";
 import { cluster, sensitive, type Cluster } from "./clusters.ts";
 import { key, slugify } from "./feeds/url.ts";
+import { SITE } from "./env.ts";
 import type { StoryDoc, StorySection, StorySource } from "./types.ts";
 
 export const LEASE_MIN = 30;
@@ -219,6 +220,30 @@ export async function decide(id: string, status: "published" | "review" | "rejec
     { returnDocument: "after" },
   );
 }
+
+/** Published stories, newest first. */
+export async function publishedStories(limit = 30, before?: Date): Promise<StoryDoc[]> {
+  return (await stories())
+    .find({ status: "published", ...(before && { publishedAt: { $lt: before } }) })
+    .sort({ publishedAt: -1 })
+    .limit(limit)
+    .toArray();
+}
+
+/** A published story as the API gives it: the whole text, and the
+    sources it cites. */
+export const storyJson = (s: StoryDoc) => ({
+  id: String(s._id),
+  url: `${SITE}${storyPath(s)}`,
+  headline: s.headline,
+  dek: s.dek,
+  sections: s.sections,
+  keyPoints: s.keyPoints,
+  words: s.words,
+  sources: s.sources.filter((x) => s.cited?.includes(x.url)).map((x) => ({ url: x.url, title: x.title, site: x.host })),
+  publishedAt: s.publishedAt,
+  updatedAt: s.updatedAt,
+});
 
 /** A story at its address, if it is written. */
 export async function storyAt(day: string, slug: string): Promise<StoryDoc | null> {

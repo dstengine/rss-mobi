@@ -66,6 +66,7 @@ export const COPY_UPDATED: Record<string, string> = {
   "/reader/": "2026-09-29",
   "/c/new/": "2026-09-23",
   "/rss/": "2026-09-29",
+  "/news/": "2026-09-29",
 };
 
 export const copyDate = (path: string) => new Date(`${COPY_UPDATED[path] ?? "2026-09-23"}T00:00:00Z`);

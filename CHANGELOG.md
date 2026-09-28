@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Publishing stories. A published story is in `sitemap-stories.xml`,
+  dated by its last change, and IndexNow hears of it — and of it going
+  back to review. `/news/` lists the published stories (noindex and out
+  of the sitemap while there are none), `/news/rss.xml` follows them, and
+  `GET /api/v1/stories` gives them whole, with their sources, to a key
+  with the new `read:stories` scope.
 - Story jobs, the first slice of v1.1. The stories several sites cover
   in the last two days are clustered — a post joins a cluster only by
   matching one of its first posts, so two stories that share a name do

@@ -3,7 +3,7 @@
 // Needs admin.
 import type { APIRoute } from "astro";
 import { body, error, json, requireScope } from "../../../../../lib/http.ts";
-import { alert } from "../../../../../lib/notify.ts";
+import { alert, indexNow } from "../../../../../lib/notify.ts";
 import { decide, storyPath } from "../../../../../lib/stories.ts";
 import { SITE } from "../../../../../lib/env.ts";
 
@@ -18,5 +18,8 @@ export const PUT: APIRoute = async (ctx) => {
   const s = await decide(String(ctx.params.id ?? ""), status);
   if (!s) return error(404, "No written story with that id.");
   if (status === "published") await alert(`published story: ${s.headline} ${SITE}${storyPath(s)}`);
+  // Opened or closed to search: tell IndexNow, with the section that
+  // lists it. A failed ping only means search engines learn it later.
+  await indexNow([storyPath(s), "/news/"]);
   return json({ id: String(s._id), status: s.status, url: `${ctx.url.origin}${storyPath(s)}` });
 };
