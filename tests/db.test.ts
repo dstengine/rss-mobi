@@ -26,7 +26,9 @@ describe("with MongoDB", { skip }, async () => {
   const { createKey, revokeKey } = await import("../src/lib/keys.ts");
   const { access, requireScope } = await import("../src/lib/http.ts");
   const { block, hideFeed, unblock } = await import("../src/lib/admin.ts");
-  const { blocklist } = await import("../src/lib/db.ts");
+  const { blocklist, events, metricsDaily } = await import("../src/lib/db.ts");
+  const { readout, rollUp, totals } = await import("../src/lib/metrics.ts");
+  const METRIC_DAY = "2001-02-03";
   const { parseFilters } = await import("../src/lib/filters.ts");
   const { linkTo } = await import("../src/lib/policy.ts");
   const created: ObjectId[] = [];
@@ -37,6 +39,8 @@ describe("with MongoDB", { skip }, async () => {
   after(async () => {
     if (keysMade.length) await (await apiKeys()).deleteMany({ _id: { $in: keysMade } });
     if (hostsBlocked.length) await (await blocklist()).deleteMany({ _id: { $in: hostsBlocked } });
+    await (await events()).deleteMany({ at: { $gte: new Date(`${METRIC_DAY}T00:00:00Z`), $lt: new Date("2001-02-05T00:00:00Z") } });
+    await (await metricsDaily()).deleteMany({ day: { $in: [METRIC_DAY, "2001-02-04"] } });
     if (!created.length) return;
     await (await items()).deleteMany({ feedId: { $in: created } });
     await (await feeds()).deleteMany({ _id: { $in: created } });
@@ -325,6 +329,53 @@ describe("with MongoDB", { skip }, async () => {
       const own = (await applyEdit((await (await feeds()).findOne({ _id: f._id }))!, { hidden: true })) as any;
       assert.equal(own.hiddenBy, "owner");
       assert.equal(((await applyEdit(own, { hidden: false })) as any).status, "active");
+    });
+  });
+
+  describe("metrics", () => {
+    const at = (h: number) => new Date(`${METRIC_DAY}T${String(h).padStart(2, "0")}:00:00Z`);
+    const exp = { id: "test-exp", variants: [{ id: "a" }, { id: "b" }] };
+
+    test("a day rolls up by metric and variant, and rolling it up again changes nothing", async () => {
+      const e = await events();
+      await e.insertMany([
+        ...Array.from({ length: 40 }, (_, i) => ({ name: "view", path: "/reader/", at: at(1), exp: { "test-exp": i < 20 ? "a" : "b" } })),
+        ...Array.from({ length: 2 }, () => ({ name: "follow", path: "/reader/", at: at(2), exp: { "test-exp": "a" } })),
+        ...Array.from({ length: 8 }, () => ({ name: "follow", path: "/reader/", at: at(2), exp: { "test-exp": "b" } })),
+        { name: "view", path: "/feed/x/", at: at(3) },
+        { name: "subscribe_copy", label: "topic", path: "/tag/ai/", at: at(4) },
+        { name: "subscribe_copy", label: "junk", path: "/tag/ai/", at: at(4) },
+        // The next day's, which this day must not count.
+        { name: "view", path: "/", at: new Date("2001-02-04T00:00:00Z") },
+      ]);
+      assert.ok((await rollUp(METRIC_DAY)) > 0);
+      const read = async () => (await (await metricsDaily()).find({ day: METRIC_DAY }, { projection: { _id: 0, updatedAt: 0 } }).sort({ metric: 1, variant: 1 }).toArray());
+      const first = await read();
+      await rollUp(METRIC_DAY);
+      assert.deepEqual(await read(), first);
+
+      const t = await totals(METRIC_DAY, METRIC_DAY);
+      assert.equal(t.view, 41);
+      assert.equal(t["view:reader"], 40);
+      assert.equal(t["view:feed"], 1);
+      assert.equal(t.follow, 10);
+      assert.equal(t.subscribe_copy, 2);
+      assert.equal(t["subscribe_copy:topic"], 1);
+      assert.equal(t["view:home"], undefined);
+      assert.equal((await totals(METRIC_DAY, METRIC_DAY, "test-exp=b")).follow, 8);
+
+      const r = await readout(exp, "follow", "view:reader", METRIC_DAY, METRIC_DAY);
+      assert.deepEqual(r.arms.map((a) => [a.variant, a.exposures, a.conversions]), [["a", 20, 2], ["b", 20, 8]]);
+      assert.ok(r.tests[0].z > 0 && r.tests[0].p < 0.05);
+    });
+
+    test("a row the events no longer support goes on the next roll-up", async () => {
+      await (await events()).deleteMany({ name: "subscribe_copy", at: at(4) });
+      await rollUp(METRIC_DAY);
+      const t = await totals(METRIC_DAY, METRIC_DAY);
+      assert.equal(t.subscribe_copy, undefined);
+      assert.equal(t["subscribe_copy:topic"], undefined);
+      assert.equal(t.view, 41);
     });
   });
 });

@@ -20,6 +20,8 @@ const JOBS = [
   { id: "rss-mobi-fetch", path: "/api/v1/cron/fetch", cron: "*/15 * * * *" },
   // Seven minutes later, so the two never hold the function at once.
   { id: "rss-mobi-index-check", path: "/api/v1/cron/index-check", cron: "7,22,37,52 * * * *" },
+  // Once a day, clear of both: the last three whole days into metrics_daily.
+  { id: "rss-mobi-metrics", path: "/api/v1/cron/metrics", cron: "41 0 * * *" },
 ];
 
 async function list() {

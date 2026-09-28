@@ -27,10 +27,22 @@ try {
   const db = client.db(dbName);
   const between = (field, [from, to]) => ({ [field]: { $gte: from, $lt: to } });
   const count = (name, q) => db.collection(name).countDocuments(q);
-  const byName = async (range) =>
-    Object.fromEntries(
-      (await db.collection("events").aggregate([{ $match: between("at", range) }, { $group: { _id: "$name", n: { $sum: 1 } } }, { $sort: { _id: 1 } }]).toArray()).map((r) => [r._id, r.n]),
-    );
+  // What readers did, from the daily roll-up (src/lib/metrics.ts), not the
+  // raw events: a metric per event, per page type for views, per variant
+  // for experiments. Days are UTC dates, the week's last one included.
+  const day = (d) => d.toISOString().slice(0, 10);
+  const metrics = async ([from, to]) => {
+    const rows = await db
+      .collection("metrics_daily")
+      .aggregate([{ $match: { day: { $gte: day(from), $lt: day(to) } } }, { $group: { _id: { m: "$metric", v: "$variant" }, n: { $sum: "$n" } } }, { $sort: { "_id.m": 1, "_id.v": 1 } }])
+      .toArray();
+    const out = { days: (await db.collection("metrics_daily").distinct("day", { day: { $gte: day(from), $lt: day(to) } })).length, all: {}, variants: {} };
+    for (const { _id, n } of rows) {
+      if (_id.v === "all") out.all[_id.m] = n;
+      else (out.variants[_id.v] ??= {})[_id.m] = n;
+    }
+    return out;
+  };
   const week = async (range) => ({
     from: range[0].toISOString().slice(0, 10),
     to: range[1].toISOString().slice(0, 10),
@@ -39,7 +51,7 @@ try {
     collectionsCreated: await count("collections", between("createdAt", range)),
     reports: await count("reports", between("createdAt", range)),
     indexChecks: await count("index_checks", between("at", range)),
-    events: await byName(range),
+    metrics: await metrics(range),
   });
 
   const openItems = { visible: true, $or: [{ robots: "index,follow" }, { robots: null, indexStatus: "not_indexed" }] };
