@@ -217,6 +217,7 @@ describe("metrics", () => {
   test("a view counts by its page type, from the path's first segment", () => {
     assert.deepEqual(["/", "/feed/x/", "/tag/ai/", "/c/abc/", "/f/x/edit/", "/nope", "", undefined].map(pageType), ["home", "feed", "tag", "collection", "edit", "other", "other", "other"]);
     assert.deepEqual(metricsOf({ name: "view", path: "/reader/" }), ["view", "view:reader"]);
+    assert.deepEqual(metricsOf({ name: "follow", path: "/reader/", label: "set:news" }), ["follow", "follow:reader"]);
   });
 
   test("only labels the site sends make metrics of their own", () => {

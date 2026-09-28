@@ -2,9 +2,9 @@
 // readouts: one row per day, metric and variant in `metrics_daily`, so
 // neither has to read raw events, which expire after 180 days anyway.
 //
-// A metric is an event name (`follow`), a view by page type
-// (`view:feed`), or an event by its label where the label is a small
-// fixed set (`subscribe_copy:topic`). The variant is "all" for everyone,
+// A metric is an event name (`follow`), a view or a follow by page type
+// (`view:feed`, `follow:reader`), or an event by its label where the label
+// is a small fixed set (`subscribe_copy:topic`). The variant is "all" for everyone,
 // or `<experiment>=<variant>` for the events that carried one — a z-test
 // compares two of those rows over the experiment's days.
 //
@@ -31,6 +31,10 @@ const LABELS: Record<string, RegExp> = {
 };
 const LABELLED = Object.keys(LABELS);
 
+/** Events counted by the kind of page they happened on as well: where
+    people look, and where they follow. */
+const BY_PAGE = ["view", "follow"];
+
 const PAGE_TYPES: Record<string, string> = {
   "": "home",
   feed: "feed",
@@ -53,7 +57,7 @@ export const pageType = (path: string | null | undefined) => (typeof path === "s
 /** The metrics one event counts toward. */
 export function metricsOf(e: { name: string; path?: string | null; label?: string | null }): string[] {
   const out = [e.name];
-  if (e.name === "view") out.push(`view:${pageType(e.path)}`);
+  if (BY_PAGE.includes(e.name)) out.push(`${e.name}:${pageType(e.path)}`);
   else if (e.label && LABELS[e.name]?.test(e.label)) out.push(`${e.name}:${e.label}`);
   return out;
 }
@@ -77,8 +81,9 @@ export async function countDay(day: string): Promise<MetricRow[]> {
         $group: {
           _id: {
             name: "$name",
-            // Only the first path segment matters, and only for views.
-            seg: { $cond: [{ $eq: ["$name", "view"] }, { $arrayElemAt: [{ $split: [{ $ifNull: ["$path", ""] }, "/"] }, 1] }, null] },
+            // Only the first path segment matters, and only for events
+            // counted by page.
+            seg: { $cond: [{ $in: ["$name", BY_PAGE] }, { $arrayElemAt: [{ $split: [{ $ifNull: ["$path", ""] }, "/"] }, 1] }, null] },
             label: { $cond: [{ $in: ["$name", LABELLED] }, "$label", null] },
             exp: { $ifNull: ["$exp", null] },
           },
