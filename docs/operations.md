@@ -63,7 +63,7 @@ comes down afterwards, with the operator's admin key (`RSS_MOBI_ADMIN_KEY`
 in `.env`, never synced anywhere). Every call is announced in Telegram.
 
 ```
-. scripts/lib/env.sh; load_env .env; A="Authorization: Bearer $RSS_MOBI_ADMIN_KEY"
+A="Authorization: Bearer $(grep '^RSS_MOBI_ADMIN_KEY=' .env | cut -d= -f2-)"
 curl -X PUT -H "$A" -d '{"hidden":true,"reason":"casino spam"}' https://rss.mobi/api/v1/admin/feeds/<slug>
 curl -X POST -H "$A" -d '{"host":"spam.example","reason":"…"}' https://rss.mobi/api/v1/admin/blocklist
 curl -H "$A" https://rss.mobi/api/v1/admin/blocklist
