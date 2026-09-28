@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Daily metrics (#9). `/api/v1/cron/metrics` rolls events up into
+  `metrics_daily` by day, metric and experiment variant — each event,
+  views per page type, labels from a fixed list (`subscribe_copy:topic`,
+  `submit_error:429`) — for the last three whole days on each daily run,
+  replacing what was there, so a rerun gives the same rows. The weekly
+  retro reads these instead of raw events, and `readout()` gives an
+  experiment's arms and z-tests from them.
 - Takedowns (#8). `/api/v1/admin/feeds/<slug>` hides or restores any
   feed, and `/api/v1/admin/blocklist` blocks or unblocks a host with its
   subdomains — its feeds come down with their posts, and lifting the

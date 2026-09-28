@@ -12,6 +12,7 @@ import { tag, topic, ownName } from "../src/lib/feeds/parse.ts";
 import { itemJson, itemPageOpen } from "../src/lib/views.ts";
 import { hasScope, mint } from "../src/lib/keys.ts";
 import { hostKey } from "../src/lib/admin.ts";
+import { lastDays, metricsOf, pageType } from "../src/lib/metrics.ts";
 import { matches, sha256, newToken } from "../src/lib/tokens.ts";
 
 const DAY = 86_400_000;
@@ -187,6 +188,25 @@ test("a blocked host is keyed one way, from a host or an address", () => {
   assert.equal(hostKey("news.spam.example/path"), "news.spam.example");
   assert.equal(hostKey("localhost"), "");
   assert.equal(hostKey("not a host"), "");
+});
+
+describe("metrics", () => {
+  test("a view counts by its page type, from the path's first segment", () => {
+    assert.deepEqual(["/", "/feed/x/", "/tag/ai/", "/c/abc/", "/f/x/edit/", "/nope", "", undefined].map(pageType), ["home", "feed", "tag", "collection", "edit", "other", "other", "other"]);
+    assert.deepEqual(metricsOf({ name: "view", path: "/reader/" }), ["view", "view:reader"]);
+  });
+
+  test("only labels the site sends make metrics of their own", () => {
+    assert.deepEqual(metricsOf({ name: "subscribe_copy", label: "topic" }), ["subscribe_copy", "subscribe_copy:topic"]);
+    assert.deepEqual(metricsOf({ name: "subscribe_open", label: "Feedly" }), ["subscribe_open", "subscribe_open:Feedly"]);
+    assert.deepEqual(metricsOf({ name: "submit_error", label: "429" }), ["submit_error", "submit_error:429"]);
+    assert.deepEqual(metricsOf({ name: "subscribe_copy", label: "anything-a-stranger-sends" }), ["subscribe_copy"]);
+    assert.deepEqual(metricsOf({ name: "outbound", label: "example.com" }), ["outbound"]);
+  });
+
+  test("the last whole days, oldest first", () => {
+    assert.deepEqual(lastDays(3, new Date("2026-09-28T10:00:00Z")), ["2026-09-25", "2026-09-26", "2026-09-27"]);
+  });
 });
 
 describe("exports", () => {

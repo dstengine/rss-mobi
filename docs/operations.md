@@ -108,6 +108,15 @@ only what is due, so two callers do no harm.
   up to 200 a day, each at most weekly, the answer kept on the item as
   `pageVerdict`. `retro-stats` counts them under `openPages`.
 
+- `/api/v1/cron/metrics`, daily at 00:41 UTC, rolls the last three whole
+  days of events into `metrics_daily` (`src/lib/metrics.ts`): a row per
+  day, metric and variant — each event name, views per page type, some
+  events by label, and each experiment variant as
+  `<experiment>=<variant>`. A day rolled up again gets the same rows, so a
+  missed run is caught up by the next; `?day=YYYY-MM-DD` backfills one.
+  `retro-stats` and experiment readouts (`readout()`) read these rows,
+  not the raw events, which expire after 180 days.
+
 ### Index-check spending
 
 A check is one `site:` query in DataForSEO's standard queue, $0.003. What
