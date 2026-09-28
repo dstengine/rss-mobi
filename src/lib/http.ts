@@ -69,7 +69,9 @@ export async function access(
   anon: { bucket: string; max: number; window: `${number} ${"s" | "m" | "h" | "d"}` } = { bucket: "api-read", max: 120, window: "1 m" },
 ): Promise<{ key: ApiKeyDoc | null } | Response> {
   const found = await lookup(bearer(ctx));
-  if (found === "invalid") return INVALID();
+  // A made-up key spends the anonymous allowance, or guessing keys would
+  // be the one way to call without a limit.
+  if (found === "invalid") return (await limitIp(ctx, anon.bucket, anon.max, anon.window)) ?? INVALID();
   if (!found) return (await limitIp(ctx, anon.bucket, anon.max, anon.window)) ?? { key: null };
   const r = await rateLimit("key", found.prefix, found.rate, "1 m");
   if (!r.ok) return tooMany(r.reset, "Rate limit for this key reached.");
@@ -81,8 +83,8 @@ export async function access(
     otherwise the Response to send back. */
 export async function requireScope(ctx: APIContext, scope: Scope): Promise<ApiKeyDoc | Response> {
   const found = await lookup(bearer(ctx));
-  if (found === "invalid") return INVALID();
-  if (!found) return error(401, "An API key is required: Authorization: Bearer rmk_…");
+  if (found === "invalid") return (await limitIp(ctx, "api-read", 120, "1 m")) ?? INVALID();
+  if (!found) return (await limitIp(ctx, "api-read", 120, "1 m")) ?? error(401, "An API key is required: Authorization: Bearer rmk_…");
   if (!hasScope(found, scope)) return error(403, `This key lacks the ${scope} scope.`);
   const r = await rateLimit("key", found.prefix, found.rate, "1 m");
   if (!r.ok) return tooMany(r.reset, "Rate limit for this key reached.");

@@ -137,3 +137,15 @@ export function tag(s: unknown): string {
   const t = unescape(s).toLowerCase().normalize("NFKC").replace(/[\s_/]+/g, "-").replace(/[^\p{L}\p{N}-]+/gu, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
   return t.length >= 2 && t.length <= 32 ? t : "";
 }
+
+/** A route parameter as text. Astro hands it over decoded already; this
+    decodes what is left, and a stray "%" — /tag/%25/ — stays as it is
+    instead of throwing and answering 500. */
+export function decodeParam(s: unknown): string {
+  const v = String(s ?? "");
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return v;
+  }
+}

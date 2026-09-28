@@ -170,7 +170,9 @@ describe("collections", () => {
     assert.deepEqual(q.feedSlug, { $in: ["one", "two"] });
     assert.deepEqual(q.tags, { $in: ["css"] });
     assert.equal(q.visible, true);
-    assert.ok(q.title.$not instanceof RegExp);
+    const out = new RegExp(q.title.$not.$regex, "iu");
+    assert.equal(out.test("An ad for you"), true);
+    assert.equal(out.test("Loading the page"), false);
   });
 
   test("the same filters in a URL mean the same thing", () => {

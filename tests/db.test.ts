@@ -20,7 +20,7 @@ describe("with MongoDB", { skip }, async () => {
   const { pollDue, pollIfDue, store } = await import("../src/lib/catalog.ts");
   const { applyEdit, editable } = await import("../src/lib/edit.ts");
   const { noteSubscribers, storedPosts } = await import("../src/lib/copy.ts");
-  const { itemJson, itemsFor, feedsByTag, tagPlace } = await import("../src/lib/views.ts");
+  const { itemJson, itemsFor, feedsByTag, recentFeeds, tagPlace } = await import("../src/lib/views.ts");
   const { noteActivity } = await import("../src/lib/activity.ts");
   const { apiKeys } = await import("../src/lib/db.ts");
   const { createKey, revokeKey } = await import("../src/lib/keys.ts");
@@ -228,6 +228,17 @@ describe("with MongoDB", { skip }, async () => {
     assert.equal((await col.findOne({ _id: soon._id }))?.failCount, 1);
   });
 
+  test("the newest feeds list one per site", async () => {
+    const a = await feed();
+    const b = await feed();
+    await (await feeds()).updateMany({ _id: { $in: [a._id, b._id] } }, { $set: { host: "same-site.example", itemCount: 3 } });
+    await (await feeds()).updateOne({ _id: b._id }, { $set: { createdAt: new Date(Date.now() + 1_000) } });
+    const list = await recentFeeds(500);
+    const hosts = list.map((f) => f.host);
+    assert.equal(new Set(hosts).size, hosts.length);
+    assert.equal(list.find((f) => f.host === "same-site.example")?.slug, b.slug);
+  });
+
   describe("API keys", () => {
     const call = (token?: string, ip = "203.0.113.9") =>
       ({
@@ -311,6 +322,27 @@ describe("with MongoDB", { skip }, async () => {
       const still = await (await feeds()).findOne({ _id: byHand._id });
       assert.equal(still?.status, "hidden");
       assert.equal(await unblock(host, "test-admin"), null);
+    });
+
+    test("a block takes an owner-hidden feed too, and lifting it puts each feed back as it was", async () => {
+      const own = await feed();
+      const dead = await feed();
+      const host = `${own._id}.example`;
+      hostsBlocked.push(host);
+      await (await feeds()).updateOne({ _id: dead._id }, { $set: { host: `old.${host}`, status: "disabled" } });
+      const hidden = (await applyEdit(own as any, { hidden: true })) as any;
+      assert.equal(hidden.hiddenBy, "owner");
+
+      assert.deepEqual((await block(host, "spam", "test-admin")).sort(), [own.slug, dead.slug].sort());
+      const blocked = (await (await feeds()).findOne({ _id: own._id }))!;
+      assert.equal(blocked.hiddenBy, "blocklist");
+      const refused = await applyEdit(blocked, { hidden: false });
+      assert.ok(refused instanceof Response && refused.status === 403);
+
+      await unblock(host, "test-admin");
+      const [o, d] = await Promise.all([(await feeds()).findOne({ _id: own._id }), (await feeds()).findOne({ _id: dead._id })]);
+      assert.deepEqual([o?.status, o?.hiddenBy, o?.prior], ["hidden", "owner", undefined]);
+      assert.deepEqual([d?.status, d?.hiddenBy], ["disabled", undefined]);
     });
 
     test("an owner cannot undo a takedown with the edit link, but can their own", async () => {

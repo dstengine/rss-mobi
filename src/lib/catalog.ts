@@ -170,7 +170,8 @@ export function humanFetchError(e: Error): string {
   return "No readable feed was found at that address.";
 }
 
-async function isBlocked(...hosts: string[]): Promise<boolean> {
+/** Whether a block covers any of these hosts or a domain above them. */
+export async function isBlocked(...hosts: string[]): Promise<boolean> {
   const ids = hosts.filter(Boolean).flatMap((h) => {
     // example.com blocks every subdomain of it, too.
     const parts = h.split(".");

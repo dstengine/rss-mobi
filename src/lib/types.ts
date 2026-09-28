@@ -30,6 +30,9 @@ export interface FeedDoc {
       directory — an admin, or a block on its host. Only an owner's own
       takedown can be undone with the edit link. */
   hiddenBy?: HiddenBy;
+  /** What the feed was before the directory took it down, to put back
+      when the takedown is undone (admin.ts). */
+  prior?: { status: FeedStatus; hiddenBy?: HiddenBy };
   editHash: string;
   etag?: string;
   lastModified?: string;

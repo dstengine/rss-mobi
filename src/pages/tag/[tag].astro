@@ -8,10 +8,10 @@ import { policy } from "../../lib/policy.ts";
 import { cacheFor } from "../../lib/http.ts";
 import { tag as normalise } from "../../lib/feeds/parse.ts";
 import { feedsByTag, itemsByTag, tagStat } from "../../lib/views.ts";
-import { clip } from "../../lib/feeds/url.ts";
+import { clip, decodeParam } from "../../lib/feeds/url.ts";
 import { counted, topicName } from "../../lib/words.ts";
 
-const raw = decodeURIComponent(String(Astro.params.tag ?? ""));
+const raw = decodeParam(Astro.params.tag);
 const t = normalise(raw);
 if (!t) return Astro.rewrite("/404");
 // One spelling per topic: /tag/Web%20Dev/ and /tag/web-dev/ are one page.

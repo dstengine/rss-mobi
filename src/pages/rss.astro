@@ -44,8 +44,8 @@ const readers = [
 
 const params = [
   { name: "tag", example: "ai,robotics", text: "Posts filed under any of these topics — the last part of a topic page's address." },
-  { name: "q", example: "open source", text: "Posts whose title or excerpt mentions these words." },
-  { name: "exclude", example: "deal,sponsored", text: "Leaves out a post whose title contains any of these words." },
+  { name: "q", example: "open source", text: "Posts whose title or excerpt has every one of these words. Put a phrase in quotes to keep its words together." },
+  { name: "exclude", example: "deal,sponsored", text: "Leaves out a post whose title has any of these words — whole words, so “deal” leaves “Ideal” in." },
   { name: "host", example: "theverge.com", text: "Posts from these sites only, by address, without www." },
   { name: "feed", example: "hacker-news", text: "Posts from these feeds only — the last part of a feed page's address." },
   { name: "lang", example: "en", text: "Posts in one language, by its two-letter code." },
@@ -87,7 +87,7 @@ const jsonLd = [
     <input id="b-tag" name="tag" type="text" list="b-topics" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. ai, robotics" />
     <datalist id="b-topics">{suggest.map((t) => <option value={t} />)}</datalist>
 
-    <label for="b-q">Posts that mention</label>
+    <label for="b-q">Posts that mention <span class="hint">Every word must be there; put a phrase in "quotes".</span></label>
     <input id="b-q" name="q" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. open source" />
 
     <details class="more" id="b-more">

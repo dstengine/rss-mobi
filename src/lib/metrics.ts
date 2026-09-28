@@ -11,6 +11,7 @@
 // A day is a UTC day. Rolling one up again replaces its rows with what
 // the events say now, so a rerun changes nothing and a missed run is
 // caught up by the next.
+import { lock, unlock } from "./cache.ts";
 import { events, metricsDaily } from "./db.ts";
 import { zTest } from "./experiments.ts";
 
@@ -99,9 +100,19 @@ export async function countDay(day: string): Promise<MetricRow[]> {
   return [...counts.values()].sort((a, b) => a.metric.localeCompare(b.metric) || a.variant.localeCompare(b.variant));
 }
 
-/** Replaces a day's rows with a fresh count. Idempotent. */
-export async function rollUp(day: string): Promise<number> {
+/** Replaces a day's rows with a fresh count. Idempotent. Null when another
+    run holds the day: two at once could each delete what the other wrote. */
+export async function rollUp(day: string): Promise<number | null> {
   if (!/^\d{4}-\d\d-\d\d$/.test(day)) throw new Error(`not a day: ${day}`);
+  if (!(await lock(`metrics:${day}`, 120))) return null;
+  try {
+    return await replaceDay(day);
+  } finally {
+    await unlock(`metrics:${day}`);
+  }
+}
+
+async function replaceDay(day: string): Promise<number> {
   const rows = await countDay(day);
   const col = await metricsDaily();
   const at = new Date();

@@ -99,8 +99,22 @@ export async function feedBySlug(slug: string): Promise<PublicFeed | null> {
   return (await feeds()).findOne<PublicFeed>({ slug }, { projection: FEED_FIELDS });
 }
 
+/** The newest listed feeds, one per site: a site that submits its six
+    language editions in a minute would otherwise be the whole front page,
+    and the reader's first screen. The site's newest feed stands for it. */
 export async function recentFeeds(limit = 20, skip = 0): Promise<PublicFeed[]> {
-  return (await feeds()).find<PublicFeed>(LISTED, { projection: FEED_FIELDS }).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray();
+  return (await feeds())
+    .aggregate<PublicFeed>([
+      { $match: LISTED },
+      { $sort: { createdAt: -1 } },
+      { $group: { _id: "$host", feed: { $first: "$$ROOT" } } },
+      { $replaceRoot: { newRoot: "$feed" } },
+      { $sort: { createdAt: -1, slug: 1 } },
+      { $skip: skip },
+      { $limit: limit },
+      { $project: FEED_FIELDS },
+    ])
+    .toArray();
 }
 
 /** Every listed feed, the most followed and liveliest first, as a topic
