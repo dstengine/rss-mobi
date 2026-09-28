@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Takedowns (#8). `/api/v1/admin/feeds/<slug>` hides or restores any
+  feed, and `/api/v1/admin/blocklist` blocks or unblocks a host with its
+  subdomains — its feeds come down with their posts, and lifting the
+  block brings back only those. Both need the admin scope and announce
+  themselves in Telegram. A feed taken down by the directory records
+  `hiddenBy`, and its owner's edit link can no longer undo that.
 - API keys (`scripts/api-key.mjs`, `src/lib/keys.ts`, #6). A key reads
   at its own per-minute rate instead of the anonymous 120; `read:full`
   adds each post's index-check status and each page's robots to the

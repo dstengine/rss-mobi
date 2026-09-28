@@ -25,14 +25,18 @@ describe("with MongoDB", { skip }, async () => {
   const { apiKeys } = await import("../src/lib/db.ts");
   const { createKey, revokeKey } = await import("../src/lib/keys.ts");
   const { access, requireScope } = await import("../src/lib/http.ts");
+  const { block, hideFeed, unblock } = await import("../src/lib/admin.ts");
+  const { blocklist } = await import("../src/lib/db.ts");
   const { parseFilters } = await import("../src/lib/filters.ts");
   const { linkTo } = await import("../src/lib/policy.ts");
   const created: ObjectId[] = [];
 
   const keysMade: ObjectId[] = [];
+  const hostsBlocked: string[] = [];
 
   after(async () => {
     if (keysMade.length) await (await apiKeys()).deleteMany({ _id: { $in: keysMade } });
+    if (hostsBlocked.length) await (await blocklist()).deleteMany({ _id: { $in: hostsBlocked } });
     if (!created.length) return;
     await (await items()).deleteMany({ feedId: { $in: created } });
     await (await feeds()).deleteMany({ _id: { $in: created } });
@@ -271,6 +275,56 @@ describe("with MongoDB", { skip }, async () => {
       const none = await requireScope(call(), "admin");
       assert.ok(none instanceof Response && none.status === 401);
       await assert.rejects(createKey("x", ["root"]), /unknown scope/);
+    });
+  });
+
+  describe("admin", () => {
+    const visible = async (id: ObjectId) => (await (await items()).find({ feedId: id }).toArray()).map((it) => it.visible);
+
+    test("a block takes down a host's feeds, its subdomains' too, and lifting it brings back only those", async () => {
+      const a = await feed();
+      const sub = await feed();
+      const byHand = await feed();
+      const host = `${a._id}.example`;
+      hostsBlocked.push(host);
+      await (await feeds()).updateOne({ _id: sub._id }, { $set: { host: `news.${host}` } });
+      await (await feeds()).updateOne({ _id: byHand._id }, { $set: { host: `blog.${host}` } });
+      await store(a as any, parsed(a.host, [1, 2]));
+      assert.deepEqual(await visible(a._id), [true, true]);
+
+      const r = await hideFeed(byHand.slug, true, "test-admin", "spam");
+      assert.ok(r !== "missing" && r !== "blocked" && r.feed.hiddenBy === "admin");
+
+      const down = await block(host, "spam", "test-admin");
+      assert.deepEqual(down.sort(), [a.slug, sub.slug].sort());
+      assert.deepEqual(await visible(a._id), [false, false]);
+      assert.equal((await (await feeds()).findOne({ _id: a._id }))?.hiddenBy, "blocklist");
+      assert.equal(await hideFeed(a.slug, false, "test-admin"), "blocked");
+
+      const back = await unblock(host, "test-admin");
+      assert.deepEqual(back?.sort(), [a.slug, sub.slug].sort());
+      assert.deepEqual(await visible(a._id), [true, true]);
+      const still = await (await feeds()).findOne({ _id: byHand._id });
+      assert.equal(still?.status, "hidden");
+      assert.equal(await unblock(host, "test-admin"), null);
+    });
+
+    test("an owner cannot undo a takedown with the edit link, but can their own", async () => {
+      const f = await feed();
+      await hideFeed(f.slug, true, "test-admin");
+      const taken = (await (await feeds()).findOne({ _id: f._id }))!;
+      assert.equal(editable(taken).takenDown, true);
+      const refused = await applyEdit(taken, { hidden: false });
+      assert.ok(refused instanceof Response && refused.status === 403);
+      // Other changes still go through, and it stays down.
+      const tagged = (await applyEdit(taken, { hidden: true, tags: ["science"] })) as any;
+      assert.equal(tagged.status, "hidden");
+      assert.deepEqual(tagged.tags, ["science"]);
+
+      await hideFeed(f.slug, false, "test-admin");
+      const own = (await applyEdit((await (await feeds()).findOne({ _id: f._id }))!, { hidden: true })) as any;
+      assert.equal(own.hiddenBy, "owner");
+      assert.equal(((await applyEdit(own, { hidden: false })) as any).status, "active");
     });
   });
 });

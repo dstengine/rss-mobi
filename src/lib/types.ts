@@ -8,6 +8,8 @@ export type LinkMode = "direct" | "ugc" | "nofollow" | "hop" | "none";
 
 export type FeedStatus = "active" | "hidden" | "disabled";
 
+export type HiddenBy = "owner" | "admin" | "blocklist";
+
 export type Copy = "full" | "excerpt";
 
 export interface FeedDoc {
@@ -24,6 +26,10 @@ export interface FeedDoc {
   image?: string;
   format: string;
   status: FeedStatus;
+  /** Who took a hidden feed down: its owner, with the edit link, or the
+      directory — an admin, or a block on its host. Only an owner's own
+      takedown can be undone with the edit link. */
+  hiddenBy?: HiddenBy;
   editHash: string;
   etag?: string;
   lastModified?: string;

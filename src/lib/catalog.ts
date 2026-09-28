@@ -12,7 +12,7 @@ import { alert, indexNow } from "./notify.ts";
 import { policy } from "./policy.ts";
 import { spamReason } from "./spam.ts";
 import { newToken, sha256 } from "./tokens.ts";
-import type { FeedDoc, ItemDoc } from "./types.ts";
+import type { FeedDoc, HiddenBy, ItemDoc } from "./types.ts";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -400,8 +400,12 @@ async function announceIfIndexable(id: ObjectId): Promise<void> {
 /* ------------------------------------------------------------ visibility */
 
 /** Hides or shows a feed and everything it published. */
-export async function setStatus(slug: string, status: FeedDoc["status"]): Promise<boolean> {
-  const feed = await (await feeds()).findOneAndUpdate({ slug }, { $set: { status, updatedAt: new Date() } }, { returnDocument: "after" });
+export async function setStatus(slug: string, status: FeedDoc["status"], by: HiddenBy = "owner"): Promise<boolean> {
+  const feed = await (await feeds()).findOneAndUpdate(
+    { slug },
+    status === "hidden" ? { $set: { status, hiddenBy: by, updatedAt: new Date() } } : { $set: { status, updatedAt: new Date() }, $unset: { hiddenBy: "" } },
+    { returnDocument: "after" },
+  );
   if (!feed) return false;
   await (await items()).updateMany({ feedId: feed._id }, { $set: { visible: status === "active" } });
   return true;

@@ -11,6 +11,7 @@ import { feedTags } from "../src/lib/catalog.ts";
 import { tag, topic, ownName } from "../src/lib/feeds/parse.ts";
 import { itemJson, itemPageOpen } from "../src/lib/views.ts";
 import { hasScope, mint } from "../src/lib/keys.ts";
+import { hostKey } from "../src/lib/admin.ts";
 import { matches, sha256, newToken } from "../src/lib/tokens.ts";
 
 const DAY = 86_400_000;
@@ -178,6 +179,14 @@ describe("API keys", () => {
     assert.deepEqual(itemJson(it, true).index, { status: "not_indexed", checkedAt: it.indexCheckedAt, checks: 2, page: "index,follow" });
     assert.equal(itemJson({ ...it, indexStatus: "indexed" }, true).index?.page, "noindex,follow");
   });
+});
+
+test("a blocked host is keyed one way, from a host or an address", () => {
+  assert.equal(hostKey("WWW.Spam.example"), "spam.example");
+  assert.equal(hostKey("https://www.spam.example:8443/feed?x=1"), "spam.example");
+  assert.equal(hostKey("news.spam.example/path"), "news.spam.example");
+  assert.equal(hostKey("localhost"), "");
+  assert.equal(hostKey("not a host"), "");
 });
 
 describe("exports", () => {

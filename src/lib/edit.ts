@@ -7,10 +7,14 @@ import { feeds, items } from "./db.ts";
 import { MAX_TAGS, setStatus } from "./catalog.ts";
 import { topic } from "./feeds/parse.ts";
 import { error, limitIp } from "./http.ts";
+import { site } from "../site.config.ts";
 import { matches } from "./tokens.ts";
 import type { Copy, FeedDoc } from "./types.ts";
 
-export type Editable = Pick<FeedDoc, "slug" | "title" | "url" | "tags" | "status" | "linkMode"> & { copy: Copy };
+export type Editable = Pick<FeedDoc, "slug" | "title" | "url" | "tags" | "status" | "linkMode"> & { copy: Copy; takenDown: boolean };
+
+/** Hidden by the directory, not by its owner: the edit link cannot bring it back. */
+export const takenDown = (f: Pick<FeedDoc, "status" | "hiddenBy">) => f.status === "hidden" && !!f.hiddenBy && f.hiddenBy !== "owner";
 
 /** The feed this request may edit, or the Response refusing it. */
 export async function authorise(ctx: APIContext): Promise<FeedDoc | Response> {
@@ -33,6 +37,7 @@ export const editable = (f: FeedDoc): Editable => ({
   status: f.status,
   linkMode: f.linkMode,
   copy: f.copy ?? "full",
+  takenDown: takenDown(f),
 });
 
 export interface EditRequest {
@@ -48,6 +53,9 @@ export interface EditRequest {
     it are followed. Owners can ask for less
     link weight, never more — `direct` stays a decision of the rules. */
 export async function applyEdit(feed: FeedDoc, req: EditRequest): Promise<FeedDoc | Response> {
+  if (req.hidden === false && takenDown(feed)) {
+    return error(403, `This feed was taken out of the directory by rss.mobi, and only rss.mobi can bring it back.${site.contact ? ` To ask why, write to ${site.contact}.` : ""}`);
+  }
   const set: Partial<FeedDoc> = {};
   if (req.tags !== undefined) {
     if (!Array.isArray(req.tags)) return error(400, "tags must be a list of strings.");
@@ -75,7 +83,7 @@ export async function applyEdit(feed: FeedDoc, req: EditRequest): Promise<FeedDo
       await (await items()).updateMany({ feedId: feed._id }, { $set: { linkMode: set.linkMode ?? null } });
     }
   }
-  if (typeof req.hidden === "boolean" && feed.status !== "disabled") {
+  if (typeof req.hidden === "boolean" && feed.status !== "disabled" && !takenDown(feed)) {
     const status = req.hidden ? "hidden" : "active";
     if (status !== feed.status) await setStatus(feed.slug, status);
   }

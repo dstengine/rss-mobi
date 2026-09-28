@@ -56,6 +56,27 @@ variable of that file and only its prefix — the eight characters after
 `rmk_` — is printed. The database keeps the hash, the prefix, the name and
 when it was last used.
 
+## Taking things down
+
+Nothing is moderated before it is listed, so what gets past the filters
+comes down afterwards, with the operator's admin key (`RSS_MOBI_ADMIN_KEY`
+in `.env`, never synced anywhere). Every call is announced in Telegram.
+
+```
+. scripts/lib/env.sh; load_env .env; A="Authorization: Bearer $RSS_MOBI_ADMIN_KEY"
+curl -X PUT -H "$A" -d '{"hidden":true,"reason":"casino spam"}' https://rss.mobi/api/v1/admin/feeds/<slug>
+curl -X POST -H "$A" -d '{"host":"spam.example","reason":"…"}' https://rss.mobi/api/v1/admin/blocklist
+curl -H "$A" https://rss.mobi/api/v1/admin/blocklist
+curl -X DELETE -H "$A" "https://rss.mobi/api/v1/admin/blocklist?host=spam.example"
+```
+
+A hidden feed's page answers 410 and its posts leave every list, feed
+and sitemap. A block covers the host and its subdomains: their feeds come
+down and nothing from them is accepted again. Lifting it brings back the
+feeds it took down, not those hidden by hand. A feed taken down this way
+records `hiddenBy`, and its owner's edit link can no longer bring it back
+— only another admin call can.
+
 ## Scheduled jobs
 
 Upstash QStash calls `/api/v1/cron/*` every 15 minutes with

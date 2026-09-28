@@ -35,7 +35,8 @@ export const collections = c<CollectionDoc>("collections");
 export const apiKeys = c<ApiKeyDoc>("api_keys");
 export const indexChecks = c<Document>("index_checks");
 export const spend = c<{ _id: string; usd: number; updatedAt: Date }>("spend");
-export const blocklist = c<{ _id: string; reason: string; createdAt: Date }>("blocklist");
+/** Blocked hosts: the host is the id, and it covers every subdomain. */
+export const blocklist = c<{ _id: string; reason: string; by?: string; createdAt: Date }>("blocklist");
 export const reports = c<Document>("reports");
 export const events = c<Document>("events");
 export const metricsDaily = c<Document>("metrics_daily");
