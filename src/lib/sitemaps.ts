@@ -6,7 +6,7 @@ import type { Filter } from "mongodb";
 import { feeds, items } from "./db.ts";
 import { policy } from "./policy.ts";
 import { newest, type Entry } from "./sitemap.ts";
-import { itemPath, recentFeeds, tagStats } from "./views.ts";
+import { itemPath, recentFeeds, starterSets, tagStats } from "./views.ts";
 import type { ItemDoc } from "./types.ts";
 import { copyDate, site } from "../site.config.ts";
 
@@ -19,12 +19,13 @@ const loc = (path: string) => `${site.url}${path}`;
 export async function pageEntries(): Promise<Entry[]> {
   // The front page lists the thirty newest feeds, so it is as new as the
   // newest of those — not of every feed in the directory.
-  const [listed, tags] = await Promise.all([recentFeeds(30), tagStats(500)]);
+  const [listed, tags, sets] = await Promise.all([recentFeeds(30), tagStats(500), starterSets()]);
+  const starters = sets.length >= 3 ? sets.flatMap((s) => s.feeds) : listed.slice(0, 8);
   return [
     { loc: loc("/"), lastmod: newest([copyDate("/"), ...listed.map((f) => f.updatedAt)]) },
     { loc: loc("/tags/"), lastmod: newest([copyDate("/tags/"), ...tags.map((t) => t.updatedAt)]) },
-    // The reader's starter list is the eight newest feeds.
-    { loc: loc("/reader/"), lastmod: newest([copyDate("/reader/"), ...listed.slice(0, 8).map((f) => f.updatedAt)]) },
+    // The reader starts with topic sets, or the eight newest feeds.
+    { loc: loc("/reader/"), lastmod: newest([copyDate("/reader/"), ...starters.map((f) => f.updatedAt)]) },
     // /rss/ lists every open topic and its count of feeds.
     { loc: loc("/rss/"), lastmod: newest([copyDate("/rss/"), ...tags.map((t) => t.updatedAt)]) },
     ...STATIC.map((p) => ({ loc: loc(p), lastmod: copyDate(p) })),

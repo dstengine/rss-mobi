@@ -20,6 +20,11 @@ const NAMES = new Set([
   "follow",
   "unfollow",
   "reader_more",
+  // A first-time reader's visit (label "empty") and each feed they follow
+  // in it ("first", then "more"): reader-starter-v1's exposure and
+  // conversion.
+  "reader_start",
+  "reader_follow",
   "read_post",
   "opml_import",
   "opml_export",

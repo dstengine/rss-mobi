@@ -9,10 +9,15 @@ import FollowButton from "../components/FollowButton.astro";
 import { site } from "../site.config.ts";
 import { policy } from "../lib/policy.ts";
 import { cacheFor } from "../lib/http.ts";
-import { recentFeeds } from "../lib/views.ts";
+import { recentFeeds, starterSets } from "../lib/views.ts";
+import { topicName } from "../lib/words.ts";
 import Icon from "../components/Icon.astro";
 
-const starters = await recentFeeds(8);
+// A first-time reader starts with topics to follow four feeds at a time
+// (views.ts starterSets); the eight newest feeds are the fallback while
+// there are too few topics for three sets.
+const sets = await starterSets();
+const starters = sets.length >= 3 ? [] : await recentFeeds(8);
 const decision = policy({ type: "static" });
 Astro.response.headers.set("Cache-Control", cacheFor(300));
 
@@ -52,13 +57,20 @@ const jsonLd = {
     <div id="empty">
       <div class="notice" id="empty-note">
         <p>
-          You are not following any feeds yet. Tap <strong>Follow</strong> on a few below, or on any feed's page, and their posts collect here. Already
-          use a reader? <button type="button" class="linklike" data-goto="following">Import your OPML file</button>.
+          You are not following any feeds yet.{" "}
+          {
+            sets.length >= 3 ? (
+              <>Pick a topic below to follow four of its best feeds at once, or tap <strong>Follow</strong> on any feed's page,</>
+            ) : (
+              <>Tap <strong>Follow</strong> on a few below, or on any feed's page,</>
+            )
+          }{" "}
+          and their posts collect here. Already use a reader? <button type="button" class="linklike" data-goto="following">Import your OPML file</button>.
         </p>
       </div>
       {
         starters.length > 0 && (
-          <>
+          <div id="starter-newest">
             <h2>Start with these RSS feeds</h2>
             <ul class="cards">
               {starters.map((f) => (
@@ -67,7 +79,37 @@ const jsonLd = {
                 </FeedCard>
               ))}
             </ul>
-          </>
+          </div>
+        )
+      }
+      {
+        sets.length >= 3 && (
+          <div id="starter-topics">
+            <h2>Start with a topic</h2>
+            <ul class="sets">
+              {sets.map((set) => (
+                <li>
+                  <h3>
+                    <a href={`/tag/${set.tag}/`} title={`The best ${topicName(set.tag, false)} RSS feeds, ranked`}>
+                      {topicName(set.tag)}
+                    </a>
+                  </h3>
+                  <p class="small muted">{set.feeds.map((f) => f.title).join(" · ")}</p>
+                  <button
+                    type="button"
+                    class="button secondary follow follow-set"
+                    data-set={JSON.stringify(set.feeds.map(({ slug, title, host, url }) => ({ slug, title, host, url })))}
+                    data-topic={set.tag}
+                    aria-pressed="false"
+                  >
+                    <Icon name="plus" class="when-off" />
+                    <Icon name="check" class="when-on" />
+                    <span class="label">Follow these {set.feeds.length}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         )
       }
       <p><a href="/tags/" title="Browse RSS feeds by topic to find more to follow">Browse all topics</a></p>
@@ -481,6 +523,48 @@ const jsonLd = {
   // view for the whole visit, so following three of them takes three taps
   // rather than a hunt for where the list went after the first.
   const startedEmpty = subs().length === 0;
+
+  // How many first-time readers follow anything: the first visit that
+  // starts with nothing followed, and the first follow after it, each
+  // counted once per browser. A browser that keeps nothing (a private
+  // window, blocked storage) is left out: it could not follow anyway.
+  const once = (key: string, send: () => void) => {
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+      send();
+    } catch {}
+  };
+  if (startedEmpty) {
+    once("rssmobi:started", () => track("reader_start", { label: "empty" }));
+    const onFollow = () => {
+      if (subs().length) once("rssmobi:first-follow", () => track("reader_follow", { label: "first" }));
+    };
+    window.addEventListener("rssmobi:subs", onFollow);
+  }
+
+  // A topic set follows its four feeds in one tap, and says so once they
+  // are all followed, however they got there.
+  const setButtons = [...document.querySelectorAll<HTMLButtonElement>("button.follow-set")];
+  const paintSets = () => {
+    const have = new Set(subs().map((s) => s.slug));
+    for (const b of setButtons) {
+      const set: Sub[] = JSON.parse(b.dataset.set ?? "[]");
+      const all = set.every((f) => have.has(f.slug));
+      b.setAttribute("aria-pressed", String(all));
+      b.querySelector(".label")!.textContent = all ? "Following" : `Follow these ${set.length}`;
+    }
+  };
+  for (const b of setButtons) {
+    b.addEventListener("click", () => {
+      const set: Sub[] = JSON.parse(b.dataset.set ?? "[]");
+      if (set.every((f) => subs().some((s) => s.slug === f.slug))) return;
+      follow(...set);
+      track("follow", { label: `set:${b.dataset.topic}` });
+    });
+  }
+  window.addEventListener("rssmobi:subs", paintSets);
+  paintSets();
 
   function render() {
     const list = subs();

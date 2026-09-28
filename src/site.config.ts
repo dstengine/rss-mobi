@@ -63,7 +63,7 @@ export const COPY_UPDATED: Record<string, string> = {
   "/submit/": "2026-09-25",
   "/about/": "2026-09-25",
   "/terms/": "2026-09-24",
-  "/reader/": "2026-09-25",
+  "/reader/": "2026-09-29",
   "/c/new/": "2026-09-23",
   "/rss/": "2026-09-29",
 };

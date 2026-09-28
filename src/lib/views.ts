@@ -135,6 +135,30 @@ export async function feedLanguages(): Promise<{ lang: string; feeds: number }[]
   return rows.map((r) => ({ lang: r._id, feeds: r.n }));
 }
 
+/** Broad topics a first-time reader is offered, in this order, when they
+    have a page of their own. */
+const STARTER_TOPICS = ["technology", "news", "science", "programming", "design", "gaming", "business", "world-news", "movies", "music", "food", "travel"];
+
+/** The reader's first screen: up to six broad topics, each with four of
+    its best-ranked feeds. No feed is in two sets, so following two topics
+    gives eight feeds, not six; a topic left with fewer than three is
+    skipped. */
+export async function starterSets(): Promise<{ tag: string; feeds: PublicFeed[] }[]> {
+  const stats = await tagStats(500);
+  const open = new Set(stats.filter((t) => policy({ type: "tag", feeds: t.feeds, hosts: t.hosts }).sitemap).map((t) => t.tag));
+  const picks = STARTER_TOPICS.filter((t) => open.has(t)).slice(0, 6);
+  const ranked = await Promise.all(picks.map((t) => feedsByTag(t, 12)));
+  const used = new Set<string>();
+  const sets: { tag: string; feeds: PublicFeed[] }[] = [];
+  picks.forEach((tag, i) => {
+    const feeds = ranked[i].filter((f) => !used.has(f.slug)).slice(0, 4);
+    if (feeds.length < 3) return;
+    for (const f of feeds) used.add(f.slug);
+    sets.push({ tag, feeds });
+  });
+  return sets;
+}
+
 export async function listedCount(): Promise<number> {
   return (await feeds()).countDocuments(LISTED);
 }

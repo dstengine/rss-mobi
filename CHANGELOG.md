@@ -19,6 +19,17 @@
   (`indexSkipped: "queue"`), so the budget goes to fresh posts, whose
   originals are the likeliest to be missing from Google. `retro-stats`
   counts them.
+- A first-time reader starts with topics: six broad ones (technology,
+  news, science, programming, design, gaming), four of each topic's
+  best-ranked feeds with no feed in two, and one button that follows all
+  four. It replaces the eight newest feeds, which one site's language
+  editions had filled. Planned as an A/B test (#14), shipped as the
+  default instead: the control had stopped being a fair baseline, and
+  six reader visits a day could only have shown a threefold lift after
+  two months (`docs/experiments/reader-starter-v1.md`). `reader_start`
+  and `reader_follow:first`, each once per browser, and follows per page
+  type (`follow:reader`) measure it before and after. A test refuses an
+  active experiment without its doc.
 - Daily metrics (#9). `/api/v1/cron/metrics` rolls events up into
   `metrics_daily` by day, metric and experiment variant — each event,
   views per page type, labels from a fixed list (`subscribe_copy:topic`,
