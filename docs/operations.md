@@ -63,14 +63,15 @@ comes down afterwards, with the operator's admin key (`RSS_MOBI_ADMIN_KEY`
 in `.env`, never synced anywhere). Every call is announced in Telegram.
 
 ```
-A="Authorization: Bearer $(grep '^RSS_MOBI_ADMIN_KEY=' .env | cut -d= -f2-)"
-curl -X PUT -H "$A" -d '{"hidden":true,"reason":"casino spam"}' https://rss.mobi/api/v1/admin/feeds/<slug>
-curl -X POST -H "$A" -d '{"host":"spam.example","reason":"…"}' https://rss.mobi/api/v1/admin/blocklist
+A="Authorization: Bearer $(grep '^RSS_MOBI_ADMIN_KEY=' .env | cut -d= -f2-)"; J="Content-Type: application/json"
+curl -X PUT -H "$A" -H "$J" -d '{"hidden":true,"reason":"casino spam"}' https://rss.mobi/api/v1/admin/feeds/<slug>
+curl -X POST -H "$A" -H "$J" -d '{"host":"spam.example","reason":"…"}' https://rss.mobi/api/v1/admin/blocklist
 curl -H "$A" https://rss.mobi/api/v1/admin/blocklist
-curl -X DELETE -H "$A" "https://rss.mobi/api/v1/admin/blocklist?host=spam.example"
+curl -X DELETE -H "$A" -H "$J" "https://rss.mobi/api/v1/admin/blocklist?host=spam.example"
 ```
 
-A hidden feed's page answers 410 and its posts leave every list, feed
+Writes need the JSON content type: Astro refuses a cross-site PUT, POST or
+DELETE that looks like a form. A hidden feed's page answers 410 and its posts leave every list, feed
 and sitemap. A block covers the host and its subdomains: their feeds come
 down and nothing from them is accepted again. Lifting it brings back the
 feeds it took down, not those hidden by hand. A feed taken down this way
