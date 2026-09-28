@@ -66,6 +66,16 @@ export const EXPERIMENTS: Record<string, Experiment> = {
     ],
     active: false,
   },
+  // docs/experiments/reader-starter-v1.md
+  "reader-starter-v1": {
+    id: "reader-starter-v1",
+    kind: "visitor",
+    variants: [
+      { id: "newest", weight: 1 },
+      { id: "topics", weight: 1 },
+    ],
+    active: true,
+  },
   "submit-steps-v1": {
     id: "submit-steps-v1",
     kind: "visitor",

@@ -4,7 +4,8 @@ import { policy, linkTo } from "../src/lib/policy.ts";
 import { urlset, sitemapIndex, changefreqFor, priorityFor, newest } from "../src/lib/sitemap.ts";
 import { describe as said, narrowed, parseFilters, spelling, terms, toQuery, toSearch, wordPattern } from "../src/lib/filters.ts";
 import { feedsOpml, rssPath } from "../src/lib/exports.ts";
-import { assign, zTest, hash32, type Experiment } from "../src/lib/experiments.ts";
+import { assign, zTest, hash32, EXPERIMENTS, type Experiment } from "../src/lib/experiments.ts";
+import { existsSync } from "node:fs";
 import { reserve, headroom, BudgetExceeded, LIMITS } from "../src/lib/budget.ts";
 import { spamReason } from "../src/lib/spam.ts";
 import { feedTags } from "../src/lib/catalog.ts";
@@ -224,6 +225,8 @@ describe("metrics", () => {
     assert.deepEqual(metricsOf({ name: "submit_error", label: "429" }), ["submit_error", "submit_error:429"]);
     assert.deepEqual(metricsOf({ name: "subscribe_copy", label: "anything-a-stranger-sends" }), ["subscribe_copy"]);
     assert.deepEqual(metricsOf({ name: "outbound", label: "example.com" }), ["outbound"]);
+    assert.deepEqual(metricsOf({ name: "reader_start", label: "empty" }), ["reader_start", "reader_start:empty"]);
+    assert.deepEqual(metricsOf({ name: "reader_follow", label: "first" }), ["reader_follow", "reader_follow:first"]);
   });
 
   test("the last whole days, oldest first", () => {
@@ -253,6 +256,19 @@ describe("experiments", () => {
 
   test("assignment is deterministic", () => {
     assert.equal(assign(exp, "visitor-1"), assign(exp, "visitor-1"));
+  });
+
+  test("an experiment is switched on only with its doc written, and splits its visitors evenly", () => {
+    for (const exp of Object.values(EXPERIMENTS).filter((e) => e.active)) {
+      assert.ok(existsSync(new URL(`../docs/experiments/${exp.id}.md`, import.meta.url)), `docs/experiments/${exp.id}.md`);
+      const n = 10_000;
+      const seen = new Map<string, number>();
+      for (let i = 0; i < n; i++) {
+        const v = assign(exp, crypto.randomUUID());
+        seen.set(v, (seen.get(v) ?? 0) + 1);
+      }
+      for (const v of exp.variants) assert.ok(Math.abs((seen.get(v.id) ?? 0) / n - 1 / exp.variants.length) < 0.03, `${exp.id}=${v.id}`);
+    }
   });
 
   test("10,000 ids split 50/50 within 2%", () => {

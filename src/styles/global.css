@@ -1378,6 +1378,48 @@ details.report[open] > summary::before,
   }
 }
 
+/* ------------------------------------------------------------ start sets */
+
+/* A first-time reader's topic sets: a topic, its four feeds by name, and
+   one button that follows all four. */
+.sets {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .sets {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.sets li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.sets h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.sets p {
+  flex: 1;
+  margin: 0 0 6px;
+}
+
+.sets .button {
+  align-self: flex-start;
+}
+
 /* --------------------------------------------------------------- exports */
 
 .builder {

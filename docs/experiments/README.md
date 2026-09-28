@@ -15,3 +15,4 @@ One file per experiment, named by its id in `EXPERIMENTS`
 |---|---|---|
 | `feed-title-v1` | page | drafted, off |
 | `submit-steps-v1` | visitor | drafted, off |
+| `reader-starter-v1` | visitor | on from the day it ships |

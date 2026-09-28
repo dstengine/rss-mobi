@@ -26,6 +26,8 @@ const LABELS: Record<string, RegExp> = {
   subscribe_open: /^(Feedly|Inoreader|NetNewsWire|rss\.mobi)$/,
   submit_error: /^\d{3}$/,
   collection_add_url: /^(new|existing)$/,
+  reader_start: /^empty$/,
+  reader_follow: /^(first|more)$/,
 };
 const LABELLED = Object.keys(LABELS);
 
