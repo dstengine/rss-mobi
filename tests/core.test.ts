@@ -16,7 +16,7 @@ import { hostKey } from "../src/lib/admin.ts";
 import { decodeParam } from "../src/lib/feeds/url.ts";
 import { lastDays, metricsOf, pageType } from "../src/lib/metrics.ts";
 import { cluster, sensitive, type Post } from "../src/lib/clusters.ts";
-import { check, WORDS } from "../src/lib/stories.ts";
+import { check, storySlug, WORDS } from "../src/lib/stories.ts";
 import { matches, sha256, newToken } from "../src/lib/tokens.ts";
 
 const DAY = 86_400_000;
@@ -280,6 +280,11 @@ describe("story checks", () => {
     keyPoints: ["The earbuds plug into USB-C and need no charging.", "Noise cancelling runs on power from the cable.", "Both reports put the price at 99 dollars."],
     cited: ["https://a.example/1", "https://b.example/2"],
   };
+
+  test("a headline's address keeps what follows a colon", () => {
+    assert.equal(storySlug("Spider-Man: Brand New Day is headed back to cinemas"), "spider-man-brand-new-day-is-headed-back-to-cinemas");
+    assert.equal(storySlug("SpaceX puts Starship into orbit — then cuts the flight short"), "spacex-puts-starship-into-orbit-then-cuts-the");
+  });
 
   test("a story in shape passes, with its word count", () => {
     const r = check(job, good);

@@ -185,6 +185,12 @@ export function check(job: Pick<StoryDoc, "sources">, input: unknown): { ok: tru
 
 /* ----------------------------------------------------------- submitting */
 
+/** A headline as an address. slugify() reads what follows a colon or a
+    dash as a feed's tagline and drops it; in a headline it is the news —
+    "Spider-Man: Brand New Day is headed back…" is not a story about
+    Spider-Man in general — so the separators become spaces first. */
+export const storySlug = (headline: string) => slugify(headline.replace(/\s*[:|·–—]\s*/g, " "), "story");
+
 /** Files a story written for a job the worker holds. The address is the
     day it was filed and its headline. */
 export async function submit(id: string, worker: { prefix: string; name: string }, input: unknown, now = new Date()) {
@@ -195,7 +201,7 @@ export async function submit(id: string, worker: { prefix: string; name: string 
   const result = check(job, input);
   if (!result.ok) return { status: 422 as const, problems: result.problems };
   const day = now.toISOString().slice(0, 10);
-  const base = slugify(result.story.headline, "story");
+  const base = storySlug(result.story.headline);
   let slug = base;
   for (let n = 2; await col.findOne({ day, slug, _id: { $ne: job._id } }, { projection: { _id: 1 } }); n++) slug = `${base}-${n}`;
   const doc = await col.findOneAndUpdate(
