@@ -2,11 +2,11 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { ObjectId } from "mongodb";
 import { LIMITS } from "../src/lib/budget.ts";
-import { LOW_BALANCE_DAYS, afterCheck, isPaused, nextCheckIn, runIndexCheck, type Queued, type Store } from "../src/lib/indexcheck.ts";
+import { LOW_BALANCE_DAYS, QUEUE_MAX, afterCheck, isPaused, nextCheckIn, runIndexCheck, type Queued, type Store } from "../src/lib/indexcheck.ts";
 import { CHECK_USD, SerpStop, dataForSeo, isStop, keywordFor, listed, type SerpApi } from "../src/lib/serp.ts";
 import type { IndexStatus } from "../src/lib/types.ts";
 
-type Row = Queued & { visible: boolean; indexNextCheckAt: Date | null; updatedAt?: Date; announce?: true };
+type Row = Queued & { visible: boolean; indexNextCheckAt: Date | null; updatedAt?: Date; announce?: true; indexSkipped?: "queue" };
 
 function row(url: string, dueAt: Date, extra: Partial<Row> = {}): Row {
   return { _id: new ObjectId(), url, canonicalUrl: url.replace(/\/$/, ""), indexStatus: "queued", indexChecks: 0, visible: true, indexNextCheckAt: dueAt, ...extra };
@@ -43,6 +43,11 @@ function memStore(rows: Row[]) {
       log.push({ url: r.url, verdict: "lost", usd: r.serpCost ?? 0 });
       Object.assign(r, { indexNextCheckAt: at }, verdictOf(r.indexStatus) ? {} : { indexStatus: "queued" });
       clear(r);
+    },
+    async trim(max) {
+      const over = rows.filter((r) => r.visible && r.indexStatus === "queued").sort((a, b) => +b.indexNextCheckAt! - +a.indexNextCheckAt!).slice(max);
+      for (const r of over) Object.assign(r, { indexStatus: "skipped", indexNextCheckAt: null, indexSkipped: "queue" });
+      return over.length;
     },
     async unannounced(limit) {
       return rows.filter((r) => r.announce).slice(0, limit);
@@ -236,6 +241,25 @@ describe("index check", () => {
     assert.equal(rows[0].indexStatus, "queued");
     assert.equal(second.stopped, "today's serp budget is spent");
     assert.equal(alerts.length, 1);
+  });
+
+  test("a full queue keeps its newest posts and skips the oldest; rechecks are not counted", async () => {
+    const now = new Date("2026-10-05T10:00:00Z");
+    const waiting = Array.from({ length: QUEUE_MAX + 3 }, (_, i) => row(`https://a.example/${i}`, later(now, -(i + 1) * 60_000)));
+    const recheck = row("https://b.example/old", later(now, -86_400_000), { indexStatus: "not_indexed", indexChecks: 1 });
+    const hidden = row("https://c.example/hidden", later(now, -86_400_000), { visible: false });
+    const rows = [...waiting, recheck, hidden];
+    const { store } = memStore(rows);
+    const report = await runIndexCheck(Date.now() + 10_000, { api: fakeApi().api, store, ledger: fakeLedger(LIMITS.serp, "2026-10-05"), alert: async () => {}, now: () => now });
+    assert.equal(report.trimmed, 3);
+    // The three that waited longest, and only they.
+    assert.deepEqual(rows.filter((r) => r.indexSkipped).map((r) => r.url), waiting.slice(-3).map((r) => r.url));
+    assert.ok(waiting.slice(-3).every((r) => r.indexStatus === "skipped" && r.indexNextCheckAt === null));
+    assert.equal(rows.filter((r) => r.visible && r.indexStatus === "queued").length, QUEUE_MAX);
+    assert.equal(recheck.indexStatus, "not_indexed");
+    assert.equal(hidden.indexStatus, "queued");
+    // A queue at its size is left alone.
+    assert.equal((await runIndexCheck(Date.now() + 10_000, { api: fakeApi().api, store, ledger: fakeLedger(LIMITS.serp, "2026-10-05"), alert: async () => {}, now: () => now })).trimmed, 0);
   });
 
   test("at the ceiling nothing is posted, and the day's alert is sent once", async () => {

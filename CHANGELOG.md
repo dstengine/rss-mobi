@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The index-check queue holds at most 420 posts waiting for a first check
+  — about ten days of the $0.12 daily ceiling. When more arrive than the
+  budget checks, the oldest waiting leave it as `skipped`
+  (`indexSkipped: "queue"`), so the budget goes to fresh posts, whose
+  originals are the likeliest to be missing from Google. `retro-stats`
+  counts them.
 - Daily metrics (#9). `/api/v1/cron/metrics` rolls events up into
   `metrics_daily` by day, metric and experiment variant — each event,
   views per page type, labels from a fixed list (`subscribe_copy:topic`,

@@ -134,6 +134,13 @@ stops it spending:
 - **The balance** is read once a day; under ten days of the ceiling, one
   message a day until it is topped up at https://app.dataforseo.com/.
 - **Every check** is logged in `index_checks` with its verdict and cost.
+- **The queue** for a first check holds at most `QUEUE_MAX` (420, about
+  ten days of the $0.12 ceiling) posts. Each run, after collecting, the
+  oldest beyond that leave it as `skipped` with `indexSkipped: "queue"`;
+  their pages stay `noindex`. A post whose original is not in Google yet
+  is most likely a fresh one, so the newest are kept. To check them after
+  all, set them back to `queued` with `indexNextCheckAt` = now and unset
+  `indexSkipped`. Rechecks are not counted in the queue.
 
 Rechecks: days 1, 3 and 7, then weekly while the original is missing, and
 monthly once Google has it. A failed check is retried the next day and
