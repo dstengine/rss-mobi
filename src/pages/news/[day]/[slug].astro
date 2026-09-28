@@ -1,0 +1,100 @@
+---
+// A written story (stories.ts): what several sites reported, in one piece,
+// with every source linked. While it is in review the page is a draft at
+// an address nobody links to — noindex, out of the sitemap — and a
+// published one is for search.
+import Base from "../../../layouts/Base.astro";
+import { policy } from "../../../lib/policy.ts";
+import { cacheFor } from "../../../lib/http.ts";
+import { storyAt, storyPath } from "../../../lib/stories.ts";
+import { clip } from "../../../lib/feeds/url.ts";
+import { fmtDate } from "../../../lib/views.ts";
+import { counted } from "../../../lib/words.ts";
+import { site } from "../../../site.config.ts";
+
+const day = String(Astro.params.day ?? "");
+const slug = String(Astro.params.slug ?? "");
+const story = /^\d{4}-\d\d-\d\d$/.test(day) && /^[a-z0-9-]{1,100}$/.test(slug) ? await storyAt(day, slug) : null;
+if (!story) return Astro.rewrite("/404");
+
+const decision = policy({ type: "story", status: story.status });
+// A draft is read by the one person deciding on it, and should show an
+// edit at once; a published story is cached like any page.
+Astro.response.headers.set("Cache-Control", story.status === "published" ? cacheFor(300) : "private, no-store");
+
+const path = storyPath(story);
+const cited = new Set(story.cited ?? []);
+const sources = story.sources.filter((s) => cited.has(s.url));
+const sites = new Set(sources.map((s) => s.host)).size;
+const tail = ` Written from ${counted(sites, "site")} in the rss.mobi RSS feeds directory.`;
+const description = `${clip(story.dek ?? "", 158 - tail.length)}${tail}`;
+const when = story.publishedAt ?? story.submittedAt ?? story.updatedAt;
+
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: story.headline,
+    description: story.dek,
+    url: `${site.url}${path}`,
+    datePublished: new Date(when).toISOString(),
+    dateModified: new Date(story.updatedAt).toISOString(),
+    wordCount: story.words,
+    publisher: { "@type": "Organization", name: site.name, url: `${site.url}/` },
+    isBasedOn: sources.map((s) => s.url),
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "RSS feeds", item: `${site.url}/` },
+      { "@type": "ListItem", position: 2, name: story.headline },
+    ],
+  },
+];
+---
+
+<Base title={clip(story.headline ?? "", 70)} description={description} robots={decision.robots} path={path} jsonLd={jsonLd} ogType="article">
+  <article class="post story">
+    {story.status !== "published" && <p class="notice">Draft in review — not published, and not listed anywhere.</p>}
+    <h1>{story.headline}</h1>
+    <p class="lede">{story.dek}</p>
+    <p class="muted small">
+      <time class="nowrap" datetime={new Date(when).toISOString()}>{fmtDate(when)}</time> · from <span class="nowrap">{counted(sites, "site")}</span>
+    </p>
+    {
+      story.sections?.map((sec) => (
+        <section>
+          <h2>{sec.heading}</h2>
+          {sec.paragraphs.map((p) => (
+            <p>{p}</p>
+          ))}
+        </section>
+      ))
+    }
+    <section class="key-points">
+      <h2>Key points</h2>
+      <ul>
+        {story.keyPoints?.map((k) => (
+          <li>{k}</li>
+        ))}
+      </ul>
+    </section>
+    <section>
+      <h2>Sources</h2>
+      <ul class="sources">
+        {sources.map((s) => (
+          <li>
+            <a href={s.url} rel="noopener" title={`The original report on ${s.host}`}>
+              {s.title}
+            </a>{" "}
+            <span class="muted small nowrap">{s.host}</span>
+          </li>
+        ))}
+      </ul>
+      <p class="muted small">
+        rss.mobi wrote this story from what these sites reported; each report belongs to its publisher. Found a mistake? Write to <a href={`mailto:${site.contact}`} title="Corrections to a story on rss.mobi">{site.contact}</a>.
+      </p>
+    </section>
+  </article>
+</Base>

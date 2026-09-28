@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Story jobs, the first slice of v1.1. The stories several sites cover
+  in the last two days are clustered — a post joins a cluster only by
+  matching one of its first posts, so two stories that share a name do
+  not chain together, and near-duplicate clusters are merged — and the
+  best become jobs, leaving out crime, deaths and court cases. A worker
+  with the new `write:stories` scope claims a job for 30 minutes, gets
+  its sources and the brief, and sends the story back as structured
+  JSON; the server checks length, sources and copied wording and files
+  it as a noindex draft at `/news/<day>/<slug>/` until an admin
+  publishes it.
 - Fixes from the first review and critique. The newest-feeds lists (the
   front page, search, the reader) show one feed per site, so one site's
   six language editions no longer fill them. A search needs every word

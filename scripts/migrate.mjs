@@ -48,6 +48,9 @@ const INDEXES = {
     [{ title: "text", excerpt: "text" }, { default_language: "none", weights: { title: 3, excerpt: 1 }, name: "text" }],
   ],
   collections: [[{ id: 1 }, { unique: true }]],
+  // Jobs by what a worker takes next; a story's address; the posts it was
+  // made from, so a cluster already written is not queued again.
+  stories: [[{ status: 1, score: -1 }], [{ day: 1, slug: 1 }, { unique: true, partialFilterExpression: { slug: { $type: "string" } } }], [{ "sources.itemId": 1 }]],
   api_keys: [[{ hash: 1 }, { unique: true }], [{ prefix: 1 }]],
   index_checks: [[{ itemId: 1, at: -1 }], [{ at: 1 }, { expireAfterSeconds: 180 * DAY }]],
   events: [[{ at: 1 }, { expireAfterSeconds: 180 * DAY }], [{ name: 1, at: -1 }]],
