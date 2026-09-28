@@ -293,7 +293,9 @@ describe("story checks", () => {
   });
 
   test("a title in quotation marks may repeat a source, a long quotation may not", () => {
-    const titled = { ...good, keyPoints: [...good.keyPoints.slice(0, 2), "Reviewers compared them with “The company said the new wired earbuds cost”, a phrase."] };
+    // The apostrophe must not end the quotation: after it come eight words
+    // of the source.
+    const titled = { ...good, keyPoints: [...good.keyPoints.slice(0, 2), "One review called it “the company’s said the new wired earbuds cost 99 dollars” moment."] };
     const r = check(job, titled);
     assert.ok(r.ok, JSON.stringify(!r.ok && r.problems));
     const long = check(job, { ...good, keyPoints: [...good.keyPoints.slice(0, 2), "One site wrote “the company said the new wired earbuds cost 99 dollars and add noise cancelling”."] });

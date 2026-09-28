@@ -24,7 +24,7 @@ export const BRIEF = `Write one news story, in English, from the sources in this
 
 - Read every source in full at its address first; the excerpts here are only a guide. Rely on what the sources report, and nothing else: no guesses, no background you cannot find in them.
 - 400 to 800 words: a headline, a dek (one or two sentences that say what happened), three to six sections with short headings — what happened, the context, what it means — and three to five key points.
-- Your own words throughout. Never reuse eight or more consecutive words from a source. Titles of songs, films and books, and short attributed quotes, go in quotation marks: quoted text is exempt, but each quotation stays under twelve words, and all of them together under sixty.
+- Your own words throughout. Never reuse eight or more consecutive words from a source. Titles of songs, films and books, and short attributed quotes, go in double quotation marks: quoted text is exempt, but each quotation stays under twelve words, and all of them together under sixty.
 - Name who reported what when the sources differ or a figure comes from one of them. Keep the tone plain and neutral.
 - Cite at least two sources from different sites, by their addresses as given here.
 - If the sources are really two different stories, write the main one from the sources about it, or reject the job with the reason. Reject it too if it is about crime, sexual violence or a death involving private people, a case before a court, or medical or financial advice.
@@ -136,9 +136,10 @@ export interface Submission {
 
 const wordsOf = (s: string) => key(s).split(/\s+/).filter(Boolean);
 
-/** Text in quotation marks: a title or a quote, which may repeat a
-    source word for word. */
-const QUOTED = /[“"‘]([^”"’]{1,300})[”"’]/g;
+/** Text in double quotation marks: a title or a quote, which may repeat a
+    source word for word. Single quotes are not read as quotation marks:
+    their closing one is the apostrophe in "It’s". */
+const QUOTED = /[“"]([^”"]{1,300})[”"]/g;
 const QUOTE_MAX = 12;
 const QUOTES_MAX = 60;
 
