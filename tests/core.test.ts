@@ -15,6 +15,8 @@ import { hasScope, mint } from "../src/lib/keys.ts";
 import { hostKey } from "../src/lib/admin.ts";
 import { decodeParam } from "../src/lib/feeds/url.ts";
 import { lastDays, metricsOf, pageType } from "../src/lib/metrics.ts";
+import { cluster, sensitive, type Post } from "../src/lib/clusters.ts";
+import { check, WORDS } from "../src/lib/stories.ts";
 import { matches, sha256, newToken } from "../src/lib/tokens.ts";
 
 const DAY = 86_400_000;
@@ -232,6 +234,70 @@ describe("metrics", () => {
 
   test("the last whole days, oldest first", () => {
     assert.deepEqual(lastDays(3, new Date("2026-09-28T10:00:00Z")), ["2026-09-25", "2026-09-26", "2026-09-27"]);
+  });
+});
+
+describe("story clusters", () => {
+  const at = (h: number) => new Date(Date.UTC(2026, 8, 28, h));
+  let n = 0;
+  const post = (host: string, title: string, excerpt = "", h = 1): Post => ({ id: String(++n).padStart(24, "0"), title, excerpt, url: `https://${host}/${n}`, host, feedSlug: host, publishedAt: at(h) });
+  // Filler, so the story words below are rare in the day's posts, as they are.
+  const filler = Array.from({ length: 60 }, (_, i) => post(`f${i}.example`, `Unrelated notes number ${i} about gardening tomatoes weather`, "", 2));
+
+  test("a story on several sites is one cluster, a name shared by two stories is not", () => {
+    const posts = [
+      post("a.example", "SpaceX Starship reaches orbit for the first time", "Starship orbit Starlink satellites deployed", 1),
+      post("b.example", "Starship finally reaches orbit, SpaceX says", "SpaceX Starship orbit deployed Starlink", 2),
+      post("c.example", "SpaceX's Starship makes it to orbit", "Starship orbit Starlink SpaceX mission", 3),
+      post("d.example", "Musk hosts dinner for investors", "Musk investors dinner", 3),
+      post("e.example", "Musk Starship comment draws criticism", "Musk comment criticism", 4),
+      ...filler,
+    ];
+    const cs = cluster(posts, { now: at(5).getTime() });
+    assert.equal(cs.length, 1);
+    assert.equal(cs[0].hosts, 3);
+    assert.deepEqual(cs[0].posts.map((p) => p.host).sort(), ["a.example", "b.example", "c.example"]);
+  });
+
+  test("stories about harm to people are left out", () => {
+    assert.equal(sensitive({ posts: [post("a.example", "Man charged after stabbing in city centre")] }), true);
+    assert.equal(sensitive({ posts: [post("a.example", "Bose brings back wired earbuds")] }), false);
+  });
+});
+
+describe("story checks", () => {
+  const job = {
+    sources: [
+      { url: "https://a.example/1", host: "a.example", title: "Bose brings back wired earbuds after a decade", excerpt: "The company said the new wired earbuds cost 99 dollars and add noise cancelling for the first time" },
+      { url: "https://b.example/2", host: "b.example", title: "Bose returns to wired audio", excerpt: "A USB-C cable powers the noise cancelling" },
+    ],
+  } as any;
+  const para = (i: number) => `Paragraph ${i} explains in plain words what the two reports said about the new earbuds, how they differ from wireless ones, and why a cable still matters to many people who listen for hours every day.`;
+  const good = {
+    headline: "Bose brings wired earbuds back, with noise cancelling",
+    dek: "The company's first wired earbuds in over a decade draw power from a USB-C cable to cancel noise.",
+    sections: [0, 1, 2].map((s) => ({ heading: `Section ${s}`, paragraphs: [0, 1, 2, 3].map((p) => para(s * 4 + p)) })),
+    keyPoints: ["The earbuds plug into USB-C and need no charging.", "Noise cancelling runs on power from the cable.", "Both reports put the price at 99 dollars."],
+    cited: ["https://a.example/1", "https://b.example/2"],
+  };
+
+  test("a story in shape passes, with its word count", () => {
+    const r = check(job, good);
+    assert.ok(r.ok, JSON.stringify(!r.ok && r.problems));
+    assert.ok(r.ok && r.story.words >= WORDS.min && r.story.words <= WORDS.max);
+  });
+
+  test("copied wording, one source, markup and a short text are each refused", () => {
+    const copied = check(job, { ...good, keyPoints: [...good.keyPoints.slice(0, 2), "The company said the new wired earbuds cost 99 dollars and more."] });
+    assert.ok(!copied.ok && copied.problems.some((p) => p.startsWith("Copied wording")));
+    const oneSite = check(job, { ...good, cited: ["https://a.example/1"] });
+    assert.ok(!oneSite.ok && oneSite.problems.some((p) => p.includes("two sources")));
+    const stranger = check(job, { ...good, cited: [...good.cited, "https://elsewhere.example/x"] });
+    assert.ok(!stranger.ok && stranger.problems.some((p) => p.includes("not sources of this job")));
+    const markup = check(job, { ...good, dek: `${good.dek} See **this** at https://a.example/1 now.` });
+    assert.ok(!markup.ok && markup.problems.some((p) => p.startsWith("Plain text only")));
+    const short = check(job, { ...good, sections: good.sections.map((s) => ({ ...s, paragraphs: s.paragraphs.slice(0, 1) })) });
+    assert.ok(!short.ok && short.problems.some((p) => p.startsWith("Length")));
   });
 });
 

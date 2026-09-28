@@ -78,6 +78,36 @@ feeds it took down, not those hidden by hand. A feed taken down this way
 records `hiddenBy`, and its owner's edit link can no longer bring it back
 — only another admin call can.
 
+## Story jobs
+
+Stories several sites are covering become jobs (`src/lib/clusters.ts`,
+`src/lib/stories.ts`); a worker — anything holding a `write:stories` key,
+a script calling a model or a person — writes them. Nothing a worker sends
+is published until an admin says so.
+
+```
+A="Authorization: Bearer $(grep '^RSS_MOBI_ADMIN_KEY=' .env | cut -d= -f2-)"; J="Content-Type: application/json"
+curl -X POST -H "$A" -H "$J" -d '{"max":5}' https://rss.mobi/api/v1/stories/jobs      # queue the best new stories
+curl -H "$W" https://rss.mobi/api/v1/stories/jobs                                      # what is waiting
+curl -X POST -H "$W" -H "$J" -d '{}' https://rss.mobi/api/v1/stories/jobs/claim        # take one for 30 minutes
+curl -X POST -H "$W" -H "$J" --data @story.json https://rss.mobi/api/v1/stories/jobs/<id>  # send the story
+curl -X PUT -H "$A" -H "$J" -d '{"status":"published"}' https://rss.mobi/api/v1/admin/stories/<id>
+```
+
+(`W` is the worker's key, the same way.) A claimed job carries its sources
+— the posts, with their addresses — and the brief. The story comes back as
+JSON: `headline`, `dek`, three to six `sections` of `{heading,
+paragraphs}`, three to five `keyPoints`, and `cited`, the addresses it
+relies on. The server refuses, with a list of what to fix, a story outside
+400–900 words, one citing fewer than two sites or an address not in the
+job, markup or links in the text, or eight consecutive words shared with a
+source's title or excerpt. One that passes is at `/news/<day>/<slug>/`,
+marked as a draft, noindex and linked from nowhere, until it is
+published. A worker hands a job back with `DELETE` on it, or rejects it
+with `{"reject": true, "reason": "…"}` — two stories in one, or a subject
+rss.mobi does not rewrite. Clusters about crime, deaths and cases in
+court are never queued.
+
 ## Scheduled jobs
 
 Upstash QStash calls `/api/v1/cron/*` every 15 minutes with

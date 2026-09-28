@@ -1378,6 +1378,31 @@ details.report[open] > summary::before,
   }
 }
 
+/* ----------------------------------------------------------------- story */
+
+.story {
+  max-width: 38rem;
+}
+
+.story h2 {
+  margin-top: 28px;
+  font-size: 1.15rem;
+}
+
+.story p {
+  line-height: 1.65;
+}
+
+.story .sources,
+.story .key-points ul {
+  padding-left: 1.1rem;
+}
+
+.story .sources li,
+.story .key-points li {
+  margin-bottom: 8px;
+}
+
 /* ------------------------------------------------------------ start sets */
 
 /* A first-time reader's topic sets: a topic, its four feeds by name, and

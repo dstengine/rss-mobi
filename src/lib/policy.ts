@@ -6,7 +6,7 @@
 // page, never on who is asking. There is no user-agent argument, and there
 // must never be one: showing crawlers something other than readers is
 // cloaking, and the test suite renders every page type as both to prove it.
-import type { FeedDoc, ItemDoc, LinkMode, Robots } from "./types.ts";
+import type { FeedDoc, ItemDoc, LinkMode, Robots, StoryStatus } from "./types.ts";
 
 export const FEED_MIN_ITEMS = 3;
 export const FEED_MIN_FETCHES = 3;
@@ -36,7 +36,8 @@ export type Page =
   | { type: "feed"; feed: FeedFacts }
   | { type: "item"; item: ItemFacts; feed: Pick<FeedDoc, "status"> }
   | { type: "tag"; feeds: number; hosts: number }
-  | { type: "collection" | "edit" | "search" };
+  | { type: "collection" | "edit" | "search" }
+  | { type: "story"; status: StoryStatus };
 
 export function policy(page: Page): Decision {
   switch (page.type) {
@@ -72,6 +73,11 @@ export function policy(page: Page): Decision {
     case "edit":
     case "search":
       return NOINDEX;
+
+    // A story in review is a draft at an address nobody links to; only a
+    // published one is for search.
+    case "story":
+      return page.status === "published" ? INDEX : NOINDEX;
   }
 }
 

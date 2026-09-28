@@ -172,3 +172,57 @@ export interface ApiKeyDoc {
   lastUsedAt?: Date;
   revokedAt?: Date;
 }
+
+/** Where a story stands. It starts as a job ("queued") that a worker
+    claims for a while ("claimed"), comes back written ("review"), and
+    goes live only when an admin publishes it ("published"); "rejected"
+    is a job nobody should write — two stories in one, or one we do not
+    rewrite. */
+export type StoryStatus = "queued" | "claimed" | "review" | "published" | "rejected";
+
+/** A post the story is built from, copied when the job is made: the post
+    itself expires in a month, the story does not. */
+export interface StorySource {
+  itemId: ObjectId;
+  url: string;
+  title: string;
+  host: string;
+  feedSlug: string;
+  publishedAt: Date;
+  excerpt: string;
+}
+
+export interface StorySection {
+  heading: string;
+  paragraphs: string[];
+}
+
+export interface StoryDoc {
+  _id: ObjectId;
+  status: StoryStatus;
+  /** Sites covering it × freshness when the job was made (clusters.ts). */
+  score: number;
+  hosts: number;
+  sources: StorySource[];
+  /** The key prefix of the worker holding the job, and until when. */
+  claimedBy?: string;
+  leaseUntil?: Date;
+  headline?: string;
+  /** The lead: one or two sentences under the headline. */
+  dek?: string;
+  sections?: StorySection[];
+  keyPoints?: string[];
+  /** Addresses of the sources the text relies on, all from `sources`. */
+  cited?: string[];
+  words?: number;
+  /** The worker that wrote it, by key name. */
+  writtenBy?: string;
+  /** Why a job was rejected. */
+  reason?: string;
+  day?: string;
+  slug?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  submittedAt?: Date;
+  publishedAt?: Date;
+}

@@ -4,6 +4,7 @@
 //
 //   read:full    every field, the index-check status of each post included
 //   write:feeds  submitting at the key's own rate, many feeds in one call
+//   write:stories  taking story jobs and sending the stories back (a worker)
 //   admin        everything, and /api/v1/admin/…
 //
 // A key is shown once, when it is made (scripts/api-key.mjs); only its
@@ -13,7 +14,7 @@ import { apiKeys } from "./db.ts";
 import { newToken, sha256 } from "./tokens.ts";
 import type { ApiKeyDoc } from "./types.ts";
 
-export const SCOPES = ["read:full", "write:feeds", "admin"] as const;
+export const SCOPES = ["read:full", "write:feeds", "write:stories", "admin"] as const;
 export type Scope = (typeof SCOPES)[number];
 
 /** Requests a minute a key gets unless it is made with another figure. The

@@ -5,7 +5,7 @@
 // globalThis so it also survives Vite's module reloads in development.
 import { MongoClient, type Collection, type Db, type Document } from "mongodb";
 import { env, need } from "./env.ts";
-import type { ApiKeyDoc, CollectionDoc, FeedDoc, ItemDoc } from "./types.ts";
+import type { ApiKeyDoc, CollectionDoc, FeedDoc, ItemDoc, StoryDoc } from "./types.ts";
 
 const g = globalThis as unknown as { __rssMongo?: Promise<MongoClient> };
 
@@ -33,6 +33,7 @@ export const feeds = c<FeedDoc>("feeds");
 export const items = c<ItemDoc>("items");
 export const collections = c<CollectionDoc>("collections");
 export const apiKeys = c<ApiKeyDoc>("api_keys");
+export const stories = c<StoryDoc>("stories");
 export const indexChecks = c<Document>("index_checks");
 export const spend = c<{ _id: string; usd: number; updatedAt: Date }>("spend");
 /** Blocked hosts: the host is the id, and it covers every subdomain. */

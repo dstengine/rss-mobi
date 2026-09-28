@@ -47,6 +47,7 @@ const PAGE_TYPES: Record<string, string> = {
   submit: "submit",
   rss: "rss",
   f: "edit",
+  news: "story",
   about: "about",
   terms: "terms",
 };

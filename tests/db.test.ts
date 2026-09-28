@@ -28,6 +28,9 @@ describe("with MongoDB", { skip }, async () => {
   const { block, hideFeed, unblock } = await import("../src/lib/admin.ts");
   const { blocklist, events, metricsDaily } = await import("../src/lib/db.ts");
   const { readout, rollUp, totals } = await import("../src/lib/metrics.ts");
+  const { claim, decide, release, storyAt, submit } = await import("../src/lib/stories.ts");
+  const { stories } = await import("../src/lib/db.ts");
+  const storiesMade: ObjectId[] = [];
   const METRIC_DAY = "2001-02-03";
   const { parseFilters } = await import("../src/lib/filters.ts");
   const { linkTo } = await import("../src/lib/policy.ts");
@@ -41,6 +44,7 @@ describe("with MongoDB", { skip }, async () => {
     if (hostsBlocked.length) await (await blocklist()).deleteMany({ _id: { $in: hostsBlocked } });
     await (await events()).deleteMany({ at: { $gte: new Date(`${METRIC_DAY}T00:00:00Z`), $lt: new Date("2001-02-05T00:00:00Z") } });
     await (await metricsDaily()).deleteMany({ day: { $in: [METRIC_DAY, "2001-02-04"] } });
+    if (storiesMade.length) await (await stories()).deleteMany({ _id: { $in: storiesMade } });
     if (!created.length) return;
     await (await items()).deleteMany({ feedId: { $in: created } });
     await (await feeds()).deleteMany({ _id: { $in: created } });
@@ -408,6 +412,61 @@ describe("with MongoDB", { skip }, async () => {
       assert.equal(t.subscribe_copy, undefined);
       assert.equal(t["subscribe_copy:topic"], undefined);
       assert.equal(t.view, 41);
+    });
+  });
+
+  describe("story jobs", () => {
+    const para = (i: number) => `Paragraph ${i} explains in plain words what the two reports said about the launch, how it differs from the tests before it, and why reaching orbit matters for the satellites the company plans to fly.`;
+    const story = (cited: string[]) => ({
+      headline: "Test rocket reaches orbit on its first full flight",
+      dek: "The company's big rocket reached orbit for the first time and deployed its first satellites, two sites report.",
+      sections: [0, 1, 2].map((s) => ({ heading: `Section ${s}`, paragraphs: [0, 1, 2, 3].map((p) => para(s * 4 + p)) })),
+      keyPoints: ["The rocket reached orbit on its first full flight.", "It deployed its first satellites on the way.", "Both reports call it the programme's biggest step."],
+      cited,
+    });
+
+    test("a job is claimed by one worker, written, filed for review and published", async () => {
+      const _id = new ObjectId();
+      storiesMade.push(_id);
+      const now = new Date();
+      const sources = [
+        { itemId: new ObjectId(), url: `https://a.example/${_id}`, title: "Rocket reaches orbit", host: "a.example", feedSlug: "a", publishedAt: now, excerpt: "It flew." },
+        { itemId: new ObjectId(), url: `https://b.example/${_id}`, title: "Big rocket in orbit", host: "b.example", feedSlug: "b", publishedAt: now, excerpt: "It flew too." },
+      ];
+      await (await stories()).insertOne({ _id, status: "queued", score: 1e6, hosts: 2, sources, createdAt: now, updatedAt: now });
+
+      const got = await claim("worker01", String(_id));
+      assert.equal(got?.status, "claimed");
+      assert.equal(await claim("worker02", String(_id)), null);
+      assert.equal((await submit(String(_id), { prefix: "worker02", name: "other" }, story(sources.map((x) => x.url)))).status, 409);
+
+      const bad = await submit(String(_id), { prefix: "worker01", name: "test worker" }, story([sources[0].url]));
+      assert.equal(bad.status, 422);
+      const ok = await submit(String(_id), { prefix: "worker01", name: "test worker" }, story(sources.map((x) => x.url)));
+      assert.equal(ok.status, 200);
+      const filed = ok.story!;
+      assert.equal(filed.status, "review");
+      assert.equal(filed.slug, "test-rocket-reaches-orbit-on-its-first-full-flight");
+      assert.equal(filed.claimedBy, undefined);
+      assert.equal((await storyAt(filed.day!, filed.slug!))?.headline, filed.headline);
+
+      assert.equal((await decide(String(_id), "published"))?.status, "published");
+      assert.ok((await (await stories()).findOne({ _id }))?.publishedAt);
+    });
+
+    test("a lapsed lease frees the job; a worker can hand it back or reject it", async () => {
+      const _id = new ObjectId();
+      storiesMade.push(_id);
+      const now = new Date();
+      await (await stories()).insertOne({ _id, status: "queued", score: 0, hosts: 2, sources: [], createdAt: now, updatedAt: now });
+      await claim("worker01", String(_id), new Date(now.getTime() - 60 * 60_000));
+      assert.equal((await claim("worker02", String(_id)))?.claimedBy, "worker02");
+      assert.equal(await release(String(_id), "worker01"), null);
+      assert.equal((await release(String(_id), "worker02"))?.status, "queued");
+      await claim("worker02", String(_id));
+      const rejected = await release(String(_id), "worker02", { reject: true, reason: "two stories in one" });
+      assert.deepEqual([rejected?.status, rejected?.reason], ["rejected", "two stories in one"]);
+      assert.equal(await storyAt("2001-01-01", "nothing"), null);
     });
   });
 });
