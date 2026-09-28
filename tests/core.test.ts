@@ -292,6 +292,14 @@ describe("story checks", () => {
     assert.ok(r.ok && r.story.words >= WORDS.min && r.story.words <= WORDS.max);
   });
 
+  test("a title in quotation marks may repeat a source, a long quotation may not", () => {
+    const titled = { ...good, keyPoints: [...good.keyPoints.slice(0, 2), "Reviewers compared them with “The company said the new wired earbuds cost”, a phrase."] };
+    const r = check(job, titled);
+    assert.ok(r.ok, JSON.stringify(!r.ok && r.problems));
+    const long = check(job, { ...good, keyPoints: [...good.keyPoints.slice(0, 2), "One site wrote “the company said the new wired earbuds cost 99 dollars and add noise cancelling”."] });
+    assert.ok(!long.ok && long.problems.some((p) => p.startsWith("Quotes: each")));
+  });
+
   test("copied wording, one source, markup and a short text are each refused", () => {
     const copied = check(job, { ...good, keyPoints: [...good.keyPoints.slice(0, 2), "The company said the new wired earbuds cost 99 dollars and more."] });
     assert.ok(!copied.ok && copied.problems.some((p) => p.startsWith("Copied wording")));
