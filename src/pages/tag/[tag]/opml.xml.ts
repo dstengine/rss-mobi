@@ -2,14 +2,14 @@
 // ranks them: import it and a reader follows each of them separately.
 import type { APIRoute } from "astro";
 import { feedsOpml } from "../../../lib/exports.ts";
-import { tag as normalise } from "../../../lib/feeds/parse.ts";
+import { decodeParam, tag as normalise } from "../../../lib/feeds/url.ts";
 import { cacheFor } from "../../../lib/http.ts";
 import { xmlHeaders } from "../../../lib/rss.ts";
 import { feedsByTag } from "../../../lib/views.ts";
 import { topicName } from "../../../lib/words.ts";
 
 export const GET: APIRoute = async ({ params, url }) => {
-  const raw = decodeURIComponent(String(params.tag ?? ""));
+  const raw = decodeParam(params.tag);
   const t = normalise(raw);
   const none = () => new Response("No such topic.\n", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8", "X-Robots-Tag": "noindex" } });
   if (!t) return none();

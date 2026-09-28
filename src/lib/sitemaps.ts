@@ -12,7 +12,7 @@ import { copyDate, site } from "../site.config.ts";
 
 export const FEEDS_PER_FILE = 5_000;
 export const ITEMS_PER_FILE = 10_000;
-const STATIC = ["/rss/", "/c/new/", "/submit/", "/about/", "/terms/"];
+const STATIC = ["/c/new/", "/submit/", "/about/", "/terms/"];
 
 const loc = (path: string) => `${site.url}${path}`;
 
@@ -25,6 +25,8 @@ export async function pageEntries(): Promise<Entry[]> {
     { loc: loc("/tags/"), lastmod: newest([copyDate("/tags/"), ...tags.map((t) => t.updatedAt)]) },
     // The reader's starter list is the eight newest feeds.
     { loc: loc("/reader/"), lastmod: newest([copyDate("/reader/"), ...listed.slice(0, 8).map((f) => f.updatedAt)]) },
+    // /rss/ lists every open topic and its count of feeds.
+    { loc: loc("/rss/"), lastmod: newest([copyDate("/rss/"), ...tags.map((t) => t.updatedAt)]) },
     ...STATIC.map((p) => ({ loc: loc(p), lastmod: copyDate(p) })),
   ];
 }

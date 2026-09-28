@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Fixes from the first review and critique. The newest-feeds lists (the
+  front page, search, the reader) show one feed per site, so one site's
+  six language editions no longer fill them. A search needs every word
+  (and keeps a "quoted phrase" together), and an excluded word is a
+  whole word — "deal" no longer drops "Ideal". `/tag/%25/` is a 404, not
+  a 500. A made-up API key spends the anonymous allowance instead of
+  none. A host block also takes down feeds their owners had hidden, so
+  the edit link cannot bring them back past it, and lifting a takedown
+  puts each feed back as it was — a dead feed stays disabled. Batches
+  stop starting submissions at 20 s, two metric roll-ups of one day no
+  longer overlap, and `/rss/` is dated by the topics it lists.
 - The index-check queue holds at most 420 posts waiting for a first check
   — about ten days of the $0.12 daily ceiling. When more arrive than the
   budget checks, the oldest waiting leave it as `skipped`

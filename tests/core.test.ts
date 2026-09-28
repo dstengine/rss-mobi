@@ -2,7 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { policy, linkTo } from "../src/lib/policy.ts";
 import { urlset, sitemapIndex, changefreqFor, priorityFor, newest } from "../src/lib/sitemap.ts";
-import { describe as said, narrowed, parseFilters, spelling, toQuery, toSearch } from "../src/lib/filters.ts";
+import { describe as said, narrowed, parseFilters, spelling, terms, toQuery, toSearch, wordPattern } from "../src/lib/filters.ts";
 import { feedsOpml, rssPath } from "../src/lib/exports.ts";
 import { assign, zTest, hash32, type Experiment } from "../src/lib/experiments.ts";
 import { reserve, headroom, BudgetExceeded, LIMITS } from "../src/lib/budget.ts";
@@ -12,6 +12,7 @@ import { tag, topic, ownName } from "../src/lib/feeds/parse.ts";
 import { itemJson, itemPageOpen } from "../src/lib/views.ts";
 import { hasScope, mint } from "../src/lib/keys.ts";
 import { hostKey } from "../src/lib/admin.ts";
+import { decodeParam } from "../src/lib/feeds/url.ts";
 import { lastDays, metricsOf, pageType } from "../src/lib/metrics.ts";
 import { matches, sha256, newToken } from "../src/lib/tokens.ts";
 
@@ -120,7 +121,22 @@ describe("filters", () => {
     const q: any = toQuery(parseFilters(new URLSearchParams("tag=ai&exclude=spam&q=hello")));
     assert.deepEqual(q.tags, { $in: ["ai"] });
     assert.deepEqual(q.$text, { $search: "hello" });
-    assert.ok(q.title.$not.test("SPAM here"));
+    assert.ok(new RegExp(q.title.$not.$regex, "iu").test("SPAM here"));
+  });
+
+  test("a search needs every word; an excluded word is a word, not letters inside one", () => {
+    assert.deepEqual(terms('open source, "machine learning" AI!'), ["open", "source", "machine learning", "AI"]);
+    const q: any = toQuery(parseFilters(new URLSearchParams("q=open source&exclude=deal")));
+    const needs = q.$and.map((c: any) => new RegExp(c.$or[0].title.$regex, "iu"));
+    const passes = (title: string) => needs.every((r: RegExp) => r.test(title));
+    assert.equal(passes("Open-Source AI reading list"), true);
+    assert.equal(passes("Source: Leafs get Marchenko"), false);
+    assert.equal(passes("Open data and a resource"), false);
+    const out = new RegExp(q.title.$not.$regex, "iu");
+    assert.equal(out.test("Best deals of the week"), true);
+    assert.equal(out.test("The Ideal Handheld Camera Rig"), false);
+    assert.ok(new RegExp(wordPattern("новост"), "iu").test("Главные Новости дня"));
+    assert.ok(new RegExp(wordPattern("machine learning"), "iu").test("machine\n learning"));
   });
 
   test("two spellings of one filter share a cache key", () => {
@@ -180,6 +196,12 @@ describe("API keys", () => {
     assert.deepEqual(itemJson(it, true).index, { status: "not_indexed", checkedAt: it.indexCheckedAt, checks: 2, page: "index,follow" });
     assert.equal(itemJson({ ...it, indexStatus: "indexed" }, true).index?.page, "noindex,follow");
   });
+});
+
+test("a route parameter with a stray percent sign is text, not a crash", () => {
+  assert.equal(decodeParam("%"), "%");
+  assert.equal(decodeParam("web%20dev"), "web dev");
+  assert.equal(decodeParam(undefined), "");
 });
 
 test("a blocked host is keyed one way, from a host or an address", () => {

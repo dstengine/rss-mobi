@@ -81,6 +81,26 @@ function languageName(code: string): string {
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/** The start of a word, in any script: what comes before is not a letter
+    or digit. `\b` would do for English only. */
+const WORD_START = "(?:^|[^\\p{L}\\p{N}])";
+
+/** The words and "quoted phrases" of a search, each of which a post must
+    contain. */
+export function terms(q: string): string[] {
+  const out: string[] = [];
+  for (const m of q.matchAll(/"([^"]+)"|(\S+)/g)) {
+    const t = (m[1] ?? m[2]).trim().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+    if (t) out.push(t);
+  }
+  return out.slice(0, 8);
+}
+
+/** A regex that finds `t` at the start of a word — "source" finds
+    "Sources" and "open-source" but not "resource"; a phrase's words may be
+    split by any whitespace. */
+export const wordPattern = (t: string) => `${WORD_START}${escapeRe(t).replace(/\s+/g, "\\s+")}`;
+
 /** Filters to a MongoDB query over items. Only visible items, always. */
 export function toQuery(f: Filters): Filter<ItemDoc> {
   const q: Filter<ItemDoc> = { visible: true };
@@ -89,8 +109,16 @@ export function toQuery(f: Filters): Filter<ItemDoc> {
   if (f.feeds.length) q.feedSlug = { $in: f.feeds };
   if (f.hosts.length) q.host = { $in: f.hosts };
   if (f.since) q.publishedAt = { $gte: f.since };
-  if (f.q) q.$text = { $search: f.q };
-  if (f.exclude.length) q.title = { $not: new RegExp(f.exclude.map(escapeRe).join("|"), "i") };
+  if (f.q) {
+    // The text index finds candidates fast, but a post that has any one
+    // of the words; every word has to be there as well, or "open source"
+    // brings back sports news with a "Source:" in it.
+    q.$text = { $search: f.q };
+    const need = terms(f.q).map((t) => ({ $or: [{ title: { $regex: wordPattern(t), $options: "i" } }, { excerpt: { $regex: wordPattern(t), $options: "i" } }] }));
+    if (need.length) q.$and = need;
+  }
+  // A word, not letters inside one: "deal" drops "Deals" but not "Ideal".
+  if (f.exclude.length) q.title = { $not: { $regex: `${WORD_START}(?:${f.exclude.map(escapeRe).join("|")})`, $options: "i" } };
   return q;
 }
 

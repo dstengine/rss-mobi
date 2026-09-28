@@ -11,7 +11,8 @@ export const POST: APIRoute = async (ctx) => {
   const one = ctx.url.searchParams.get("day");
   if (one && !/^\d{4}-\d\d-\d\d$/.test(one)) return error(400, "day is YYYY-MM-DD.");
   const days = one ? [one] : lastDays(3);
-  const rows: Record<string, number> = {};
+  // null for a day another run is counting.
+  const rows: Record<string, number | null> = {};
   for (const day of days) rows[day] = await rollUp(day);
   return json({ rows });
 };

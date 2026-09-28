@@ -19,10 +19,13 @@ import type { FeedDoc } from "../../../../lib/types.ts";
 
 /** Feeds one batch may carry, how many are read at once, and when it stops
     starting new ones: each is fetched while the caller waits, and the
-    function has a minute. */
+    function has a minute. One submission can take 30 seconds — a page, a
+    feed it advertises and a redirect, at 10 seconds each — so none starts
+    after 20, or the function could be stopped with feeds created and their
+    edit links never sent. */
 export const BATCH_MAX = 20;
 const BATCH_LANES = 4;
-const BATCH_BUDGET_MS = 35_000;
+const BATCH_BUDGET_MS = 20_000;
 
 export const GET: APIRoute = async (ctx) => {
   const who = await access(ctx);
