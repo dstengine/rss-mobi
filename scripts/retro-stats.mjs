@@ -31,6 +31,21 @@ try {
   // raw events: a metric per event, per page type for views, per variant
   // for experiments. Days are UTC dates, the week's last one included.
   const day = (d) => d.toISOString().slice(0, 10);
+  // The story queue (src/lib/stories.ts): jobs made, stories written and
+  // published, jobs rejected by reason.
+  const stories = async ([from, to]) => {
+    const col = db.collection("stories");
+    const between = { $gte: from, $lt: to };
+    const rejected = await col
+      .aggregate([{ $match: { status: "rejected", updatedAt: between } }, { $group: { _id: { $arrayElemAt: [{ $split: [{ $ifNull: ["$reason", "?"] }, ":"] }, 0] }, n: { $sum: 1 } } }])
+      .toArray();
+    return {
+      queued: await col.countDocuments({ createdAt: between }),
+      written: await col.countDocuments({ submittedAt: between }),
+      published: await col.countDocuments({ publishedAt: between }),
+      rejected: Object.fromEntries(rejected.map((r) => [r._id, r.n])),
+    };
+  };
   const metrics = async ([from, to]) => {
     const rows = await db
       .collection("metrics_daily")
@@ -52,6 +67,7 @@ try {
     reports: await count("reports", between("createdAt", range)),
     indexChecks: await count("index_checks", between("at", range)),
     metrics: await metrics(range),
+    stories: await stories(range),
   });
 
   const openItems = { visible: true, $or: [{ robots: "index,follow" }, { robots: null, indexStatus: "not_indexed" }] };

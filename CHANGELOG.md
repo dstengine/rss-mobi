@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Story jobs are queued every morning (#28): `/api/v1/cron/stories`,
+  05:05 UTC, rejects jobs older than 48 hours and ones whose lease lapsed
+  three times, requeues the other lapsed ones, and queues up to five new
+  jobs. Taking over a lapsed claim counts the lapse. The weekly retro
+  reports jobs queued, written, published and rejected.
 - News in the header, the phone menu and the footer, with its own icon;
   a story page counts as the Home tab on a phone.
 - Publishing stories. A published story is in `sitemap-stories.xml`,

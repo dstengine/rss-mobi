@@ -219,6 +219,8 @@ export interface StoryDoc {
   writtenBy?: string;
   /** Why a job was rejected. */
   reason?: string;
+  /** Times a worker claimed the job and let the lease run out. */
+  lapses?: number;
   day?: string;
   slug?: string;
   createdAt: Date;
