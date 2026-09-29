@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- News in the header, the phone menu and the footer, with its own icon;
+  a story page counts as the Home tab on a phone.
 - Publishing stories. A published story is in `sitemap-stories.xml`,
   dated by its last change, and IndexNow hears of it — and of it going
   back to review. `/news/` lists the published stories (noindex and out

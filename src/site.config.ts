@@ -19,6 +19,7 @@ export const site = {
   contact: "rss-mobi@vvm.space" as string,
   /** The header row on a wide screen. */
   nav: [
+    { href: "/news/", label: "News", icon: "news", title: "The day's big stories, written from what several RSS feeds reported" },
     { href: "/tags/", label: "Topics", icon: "topics", title: "Browse RSS feeds by topic" },
     { href: "/reader/", label: "Reader", icon: "reader", title: "Read the RSS feeds you follow on your phone" },
     { href: "/submit/", label: "Submit", icon: "plus", title: "Submit an RSS feed to the directory" },
@@ -27,7 +28,7 @@ export const site = {
       places a reader moves between. `match` lists the paths that count as
       being on that tab, so a feed's page still shows where it belongs. */
   tabs: [
-    { href: "/", label: "Home", icon: "home", title: "The RSS feeds directory: newest feeds and topics", match: ["/feed/", "/item/", "/submit/", "/f/"] },
+    { href: "/", label: "Home", icon: "home", title: "The RSS feeds directory: newest feeds and topics", match: ["/feed/", "/item/", "/submit/", "/f/", "/news/"] },
     { href: "/tags/", label: "Topics", icon: "topics", title: "Browse RSS feeds by topic", match: ["/tag/"] },
     { href: "/reader/", label: "Reader", icon: "reader", title: "Read the RSS feeds you follow on your phone", match: [] },
     { href: "/c/new/", label: "Combine", icon: "combine", title: "Combine several RSS feeds into one", match: ["/c/"] },
@@ -35,12 +36,14 @@ export const site = {
   ],
   /** The phone menu, under its search box: what the tab bar leaves out. */
   menu: [
+    { href: "/news/", label: "News", icon: "news", title: "The day's big stories, written from what several RSS feeds reported" },
     { href: "/submit/", label: "Submit a feed", icon: "plus", title: "Submit an RSS feed to the directory" },
     { href: "/rss/", label: "Custom feeds", icon: "rss", title: "Make an RSS feed of any topic, keyword or site" },
     { href: "/about/", label: "About", icon: "about", title: "About the rss.mobi RSS feeds directory" },
     { href: "/terms/", label: "Terms", icon: "terms", title: "Terms for submitting and reading RSS feeds" },
   ],
   footer: [
+    { href: "/news/", label: "News", title: "The day's big stories, written from what several RSS feeds reported" },
     { href: "/about/", label: "About", title: "About the rss.mobi RSS feeds directory" },
     { href: "/terms/", label: "Terms", title: "Terms for submitting and reading RSS feeds" },
     { href: "/c/new/", label: "Combine feeds", title: "Combine several RSS feeds into one" },
