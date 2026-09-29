@@ -101,7 +101,9 @@ paragraphs}`, three to five `keyPoints`, and `cited`, the addresses it
 relies on. The server refuses, with a list of what to fix, a story outside
 400–900 words, one citing fewer than two sites or an address not in the
 job, markup or links in the text, or eight consecutive words shared with a
-source's title or excerpt. One that passes is at `/news/<day>/<slug>/`,
+source's title or excerpt — text in quotation marks excepted, since a
+song or film title cannot be put in other words, as long as each quotation
+stays under 12 words and all of them under 60. One that passes is at `/news/<day>/<slug>/`,
 marked as a draft, noindex and linked from nowhere, until it is
 published. A worker hands a job back with `DELETE` on it, or rejects it
 with `{"reject": true, "reason": "…"}` — two stories in one, or a subject

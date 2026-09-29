@@ -1,0 +1,64 @@
+---
+// /news/ — the stories rss.mobi has written and published, newest first.
+// Open to search once there is one to list; empty, it says so and stays
+// out of the index and the sitemap.
+import Base from "../../layouts/Base.astro";
+import { policy } from "../../lib/policy.ts";
+import { cacheFor } from "../../lib/http.ts";
+import { publishedStories, storyPath } from "../../lib/stories.ts";
+import { fmtDate } from "../../lib/views.ts";
+import { counted } from "../../lib/words.ts";
+import { site } from "../../site.config.ts";
+
+const list = await publishedStories(50);
+const decision = list.length ? policy({ type: "static" }) : policy({ type: "search" });
+Astro.response.headers.set("Cache-Control", cacheFor(300));
+
+const title = "News written from RSS feeds";
+const description = "The day's biggest stories, each written from what several RSS feeds in the rss.mobi directory reported, with every source linked.";
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: title,
+  url: `${site.url}/news/`,
+  description,
+  mainEntity: {
+    "@type": "ItemList",
+    numberOfItems: list.length,
+    itemListElement: list.slice(0, 20).map((s, i) => ({ "@type": "ListItem", position: i + 1, url: `${site.url}${storyPath(s)}`, name: s.headline })),
+  },
+};
+---
+
+<Base title={title} description={description} robots={decision.robots} path="/news/" jsonLd={jsonLd} alternate={{ href: `${site.url}/news/rss.xml`, title: "News · rss.mobi" }}>
+  <h1>{title}</h1>
+  <p class="lede">
+    When several feeds in the directory report the same story, rss.mobi writes it up once: what happened, the context and what it means, with a link to every
+    report it draws on.
+  </p>
+  {
+    list.length ? (
+      <ul class="items">
+        {list.map((s) => (
+          <li>
+            <a href={storyPath(s)} title={s.dek}>
+              <strong>{s.headline}</strong>
+            </a>
+            <p class="small muted">
+              <time class="nowrap" datetime={new Date(s.publishedAt!).toISOString()}>
+                {fmtDate(s.publishedAt!)}
+              </time>{" "}
+              · from <span class="nowrap">{counted(new Set(s.sources.filter((x) => s.cited?.includes(x.url)).map((x) => x.host)).size, "site")}</span>
+            </p>
+            <p>{s.dek}</p>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p class="muted">No stories yet.</p>
+    )
+  }
+  <p class="small">
+    <a href="/news/rss.xml" title="New stories from rss.mobi as an RSS feed">Follow the stories as RSS</a>
+  </p>
+</Base>

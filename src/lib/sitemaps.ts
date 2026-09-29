@@ -3,10 +3,11 @@
 // its own by the newest of what it lists against the date of its copy
 // (site.config.ts COPY_UPDATED). See "Sitemap dates" in AGENTS.md.
 import type { Filter } from "mongodb";
-import { feeds, items } from "./db.ts";
+import { feeds, items, stories } from "./db.ts";
 import { policy } from "./policy.ts";
 import { newest, type Entry } from "./sitemap.ts";
 import { itemPath, recentFeeds, starterSets, tagStats } from "./views.ts";
+import { publishedStories, storyPath } from "./stories.ts";
 import type { ItemDoc } from "./types.ts";
 import { copyDate, site } from "../site.config.ts";
 
@@ -19,13 +20,15 @@ const loc = (path: string) => `${site.url}${path}`;
 export async function pageEntries(): Promise<Entry[]> {
   // The front page lists the thirty newest feeds, so it is as new as the
   // newest of those — not of every feed in the directory.
-  const [listed, tags, sets] = await Promise.all([recentFeeds(30), tagStats(500), starterSets()]);
+  const [listed, tags, sets, news] = await Promise.all([recentFeeds(30), tagStats(500), starterSets(), publishedStories(30)]);
   const starters = sets.length >= 3 ? sets.flatMap((s) => s.feeds) : listed.slice(0, 8);
   return [
     { loc: loc("/"), lastmod: newest([copyDate("/"), ...listed.map((f) => f.updatedAt)]) },
     { loc: loc("/tags/"), lastmod: newest([copyDate("/tags/"), ...tags.map((t) => t.updatedAt)]) },
     // The reader starts with topic sets, or the eight newest feeds.
     { loc: loc("/reader/"), lastmod: newest([copyDate("/reader/"), ...starters.map((f) => f.updatedAt)]) },
+    // /news/ lists the published stories, and exists once there is one.
+    ...(news.length ? [{ loc: loc("/news/"), lastmod: newest([copyDate("/news/"), ...news.map((s) => s.updatedAt)]) }] : []),
     // /rss/ lists every open topic and its count of feeds.
     { loc: loc("/rss/"), lastmod: newest([copyDate("/rss/"), ...tags.map((t) => t.updatedAt)]) },
     ...STATIC.map((p) => ({ loc: loc(p), lastmod: copyDate(p) })),
@@ -92,3 +95,9 @@ export const xmlResponse = (xml: string) =>
       "Cache-Control": "public, max-age=0, s-maxage=900, stale-while-revalidate=86400",
     },
   });
+
+/** Every published story, dated by its last change. */
+export async function storyEntries(): Promise<Entry[]> {
+  const rows = await (await stories()).find({ status: "published" }, { projection: { day: 1, slug: 1, updatedAt: 1 } }).sort({ publishedAt: -1 }).limit(50_000).toArray();
+  return rows.map((s) => ({ loc: loc(storyPath(s)), lastmod: s.updatedAt }));
+}

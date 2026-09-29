@@ -450,8 +450,13 @@ describe("with MongoDB", { skip }, async () => {
       assert.equal(filed.claimedBy, undefined);
       assert.equal((await storyAt(filed.day!, filed.slug!))?.headline, filed.headline);
 
+      const { storyEntries } = await import("../src/lib/sitemaps.ts");
+      const { publishedStories, storyPath } = await import("../src/lib/stories.ts");
+      assert.ok(!(await storyEntries()).some((e) => e.loc.endsWith(storyPath(filed))), "a draft is not in the sitemap");
       assert.equal((await decide(String(_id), "published"))?.status, "published");
       assert.ok((await (await stories()).findOne({ _id }))?.publishedAt);
+      assert.ok((await storyEntries()).some((e) => e.loc.endsWith(storyPath(filed))));
+      assert.equal((await publishedStories(50)).find((x) => String(x._id) === String(_id))?.headline, filed.headline);
     });
 
     test("a lapsed lease frees the job; a worker can hand it back or reject it", async () => {

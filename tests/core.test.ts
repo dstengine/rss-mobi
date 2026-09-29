@@ -16,7 +16,7 @@ import { hostKey } from "../src/lib/admin.ts";
 import { decodeParam } from "../src/lib/feeds/url.ts";
 import { lastDays, metricsOf, pageType } from "../src/lib/metrics.ts";
 import { cluster, sensitive, type Post } from "../src/lib/clusters.ts";
-import { check, WORDS } from "../src/lib/stories.ts";
+import { check, storySlug, WORDS } from "../src/lib/stories.ts";
 import { matches, sha256, newToken } from "../src/lib/tokens.ts";
 
 const DAY = 86_400_000;
@@ -281,10 +281,25 @@ describe("story checks", () => {
     cited: ["https://a.example/1", "https://b.example/2"],
   };
 
+  test("a headline's address keeps what follows a colon", () => {
+    assert.equal(storySlug("Spider-Man: Brand New Day is headed back to cinemas"), "spider-man-brand-new-day-is-headed-back-to-cinemas");
+    assert.equal(storySlug("SpaceX puts Starship into orbit — then cuts the flight short"), "spacex-puts-starship-into-orbit-then-cuts-the");
+  });
+
   test("a story in shape passes, with its word count", () => {
     const r = check(job, good);
     assert.ok(r.ok, JSON.stringify(!r.ok && r.problems));
     assert.ok(r.ok && r.story.words >= WORDS.min && r.story.words <= WORDS.max);
+  });
+
+  test("a title in quotation marks may repeat a source, a long quotation may not", () => {
+    // The apostrophe must not end the quotation: after it come eight words
+    // of the source.
+    const titled = { ...good, keyPoints: [...good.keyPoints.slice(0, 2), "One review called it “the company’s said the new wired earbuds cost 99 dollars” moment."] };
+    const r = check(job, titled);
+    assert.ok(r.ok, JSON.stringify(!r.ok && r.problems));
+    const long = check(job, { ...good, keyPoints: [...good.keyPoints.slice(0, 2), "One site wrote “the company said the new wired earbuds cost 99 dollars and add noise cancelling”."] });
+    assert.ok(!long.ok && long.problems.some((p) => p.startsWith("Quotes: each")));
   });
 
   test("copied wording, one source, markup and a short text are each refused", () => {
