@@ -28,7 +28,7 @@ describe("with MongoDB", { skip }, async () => {
   const { block, hideFeed, unblock } = await import("../src/lib/admin.ts");
   const { blocklist, events, metricsDaily } = await import("../src/lib/db.ts");
   const { readout, rollUp, totals } = await import("../src/lib/metrics.ts");
-  const { claim, decide, release, storyAt, submit } = await import("../src/lib/stories.ts");
+  const { claim, decide, release, storyAt, submit, sweep, MAX_LAPSES, STALE_H } = await import("../src/lib/stories.ts");
   const { stories } = await import("../src/lib/db.ts");
   const storiesMade: ObjectId[] = [];
   const METRIC_DAY = "2001-02-03";
@@ -457,6 +457,45 @@ describe("with MongoDB", { skip }, async () => {
       assert.ok((await (await stories()).findOne({ _id }))?.publishedAt);
       assert.ok((await storyEntries()).some((e) => e.loc.endsWith(storyPath(filed))));
       assert.equal((await publishedStories(50)).find((x) => String(x._id) === String(_id))?.headline, filed.headline);
+    });
+
+    test("the sweep rejects stale jobs and ones abandoned three times, and requeues the rest", async () => {
+      const col = await stories();
+      const now = new Date();
+      const hour = 3_600_000;
+      const job = async (fields: object) => {
+        const _id = new ObjectId();
+        storiesMade.push(_id);
+        await col.insertOne({ _id, status: "queued", score: 0, hosts: 2, sources: [], createdAt: now, updatedAt: now, ...fields } as any);
+        return _id;
+      };
+      const stale = await job({ createdAt: new Date(now.getTime() - (STALE_H + 1) * hour) });
+      const lapsedOnce = await job({ status: "claimed", claimedBy: "w", leaseUntil: new Date(now.getTime() - 60_000), lapses: 0 });
+      const lastChance = await job({ status: "claimed", claimedBy: "w", leaseUntil: new Date(now.getTime() - 60_000), lapses: MAX_LAPSES - 1 });
+      const held = await job({ status: "claimed", claimedBy: "w", leaseUntil: new Date(now.getTime() + 60_000) });
+
+      // A stale job is not handed out, even before the sweep.
+      assert.equal(await claim("worker09", String(stale)), null);
+      assert.equal(await claim("worker09", String(lastChance)), null);
+
+      const r = await sweep(now);
+      assert.ok(r.stale >= 1 && r.abandoned >= 1 && r.requeued >= 1);
+      const get = async (id: ObjectId) => (await col.findOne({ _id: id }))!;
+      assert.equal((await get(stale)).status, "rejected");
+      assert.match((await get(stale)).reason!, /^stale/);
+      assert.deepEqual([(await get(lastChance)).status, (await get(lastChance)).lapses], ["rejected", MAX_LAPSES]);
+      assert.deepEqual([(await get(lapsedOnce)).status, (await get(lapsedOnce)).lapses, (await get(lapsedOnce)).claimedBy], ["queued", 1, undefined]);
+      assert.equal((await get(held)).status, "claimed");
+    });
+
+    test("taking over a lapsed claim counts the lapse", async () => {
+      const col = await stories();
+      const _id = new ObjectId();
+      storiesMade.push(_id);
+      const now = new Date();
+      await col.insertOne({ _id, status: "claimed", claimedBy: "w1", leaseUntil: new Date(now.getTime() - 1_000), lapses: 0, score: 0, hosts: 2, sources: [], createdAt: now, updatedAt: now } as any);
+      const got = await claim("worker10", String(_id));
+      assert.deepEqual([got?.claimedBy, got?.lapses], ["worker10", 1]);
     });
 
     test("a lapsed lease frees the job; a worker can hand it back or reject it", async () => {

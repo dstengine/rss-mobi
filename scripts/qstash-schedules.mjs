@@ -22,6 +22,8 @@ const JOBS = [
   { id: "rss-mobi-index-check", path: "/api/v1/cron/index-check", cron: "7,22,37,52 * * * *" },
   // Once a day, clear of both: the last three whole days into metrics_daily.
   { id: "rss-mobi-metrics", path: "/api/v1/cron/metrics", cron: "41 0 * * *" },
+  // Story jobs for the day, waiting by the morning in Dubai (09:05 +04).
+  { id: "rss-mobi-stories", path: "/api/v1/cron/stories", cron: "5 5 * * *" },
 ];
 
 async function list() {

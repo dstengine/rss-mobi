@@ -13,6 +13,11 @@ import { SITE } from "./env.ts";
 import type { StoryDoc, StorySection, StorySource } from "./types.ts";
 
 export const LEASE_MIN = 30;
+/** A job nobody has finished in this long is about old news. */
+export const STALE_H = 48;
+/** Leases a job may lapse before it is taken off the queue: a cluster
+    every worker gives up on is one no worker will finish. */
+export const MAX_LAPSES = 3;
 export const WORDS = { min: 400, max: 900 };
 /** Sources a job carries: one per site first, then more. */
 const MAX_SOURCES = 10;
@@ -94,6 +99,29 @@ export async function enqueue(max = 5, now = new Date()): Promise<{ queued: numb
   return { queued, clusters: found.length, sensitive: skippedSensitive, known };
 }
 
+/* -------------------------------------------------------------- sweeping */
+
+/** Clears the queue of what nobody will write: jobs older than STALE_H
+    hours, and jobs whose lease has lapsed MAX_LAPSES times. A lapsed
+    claim with lapses to spare goes back to waiting, counted. Rejected
+    jobs keep their posts, so their clusters are never queued again. */
+export async function sweep(now = new Date()): Promise<{ stale: number; abandoned: number; requeued: number }> {
+  const col = await stories();
+  const open = { status: { $in: ["queued", "claimed"] as StoryDoc["status"][] } };
+  const clear = { $unset: { claimedBy: "", leaseUntil: "" } };
+  const stale = await col.updateMany(
+    { ...open, createdAt: { $lt: new Date(now.getTime() - STALE_H * 3_600_000) } },
+    { $set: { status: "rejected", reason: `stale: not written within ${STALE_H} hours`, updatedAt: now }, ...clear },
+  );
+  const lapsed = { status: "claimed" as const, leaseUntil: { $lt: now } };
+  const abandoned = await col.updateMany(
+    { ...lapsed, lapses: { $gte: MAX_LAPSES - 1 } },
+    { $set: { status: "rejected", reason: `abandoned: the lease lapsed ${MAX_LAPSES} times`, updatedAt: now }, $inc: { lapses: 1 }, ...clear },
+  );
+  const requeued = await col.updateMany({ ...lapsed }, { $set: { status: "queued", updatedAt: now }, $inc: { lapses: 1 }, ...clear });
+  return { stale: stale.modifiedCount, abandoned: abandoned.modifiedCount, requeued: requeued.modifiedCount };
+}
+
 /* ------------------------------------------------------------- claiming */
 
 /** Gives the worker the best waiting job — or the one named, if it is
@@ -101,10 +129,27 @@ export async function enqueue(max = 5, now = new Date()): Promise<{ queued: numb
     again. */
 export async function claim(worker: string, id?: string, now = new Date()): Promise<StoryDoc | null> {
   if (id !== undefined && !ObjectId.isValid(id)) return null;
-  const waiting = { $or: [{ status: "queued" as const }, { status: "claimed" as const, leaseUntil: { $lt: now } }] };
+  // Waiting: queued, or claimed with a lease that ran out — unless that
+  // was its last lapse, which the sweep rejects. Never a stale job.
+  const waiting = {
+    $or: [{ status: "queued" as const }, { status: "claimed" as const, leaseUntil: { $lt: now }, lapses: { $not: { $gte: MAX_LAPSES - 1 } } }],
+    createdAt: { $gte: new Date(now.getTime() - STALE_H * 3_600_000) },
+  };
   return (await stories()).findOneAndUpdate(
     id ? { _id: new ObjectId(id), ...waiting } : waiting,
-    { $set: { status: "claimed", claimedBy: worker, leaseUntil: new Date(now.getTime() + LEASE_MIN * 60_000), updatedAt: now } },
+    // Taking over a lapsed claim counts the lapse, so the count is right
+    // whether the sweep or another worker finds it first.
+    [
+      {
+        $set: {
+          lapses: { $cond: [{ $eq: ["$status", "claimed"] }, { $add: [{ $ifNull: ["$lapses", 0] }, 1] }, { $ifNull: ["$lapses", 0] }] },
+          status: "claimed",
+          claimedBy: worker,
+          leaseUntil: new Date(now.getTime() + LEASE_MIN * 60_000),
+          updatedAt: now,
+        },
+      },
+    ],
     { sort: { score: -1, createdAt: 1 }, returnDocument: "after" },
   );
 }

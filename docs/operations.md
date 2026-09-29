@@ -110,6 +110,14 @@ with `{"reject": true, "reason": "…"}` — two stories in one, or a subject
 rss.mobi does not rewrite. Clusters about crime, deaths and cases in
 court are never queued.
 
+Every morning at 05:05 UTC QStash calls `/api/v1/cron/stories`: it rejects
+jobs nobody wrote within 48 hours ("stale") and jobs whose 30-minute lease
+lapsed three times ("abandoned"), puts a job with a lapsed lease and
+lapses to spare back in the queue, then queues up to five new ones and
+says so in Telegram. A rejected job keeps its posts, so its cluster is not
+queued again. `retro-stats` reports the week's jobs queued, stories
+written and published, and rejections by reason.
+
 ## Scheduled jobs
 
 Upstash QStash calls `/api/v1/cron/*` every 15 minutes with
