@@ -21,6 +21,8 @@ export const ICONS = {
   terms: "M6 3h9l4 4v14H6ZM14 3v5h5M9 12h7M9 16h7",
   back: "M15 18l-6-6 6-6",
   rss: "M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16M5 18a1 1 0 1 0 0 2a1 1 0 1 0 0-2Z",
+  // A folded newspaper: a page of columns with a narrower one behind it.
+  news: "M3 5h14v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5ZM17 9h3v10a2 2 0 0 1-2 2M7 9h6M7 13h6M7 17h3",
 } as const;
 
 export type IconName = keyof typeof ICONS;
