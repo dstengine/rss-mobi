@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- A reader keeps their list (#25). Once they follow something, the reader
+  asks the browser to keep its storage, and a dismissible card offers the
+  Home Screen — the install prompt where the browser has one, the steps on
+  iPhone, where Safari clears a site's data after a week away — and
+  "Save my list as a link": a collection of the feeds they follow, the
+  same one updated on every later save, to open on another phone.
 - One name per topic (#24). A second spelling of a topic is filed under
   the first wherever topics are normalised — `artificial-intelligence`
   under `ai`, `tech` under `technology`, `games` under `gaming`, `film`

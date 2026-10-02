@@ -12,6 +12,7 @@ import { cacheFor } from "../lib/http.ts";
 import { recentFeeds, starterSets } from "../lib/views.ts";
 import { topicName } from "../lib/words.ts";
 import Icon from "../components/Icon.astro";
+import CopyButton from "../components/CopyButton.astro";
 
 // A first-time reader starts with topics to follow four feeds at a time
 // (views.ts starterSets); the eight newest feeds are the fallback while
@@ -47,6 +48,30 @@ const jsonLd = {
   </div>
 
   <section id="panel-latest" role="tabpanel" aria-labelledby="tab-latest">
+    <aside class="notice keep" id="keep" aria-labelledby="keep-h" hidden>
+      <div class="keep-head">
+        <strong id="keep-h">Keep your list</strong>
+        <button type="button" class="button secondary icon-only" id="keep-close" aria-label="Hide this" title="Hide this for good">×</button>
+      </div>
+      <p class="small">The feeds you follow are saved on this device only.</p>
+      <p class="small" id="keep-ios" hidden>
+        Safari clears what a site saved after a week away. Add rss.mobi to your Home Screen to keep it: tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.
+      </p>
+      <div class="actions">
+        <button type="button" class="button" id="keep-install" hidden>Install the app</button>
+        <button type="button" class="button secondary" id="keep-save">Save my list as a link</button>
+      </div>
+      <div id="keep-link" hidden>
+        <div class="copy-row">
+          <label class="visually-hidden" for="keep-url">Your list's link</label>
+          <input id="keep-url" type="text" readonly />
+          <CopyButton target="#keep-url" />
+        </div>
+        <p class="small muted">Open it on another phone and tap <strong>Follow all</strong>. Anyone with the link can see the list, so share it only if you mean to.</p>
+      </div>
+      <p class="small muted" id="keep-status" role="status"></p>
+    </aside>
+
     <div id="reading" hidden>
       <div class="chips" id="chips" role="group" aria-label="Show one feed"></div>
       <ol class="items" id="items" aria-live="polite"></ol>
@@ -167,6 +192,7 @@ const jsonLd = {
   import { follow, lastSeen, markSeen, subs, unfollow, MAX_SUBS, type Sub } from "../scripts/subs.ts";
   import { counted } from "../lib/words.ts";
   import { parseOpml, toOpml } from "../lib/opml.ts";
+  import { wireCopyButtons } from "../scripts/copy.ts";
 
   interface Item {
     id: string;
@@ -581,6 +607,99 @@ const jsonLd = {
 
   window.addEventListener("online", () => saved && subs().length && firstPage());
   window.addEventListener("rssmobi:subs", render);
+
+  /* ------------------------------------------------------------- keep */
+
+  // A list kept in one browser is lost to a cleared cache, or to Safari
+  // after a week away (#25). Once there is something to lose, the reader
+  // asks the browser to keep its storage, offers the Home Screen, and can
+  // save the list as a collection — the same one each time, by the edit
+  // token this browser keeps.
+  const KEEP = "rssmobi:keep";
+  interface Keep {
+    dismissed?: boolean;
+    persisted?: boolean;
+    id?: string;
+    token?: string;
+  }
+  const keepState = (): Keep => {
+    try {
+      return JSON.parse(localStorage.getItem(KEEP) ?? "{}") ?? {};
+    } catch {
+      return {};
+    }
+  };
+  const remember = (patch: Keep) => {
+    try {
+      localStorage.setItem(KEEP, JSON.stringify({ ...keepState(), ...patch }));
+    } catch {}
+  };
+  const standalone = matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  const iosSafari = /iPhone|iPad|iPod/.test(navigator.userAgent) && !standalone;
+  let installPrompt: (Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> }) | null = null;
+
+  async function persist() {
+    if (!subs().length || keepState().persisted !== undefined || !navigator.storage?.persist) return;
+    const granted = (await navigator.storage.persisted()) || (await navigator.storage.persist());
+    remember({ persisted: granted });
+    track("storage_persist", { label: granted ? "granted" : "denied" });
+  }
+
+  function paintKeep() {
+    const k = keepState();
+    $("#keep").hidden = !subs().length || !!k.dismissed;
+    $("#keep-ios").hidden = !iosSafari;
+    $("#keep-install").hidden = !installPrompt;
+    $("#keep-save").textContent = k.id ? "Update my list's link" : "Save my list as a link";
+    $("#keep-link").hidden = !k.id;
+    if (k.id) $<HTMLInputElement>("#keep-url").value = `${location.origin}/c/${k.id}/`;
+  }
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    installPrompt = e as typeof installPrompt;
+    paintKeep();
+  });
+  $("#keep-install").addEventListener("click", async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    track("keep_install", { label: outcome });
+    installPrompt = null;
+    paintKeep();
+  });
+  $("#keep-close").addEventListener("click", () => {
+    remember({ dismissed: true });
+    track("keep_dismiss");
+    paintKeep();
+  });
+  $("#keep-save").addEventListener("click", async () => {
+    const k = keepState();
+    const status = $("#keep-status");
+    status.textContent = "Saving…";
+    const body = JSON.stringify({ title: "Feeds I follow", feeds: subs().map((s) => s.slug) });
+    const headers = { "Content-Type": "application/json" };
+    let res = k.id && k.token ? await fetch(`/api/v1/collections/${k.id}`, { method: "PUT", headers: { ...headers, "X-Edit-Token": k.token }, body }).catch(() => null) : null;
+    // No saved list yet, or the old one is gone: make a new one.
+    const fresh = !res || res.status === 403 || res.status === 404;
+    if (fresh) res = await fetch("/api/v1/collections", { method: "POST", headers, body }).catch(() => null);
+    const data = res ? await res.json().catch(() => ({})) : {};
+    if (!res?.ok) {
+      status.textContent = data.error ?? "Could not save the list. Try again in a moment.";
+      return;
+    }
+    remember({ id: data.collection.id, token: fresh ? String(data.editUrl ?? "").split("#")[1] : k.token });
+    status.textContent = fresh ? "Saved. Bookmark the link, or open it on another phone." : "Updated: the link now has your whole list.";
+    track("keep_save", { label: fresh ? "new" : "update" });
+    paintKeep();
+  });
+  window.addEventListener("rssmobi:subs", () => {
+    paintKeep();
+    void persist();
+  });
+  wireCopyButtons(() => track("subscribe_copy", { label: "keep" }));
+  paintKeep();
+  void persist();
   window.addEventListener("storage", (e) => e.key === "rssmobi:subs" && render());
   if (location.hash === "#following") show("following");
   render();

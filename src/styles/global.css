@@ -1403,6 +1403,29 @@ details.report[open] > summary::before,
   margin-bottom: 8px;
 }
 
+/* ------------------------------------------------------------------ keep */
+
+.keep {
+  margin: 12px 0 16px;
+}
+
+.keep-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.keep p {
+  margin: 8px 0;
+}
+
+.keep .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* ------------------------------------------------------------ start sets */
 
 /* A first-time reader's topic sets: a topic, its four feeds by name, and

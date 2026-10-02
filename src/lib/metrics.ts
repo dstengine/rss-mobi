@@ -22,12 +22,15 @@ const DAY = 86_400_000;
     whatever a stranger posts — counts toward the event alone, so nobody
     can make a row per value. */
 const LABELS: Record<string, RegExp> = {
-  subscribe_copy: /^(topic|collection|builder)$/,
   subscribe_open: /^(Feedly|Inoreader|NetNewsWire|rss\.mobi)$/,
   submit_error: /^\d{3}$/,
   collection_add_url: /^(new|existing)$/,
   reader_start: /^empty$/,
   reader_follow: /^(first|more)$/,
+  storage_persist: /^(granted|denied)$/,
+  keep_install: /^(accepted|dismissed)$/,
+  keep_save: /^(new|update)$/,
+  subscribe_copy: /^(topic|collection|builder|keep)$/,
 };
 const LABELLED = Object.keys(LABELS);
 
