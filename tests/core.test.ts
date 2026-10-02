@@ -103,7 +103,7 @@ describe("sitemap", () => {
 describe("filters", () => {
   test("parse, clamp and normalise", () => {
     const f = parseFilters(new URLSearchParams("tag=Web Dev,rss&lang=EN&feed=a-b,Bad Slug&host=www.Example.com&limit=500&exclude=ad,x&since=2026-09-01"));
-    assert.deepEqual(f.tags, ["web-dev", "rss"]);
+    assert.deepEqual(f.tags, ["web-development", "rss"]);
     assert.equal(f.lang, "en");
     assert.deepEqual(f.feeds, ["a-b"]);
     assert.deepEqual(f.hosts, ["example.com"]);

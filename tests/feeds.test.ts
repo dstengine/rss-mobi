@@ -23,7 +23,7 @@ describe("parseFeed", () => {
     assert.equal(first.title, "First post");
     assert.equal(first.excerpt, "Hello & welcome 👋 to the first post.");
     assert.equal(first.author, "Ann");
-    assert.deepEqual(first.tags, ["web-dev", "rss"]);
+    assert.deepEqual(first.tags, ["web-development", "rss"]);
     assert.equal(first.image, "https://example.com/img/first.jpg");
     assert.equal(first.publishedAt?.toISOString(), "2026-09-21T10:00:00.000Z");
 
@@ -147,7 +147,10 @@ describe("url helpers", () => {
     assert.equal(slugify("x-ray"), "x-ray");
   });
   test("tag", () => {
-    assert.equal(tag("Web Dev"), "web-dev");
+    assert.equal(tag("Web Dev"), "web-development");
+    assert.equal(tag("Artificial Intelligence"), "ai");
+    assert.equal(tag("Tech"), "technology");
+    assert.equal(tag("Generative AI"), "generative-ai", "a narrower subject keeps its name");
     assert.equal(tag("x"), "");
     assert.equal(tag("Новости"), "новости");
   });

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- One name per topic (#24). A second spelling of a topic is filed under
+  the first wherever topics are normalised — `artificial-intelligence`
+  under `ai`, `tech` under `technology`, `games` under `gaming`, `film`
+  under `movies` and a few more (`TOPIC_ALIASES`) — so the two no longer
+  compete for one search, and `/tag/tech/` answers 301. A narrower
+  subject keeps its own page. `scripts/retag.mjs` folds what is stored;
+  the sitemap never lists a second spelling.
 - A topic's feed follows the topic (#23). A feed now remembers which of
   its topics a person chose (`chosenTags`: the submitter, the owner, the
   seed list) apart from those read off its first posts, and a post is
