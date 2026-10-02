@@ -25,6 +25,12 @@ const NAMES = new Set([
   // conversion.
   "reader_start",
   "reader_follow",
+  // Keeping a reader's list (#25): storage kept or not, the app installed,
+  // the list saved as a link, the card hidden.
+  "storage_persist",
+  "keep_install",
+  "keep_save",
+  "keep_dismiss",
   "read_post",
   "opml_import",
   "opml_export",
