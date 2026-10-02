@@ -5,6 +5,7 @@
 import type { Filter } from "mongodb";
 import { feeds, items, stories } from "./db.ts";
 import { policy } from "./policy.ts";
+import { tag } from "./feeds/url.ts";
 import { newest, type Entry } from "./sitemap.ts";
 import { itemPath, recentFeeds, starterSets, tagStats } from "./views.ts";
 import { publishedStories, storyPath } from "./stories.ts";
@@ -38,6 +39,9 @@ export async function pageEntries(): Promise<Entry[]> {
 export async function tagEntries(): Promise<Entry[]> {
   const tags = await tagStats(5_000);
   return tags
+    // A second spelling of a topic answers 301 (TOPIC_ALIASES) and has no
+    // place in a sitemap, even before the stored tags are folded.
+    .filter((t) => tag(t.tag) === t.tag)
     .filter((t) => policy({ type: "tag", feeds: t.feeds, hosts: t.hosts }).sitemap)
     .map((t) => ({ loc: loc(`/tag/${t.tag}/`), lastmod: newest([copyDate("/tag/"), t.updatedAt]) }));
 }

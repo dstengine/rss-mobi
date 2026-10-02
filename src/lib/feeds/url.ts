@@ -135,8 +135,40 @@ export function slugify(s: string, fallback = "feed"): string {
     the filters in the browser, and the XML parser has no business there. */
 export function tag(s: unknown): string {
   const t = unescape(s).toLowerCase().normalize("NFKC").replace(/[\s_/]+/g, "-").replace(/[^\p{L}\p{N}-]+/gu, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
-  return t.length >= 2 && t.length <= 32 ? t : "";
+  return t.length >= 2 && t.length <= 32 ? (TOPIC_ALIASES[t] ?? t) : "";
 }
+
+/** One name per topic. Two spellings of one subject would be two pages
+    competing for the same search (#24) and two halves of one list; the
+    one on the left is filed under the one on the right, everywhere tag()
+    is — categories, submitted topics, filters, addresses (/tag/tech/
+    answers 301). Only true synonyms: a narrower subject such as
+    generative-ai or bitcoin keeps its own page. */
+export const TOPIC_ALIASES: Record<string, string> = {
+  "artificial-intelligence": "ai",
+  "ai-ml": "ai",
+  tech: "technology",
+  "tech-news": "technology",
+  games: "gaming",
+  "video-games": "gaming",
+  videogames: "gaming",
+  podcast: "podcasts",
+  sport: "sports",
+  film: "movies",
+  films: "movies",
+  movie: "movies",
+  "movie-news": "movies",
+  "music-news": "music",
+  world: "world-news",
+  review: "reviews",
+  videos: "video",
+  webdev: "web-development",
+  "web-dev": "web-development",
+  "trump-donald-j": "donald-trump",
+  startup: "startups",
+  recipe: "recipes",
+  book: "books",
+};
 
 /** A route parameter as text. Astro hands it over decoded already; this
     decodes what is left, and a stray "%" — /tag/%25/ — stays as it is
