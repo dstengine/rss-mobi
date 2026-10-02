@@ -8,7 +8,7 @@ import { assign, zTest, hash32, EXPERIMENTS, type Experiment } from "../src/lib/
 import { existsSync } from "node:fs";
 import { reserve, headroom, BudgetExceeded, LIMITS } from "../src/lib/budget.ts";
 import { spamReason } from "../src/lib/spam.ts";
-import { feedTags } from "../src/lib/catalog.ts";
+import { feedTags, postTags } from "../src/lib/catalog.ts";
 import { tag, topic, ownName } from "../src/lib/feeds/parse.ts";
 import { itemJson, itemPageOpen } from "../src/lib/views.ts";
 import { hasScope, mint } from "../src/lib/keys.ts";
@@ -314,6 +314,25 @@ describe("story checks", () => {
     const short = check(job, { ...good, sections: good.sections.map((s) => ({ ...s, paragraphs: s.paragraphs.slice(0, 1) })) });
     assert.ok(!short.ok && short.problems.some((p) => p.startsWith("Length")));
   });
+});
+
+describe("topics of a post", () => {
+  const firehose = { title: "DEV Community", host: "dev.to", tags: ["web-development", "ai", "security", "python"], chosenTags: ["web-development"] };
+
+  test("a post keeps its own categories and its feed's chosen topics, not the ones read off other posts", () => {
+    assert.deepEqual(postTags(["email", "smtp"], firehose), ["email", "smtp", "web-development"]);
+    assert.deepEqual(postTags(["ai", "llm"], firehose), ["ai", "llm", "web-development"]);
+  });
+
+  test("a post with no categories of its own takes all its feed's tags", () => {
+    assert.deepEqual(postTags([], firehose), firehose.tags);
+    assert.deepEqual(postTags(["dev-community"], firehose), firehose.tags, "the site's own name is not a category");
+  });
+
+  test("a feed saved before topics were told apart keeps the old rule", () => {
+    assert.deepEqual(postTags(["email"], { ...firehose, chosenTags: undefined }), ["email", ...firehose.tags]);
+  });
+
 });
 
 describe("exports", () => {

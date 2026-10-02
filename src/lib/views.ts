@@ -282,10 +282,26 @@ export async function tagPlace(f: Pick<PublicFeed, "tags" | "rank" | "status">):
 export const followers = (f: Pick<PublicFeed, "subscribers">) => subscriberTotal(f.subscribers);
 
 export async function itemsByTag(tag: string, limit = 20): Promise<PublicItem[]> {
+  return diverseItems({ tags: tag, visible: true }, limit);
+}
+
+/** The newest posts matching `q`, at most one in ten from any one feed (at
+    least one each): a topic's page and feed should show the topic, not
+    the busiest feed in it — dev.to alone posts three thousand times a
+    week. Thinned in the database, each feed's newest few kept, so a topic
+    one feed floods still fills the list from the others. */
+export async function diverseItems(q: Filter<ItemDoc>, limit: number): Promise<PublicItem[]> {
+  const perFeed = Math.max(1, Math.ceil(limit / 10));
   const rows = await (await items())
-    .find({ tags: tag, visible: true }, { projection: ITEM_FIELDS })
-    .sort({ publishedAt: -1 })
-    .limit(limit)
+    .aggregate([
+      { $match: q },
+      { $group: { _id: "$feedSlug", posts: { $topN: { n: perFeed, sortBy: { publishedAt: -1, _id: -1 }, output: "$$ROOT" } } } },
+      { $unwind: "$posts" },
+      { $replaceRoot: { newRoot: "$posts" } },
+      { $sort: { publishedAt: -1, _id: -1 } },
+      { $limit: limit },
+      { $project: ITEM_FIELDS },
+    ])
     .toArray();
   return rows.map(toItem);
 }

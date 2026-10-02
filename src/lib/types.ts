@@ -23,6 +23,10 @@ export interface FeedDoc {
   description: string;
   lang: string;
   tags: string[];
+  /** The topics a person chose for the feed — the submitter, the owner,
+      or the seed list — as against those read off its first posts'
+      categories. A post inherits only these (catalog.ts postTags). */
+  chosenTags?: string[];
   image?: string;
   format: string;
   status: FeedStatus;

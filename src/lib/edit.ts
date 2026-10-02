@@ -60,7 +60,8 @@ export async function applyEdit(feed: FeedDoc, req: EditRequest): Promise<FeedDo
   if (req.tags !== undefined) {
     if (!Array.isArray(req.tags)) return error(400, "tags must be a list of strings.");
     const tags = [...new Set(req.tags.filter((t): t is string => typeof t === "string").map(topic).filter(Boolean))].slice(0, MAX_TAGS);
-    if (tags.join() !== feed.tags.join()) set.tags = tags;
+    // The owner's topics are chosen ones: posts inherit all of them.
+    if (tags.join() !== feed.tags.join()) Object.assign(set, { tags, chosenTags: tags });
   }
   if (req.nofollow !== undefined) {
     const linkMode = req.nofollow === true ? "nofollow" : null;

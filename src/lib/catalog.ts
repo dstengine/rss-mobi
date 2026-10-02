@@ -135,6 +135,7 @@ export async function submit(input: string, opts: { tags?: string[]; ipHash?: st
     description: parsed.description,
     lang: parsed.lang,
     tags: feedTags(userTags, parsed, { title, host }),
+    chosenTags: userTags,
     image: parsed.image,
     format: parsed.format,
     status: "active",
@@ -205,6 +206,22 @@ export function feedTags(userTags: string[], parsed: Pick<ParsedFeed, "items">, 
 
 /* --------------------------------------------------------------- storing */
 
+/** A post's topics: its own categories, and the topics a person chose for
+    its feed. Not the feed's other tags, which were read off its first
+    posts: a feed tagged ai, security and python because some posts were
+    is a mix, and every post in it is not about all three — which is how a
+    post about mail servers filed itself under AI. A post with no
+    categories of its own takes all its feed's tags; they are the best
+    guess there is. A feed saved before topics were told apart has no
+    `chosenTags`, and keeps the old rule until they are filled in
+    (scripts/chosen-tags.mjs). */
+export function postTags(own: string[], feed: Pick<FeedDoc, "tags" | "chosenTags" | "title" | "host">): string[] {
+  const mine = own.filter((t) => !ownName(t, feed));
+  const inherited = !mine.length || !feed.chosenTags ? feed.tags : feed.chosenTags;
+  return [...new Set([...mine, ...inherited])].slice(0, 10);
+}
+
+
 /** Upserts the feed's items. New ones join the index-check queue at once,
     unless their feed takes no part in it; existing ones are left alone, so
     a poll that finds nothing new changes nothing and moves no dates.
@@ -224,7 +241,7 @@ export async function store(feed: FeedDoc, parsed: ParsedFeed): Promise<number> 
       excerpt: it.excerpt,
       image: it.image,
       author: it.author,
-      tags: [...new Set([...it.tags.filter((t) => !ownName(t, feed)), ...feed.tags])].slice(0, 10),
+      tags: postTags(it.tags, feed),
       lang: feed.lang,
       // A post dated ahead of now — a scheduled post, a clock a time zone
       // off — is dated when it was first seen: a future date would hold it

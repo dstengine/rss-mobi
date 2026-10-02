@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- A topic's feed follows the topic (#23). A feed now remembers which of
+  its topics a person chose (`chosenTags`: the submitter, the owner, the
+  seed list) apart from those read off its first posts, and a post is
+  filed under its own categories plus the chosen ones — not under every
+  tag its feed collected, which is how a post about mail servers counted
+  as AI. A post with no categories of its own still takes all its
+  feed's tags. Topic pages and topic and filter exports show at most one
+  post in ten from any one feed (`diverse()`), so dev.to no longer fills
+  `/tag/ai/rss.xml`. `scripts/chosen-tags.mjs` fills in the chosen topics
+  of older feeds and re-files the posts their feeds still list.
 - Story jobs are queued every morning (#28): `/api/v1/cron/stories`,
   05:05 UTC, rejects jobs older than 48 hours and ones whose lease lapsed
   three times, requeues the other lapsed ones, and queues up to five new

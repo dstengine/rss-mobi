@@ -20,7 +20,7 @@ describe("with MongoDB", { skip }, async () => {
   const { pollDue, pollIfDue, store } = await import("../src/lib/catalog.ts");
   const { applyEdit, editable } = await import("../src/lib/edit.ts");
   const { noteSubscribers, storedPosts } = await import("../src/lib/copy.ts");
-  const { itemJson, itemsFor, feedsByTag, recentFeeds, tagPlace } = await import("../src/lib/views.ts");
+  const { diverseItems, itemJson, itemsFor, feedsByTag, recentFeeds, tagPlace } = await import("../src/lib/views.ts");
   const { noteActivity } = await import("../src/lib/activity.ts");
   const { apiKeys } = await import("../src/lib/db.ts");
   const { createKey, revokeKey } = await import("../src/lib/keys.ts");
@@ -230,6 +230,23 @@ describe("with MongoDB", { skip }, async () => {
     const report = await pollDue(Date.now() + 20_000);
     assert.ok(report.polled >= 1);
     assert.equal((await col.findOne({ _id: soon._id }))?.failCount, 1);
+  });
+
+  test("a topic's list shows at most one post in ten from any one feed, and still fills up", async () => {
+    const busy = await feed();
+    const quiet = await Promise.all(Array.from({ length: 30 }, () => feed()));
+    const t = `div${busy._id}`;
+    const now = Date.now();
+    const post = (f: any, i: number, ago: number) => ({ _id: new ObjectId(), feedId: f._id, feedSlug: f.slug, guid: `g${i}`, url: `https://${f.host}/${i}`, canonicalUrl: `https://${f.host}/${i}`, host: f.host, title: `P${i}`, excerpt: "", tags: [t], lang: "en", publishedAt: new Date(now - ago), visible: true, indexStatus: "skipped", indexNextCheckAt: null, indexChecks: 0, robots: null, linkMode: null, expiresAt: null, createdAt: new Date(), updatedAt: new Date() });
+    // The busy feed has the 200 newest posts; each quiet one has one, older.
+    await (await items()).insertMany([
+      ...Array.from({ length: 200 }, (_, i) => post(busy, i, i * 1_000)),
+      ...quiet.map((f, i) => post(f, 1000 + i, 3_600_000 + i * 1_000)),
+    ] as any[]);
+    const list = await diverseItems({ tags: t, visible: true }, 30);
+    assert.equal(list.length, 30);
+    assert.equal(list.filter((p) => p.feedSlug === busy.slug).length, 3);
+    assert.ok(list.every((p, i) => i === 0 || new Date(list[i - 1].publishedAt) >= new Date(p.publishedAt)));
   });
 
   test("the newest feeds list one per site", async () => {

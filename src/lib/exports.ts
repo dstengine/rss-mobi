@@ -8,10 +8,10 @@
 // reader subscribed to /rss.xml would otherwise keep every feed in the
 // directory at full pace, on a CPU budget of four hours a month. Exports
 // show what the poller has, at most a poll behind.
-import { toSearch, type Filters } from "./filters.ts";
+import { toQuery, toSearch, type Filters } from "./filters.ts";
 import { toOpml } from "./opml.ts";
 import { toRss } from "./rss.ts";
-import { feedsBySlugs, itemsFor, type PublicFeed } from "./views.ts";
+import { diverseItems, feedsBySlugs, itemsFor, type PublicFeed } from "./views.ts";
 import { site } from "../site.config.ts";
 
 /** The path of the RSS export for `f`, spelled one way. */
@@ -25,7 +25,11 @@ export const rssUrl = (f: Filters) => `${site.url}${rssPath(f)}`;
 /** RSS 2.0 of the newest posts matching `f`. `link` is the page a reader
     app shows as the feed's home. */
 export async function postsRss(f: Filters, c: { title: string; link: string; self: string; description: string }): Promise<string> {
-  const items = await itemsFor(f);
+  // A filter over many feeds shows at most one post in ten from any one
+  // of them (views.ts diverse); asked for one feed or one site, it shows
+  // that feed whole.
+  const one = f.feeds.length === 1 || f.hosts.length === 1;
+  const items = one ? await itemsFor(f) : await diverseItems(toQuery(f), f.limit);
   const list = await feedsBySlugs([...new Set(items.map((it) => it.feedSlug))]);
   return toRss({
     ...c,
