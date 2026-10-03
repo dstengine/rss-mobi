@@ -529,5 +529,43 @@ describe("with MongoDB", { skip }, async () => {
       assert.deepEqual([rejected?.status, rejected?.reason], ["rejected", "two stories in one"]);
       assert.equal(await storyAt("2001-01-01", "nothing"), null);
     });
+
+    test("a story in review can be claimed by name and revised; it never re-enters the queue", async () => {
+      const col = await stories();
+      const _id = new ObjectId();
+      storiesMade.push(_id);
+      const now = new Date();
+      const sources = [
+        { itemId: new ObjectId(), url: `https://a.example/${_id}`, title: "Rocket reaches orbit", host: "a.example", feedSlug: "a", publishedAt: now, excerpt: "It flew." },
+        { itemId: new ObjectId(), url: `https://b.example/${_id}`, title: "Big rocket in orbit", host: "b.example", feedSlug: "b", publishedAt: now, excerpt: "It flew too." },
+        { itemId: new ObjectId(), url: `https://c.example/${_id}`, title: "Orbit at last", host: "c.example", feedSlug: "c", publishedAt: now, excerpt: "Up it went." },
+      ];
+      // Older than STALE_H: a written story is not a stale job.
+      const old = new Date(now.getTime() - (STALE_H + 5) * 3_600_000);
+      await col.insertOne({ _id, status: "queued", score: -1e6, hosts: 3, sources, createdAt: now, updatedAt: now });
+      await claim("worker01", String(_id));
+      const first = (await submit(String(_id), { prefix: "worker01", name: "w" }, story(sources.map((x) => x.url)))).story!;
+      await col.updateOne({ _id }, { $set: { createdAt: old, day: "2001-02-03" } });
+
+      assert.notEqual(String((await claim("worker03"))?._id ?? ""), String(_id), "never handed out unnamed");
+      const again = await claim("worker03", String(_id));
+      assert.deepEqual([again?.status, again?.headline], ["claimed", first.headline]);
+      const revised = await submit(String(_id), { prefix: "worker03", name: "w" }, story(sources.slice(1).map((x) => x.url)));
+      assert.equal(revised.status, 200);
+      assert.deepEqual([revised.story!.status, revised.story!.day, revised.story!.cited], ["review", "2001-02-03", sources.slice(1).map((x) => x.url)]);
+
+      // Handed back, or left to lapse, it is in review again, as written.
+      await claim("worker03", String(_id));
+      assert.equal((await release(String(_id), "worker03"))?.status, "review");
+      await claim("worker03", String(_id), new Date(now.getTime() - 60 * 60_000));
+      const r = await sweep(now);
+      assert.ok(r.revisions >= 1);
+      const after = (await col.findOne({ _id }))!;
+      assert.deepEqual([after.status, after.claimedBy, after.cited], ["review", undefined, sources.slice(1).map((x) => x.url)]);
+
+      // Published is out of reach.
+      await decide(String(_id), "published");
+      assert.equal(await claim("worker03", String(_id)), null);
+    });
   });
 });

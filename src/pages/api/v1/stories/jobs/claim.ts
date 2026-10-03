@@ -1,6 +1,7 @@
 // POST /api/v1/stories/jobs/claim {id?} — takes the best waiting job, or the
 // one named, for 30 minutes: its sources and the brief. 404 when nothing is
-// waiting. Needs write:stories.
+// waiting. Named, it may also be a written story still in review, claimed
+// again to revise it. Needs write:stories.
 import type { APIRoute } from "astro";
 import { body, error, json, requireScope } from "../../../../../lib/http.ts";
 import { claim, jobJson } from "../../../../../lib/stories.ts";
