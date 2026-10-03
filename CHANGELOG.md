@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- A story in review can be revised. A worker claims it again by id and
+  submits it again; before, a 200 closed the job and nothing could change
+  the text short of rejecting it. A revision is never handed out unnamed,
+  keeps its day, and goes back to review — not to the queue — if handed
+  back or left to lapse.
+
 - A reader keeps their list (#25). Once they follow something, the reader
   asks the browser to keep its storage, and a dismissible card offers the
   Home Screen — the install prompt where the browser has one, the steps on

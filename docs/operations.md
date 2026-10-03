@@ -110,10 +110,18 @@ with `{"reject": true, "reason": "…"}` — two stories in one, or a subject
 rss.mobi does not rewrite. Clusters about crime, deaths and cases in
 court are never queued.
 
+A story in review is not frozen. Claimed again by name
+(`-d '{"id":"<id>"}'`), it is held like a job and revised by sending it
+again; it keeps the day it was first filed. Handed back, or left to lapse,
+it returns to review as last sent, never to the queue, and the sweep never
+counts it stale. A published story cannot be claimed: take it back to
+review first.
+
 Every morning at 05:05 UTC QStash calls `/api/v1/cron/stories`: it rejects
 jobs nobody wrote within 48 hours ("stale") and jobs whose 30-minute lease
 lapsed three times ("abandoned"), puts a job with a lapsed lease and
-lapses to spare back in the queue, then queues up to five new ones and
+lapses to spare back in the queue, returns a lapsed revision to review,
+then queues up to five new ones and
 says so in Telegram. A rejected job keeps its posts, so its cluster is not
 queued again. `retro-stats` reports the week's jobs queued, stories
 written and published, and rejections by reason.

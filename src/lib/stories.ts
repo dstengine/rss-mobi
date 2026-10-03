@@ -103,40 +103,47 @@ export async function enqueue(max = 5, now = new Date()): Promise<{ queued: numb
 
 /** Clears the queue of what nobody will write: jobs older than STALE_H
     hours, and jobs whose lease has lapsed MAX_LAPSES times. A lapsed
-    claim with lapses to spare goes back to waiting, counted. Rejected
-    jobs keep their posts, so their clusters are never queued again. */
-export async function sweep(now = new Date()): Promise<{ stale: number; abandoned: number; requeued: number }> {
+    claim with lapses to spare goes back to waiting, counted; a lapsed
+    revision goes back to review, as written. Rejected jobs keep their
+    posts, so their clusters are never queued again. */
+export async function sweep(now = new Date()): Promise<{ stale: number; abandoned: number; requeued: number; revisions: number }> {
   const col = await stories();
-  const open = { status: { $in: ["queued", "claimed"] as StoryDoc["status"][] } };
   const clear = { $unset: { claimedBy: "", leaseUntil: "" } };
+  const revisions = await col.updateMany({ ...written, status: "claimed", leaseUntil: { $lt: now } }, { $set: { status: "review", updatedAt: now }, ...clear });
+  const open = { ...unwritten, status: { $in: ["queued", "claimed"] as StoryDoc["status"][] } };
   const stale = await col.updateMany(
     { ...open, createdAt: { $lt: new Date(now.getTime() - STALE_H * 3_600_000) } },
     { $set: { status: "rejected", reason: `stale: not written within ${STALE_H} hours`, updatedAt: now }, ...clear },
   );
-  const lapsed = { status: "claimed" as const, leaseUntil: { $lt: now } };
+  const lapsed = { ...unwritten, status: "claimed" as const, leaseUntil: { $lt: now } };
   const abandoned = await col.updateMany(
     { ...lapsed, lapses: { $gte: MAX_LAPSES - 1 } },
     { $set: { status: "rejected", reason: `abandoned: the lease lapsed ${MAX_LAPSES} times`, updatedAt: now }, $inc: { lapses: 1 }, ...clear },
   );
   const requeued = await col.updateMany({ ...lapsed }, { $set: { status: "queued", updatedAt: now }, $inc: { lapses: 1 }, ...clear });
-  return { stale: stale.modifiedCount, abandoned: abandoned.modifiedCount, requeued: requeued.modifiedCount };
+  return { stale: stale.modifiedCount, abandoned: abandoned.modifiedCount, requeued: requeued.modifiedCount, revisions: revisions.modifiedCount };
 }
 
 /* ------------------------------------------------------------- claiming */
 
 /** Gives the worker the best waiting job — or the one named, if it is
     waiting — for LEASE_MIN minutes. A job whose lease ran out is waiting
-    again. */
+    again. Named, it can also be a story already written and not yet
+    published: claimed again, it is revised by submitting it again, and
+    goes back to review if the worker lets it go. Never handed out unnamed. */
 export async function claim(worker: string, id?: string, now = new Date()): Promise<StoryDoc | null> {
   if (id !== undefined && !ObjectId.isValid(id)) return null;
   // Waiting: queued, or claimed with a lease that ran out — unless that
   // was its last lapse, which the sweep rejects. Never a stale job.
+  const lapsed = { status: "claimed" as const, leaseUntil: { $lt: now } };
   const waiting = {
-    $or: [{ status: "queued" as const }, { status: "claimed" as const, leaseUntil: { $lt: now }, lapses: { $not: { $gte: MAX_LAPSES - 1 } } }],
+    ...unwritten,
+    $or: [{ status: "queued" as const }, { ...lapsed, lapses: { $not: { $gte: MAX_LAPSES - 1 } } }],
     createdAt: { $gte: new Date(now.getTime() - STALE_H * 3_600_000) },
   };
+  const revisable = { ...written, $or: [{ status: "review" as const }, lapsed] };
   return (await stories()).findOneAndUpdate(
-    id ? { _id: new ObjectId(id), ...waiting } : waiting,
+    id ? { _id: new ObjectId(id), $or: [waiting, revisable] } : waiting,
     // Taking over a lapsed claim counts the lapse, so the count is right
     // whether the sweep or another worker finds it first.
     [
@@ -154,9 +161,15 @@ export async function claim(worker: string, id?: string, now = new Date()): Prom
   );
 }
 
+/** A job becomes a story when it is first submitted; one claimed again
+    after that is a revision, and ends in review, never in the queue. */
+const unwritten = { submittedAt: { $exists: false } };
+const written = { submittedAt: { $exists: true } };
+
 const held = (worker: string, now: Date) => ({ status: "claimed" as const, claimedBy: worker, leaseUntil: { $gte: now } });
 
-/** Hands a job back: waiting again, or rejected with the reason. */
+/** Hands a job back: waiting again — a revision back in review — or
+    rejected with the reason. */
 export async function release(id: string, worker: string, opts: { reject?: boolean; reason?: string } = {}, now = new Date()): Promise<StoryDoc | null> {
   if (!ObjectId.isValid(id)) return null;
   const reason = (opts.reason ?? "").trim().slice(0, 300);
@@ -164,7 +177,7 @@ export async function release(id: string, worker: string, opts: { reject?: boole
     { _id: new ObjectId(id), ...held(worker, now) },
     opts.reject
       ? { $set: { status: "rejected", reason: reason || "rejected by the worker", updatedAt: now }, $unset: { claimedBy: "", leaseUntil: "" } }
-      : { $set: { status: "queued", updatedAt: now }, $unset: { claimedBy: "", leaseUntil: "" } },
+      : [{ $set: { status: { $cond: [{ $ifNull: ["$submittedAt", false] }, "review", "queued"] }, updatedAt: now } }, { $unset: ["claimedBy", "leaseUntil"] }],
     { returnDocument: "after" },
   );
 }
@@ -262,7 +275,9 @@ export async function submit(id: string, worker: { prefix: string; name: string 
   if (!job) return { status: 409 as const };
   const result = check(job, input);
   if (!result.ok) return { status: 422 as const, problems: result.problems };
-  const day = now.toISOString().slice(0, 10);
+  // A revision keeps the day it was first filed, so its address only
+  // changes with its headline.
+  const day = job.day ?? now.toISOString().slice(0, 10);
   const base = storySlug(result.story.headline);
   let slug = base;
   for (let n = 2; await col.findOne({ day, slug, _id: { $ne: job._id } }, { projection: { _id: 1 } }); n++) slug = `${base}-${n}`;

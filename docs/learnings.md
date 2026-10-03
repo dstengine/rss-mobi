@@ -2,6 +2,15 @@
 
 Observation → evidence → where it was applied. Newest first.
 
+## 2026-10-04 — story worker
+
+- **A submit that cannot be undone needs a way back.** Evidence: a story
+  went into review citing a source that had answered 403; the worker could
+  not resubmit (409), reclaim it (claim took only queued jobs), or edit it
+  through the admin API, which sets a status and nothing else. Applied: a
+  story in review can be claimed by id and revised, and the worker's
+  routine now checks every cited source before it submits.
+
 ## 2026-09-23 — slice 1
 
 - **MongoDB 8 does not start on Docker Desktop's Linux 6.19 kernel.**
