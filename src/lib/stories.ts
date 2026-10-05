@@ -10,6 +10,7 @@ import { items, stories } from "./db.ts";
 import { cluster, sensitive, type Cluster } from "./clusters.ts";
 import { key, slugify } from "./feeds/url.ts";
 import { SITE } from "./env.ts";
+import { pictureUrl, SIZES, type Picture, type SizeName } from "./pictures.ts";
 import type { StoryDoc, StorySection, StorySource } from "./types.ts";
 
 export const LEASE_MIN = 30;
@@ -356,6 +357,34 @@ export async function storyAt(day: string, slug: string): Promise<StoryDoc | nul
 }
 
 export const storyPath = (s: Pick<StoryDoc, "day" | "slug">) => `/news/${s.day}/${s.slug}/`;
+
+/** The pictures of the posts the stories in `list` were written from, by
+    post id: one query for a whole list. Hidden posts lend none. */
+export async function sourcePictures(list: Pick<StoryDoc, "sources">[]): Promise<Map<string, Picture>> {
+  const ids = list.flatMap((s) => s.sources.flatMap((x) => (x.itemId ? [x.itemId] : [])));
+  if (!ids.length) return new Map();
+  const found = await (await items()).find({ _id: { $in: ids }, visible: true, picture: { $ne: null } }, { projection: { picture: 1 } }).toArray();
+  return new Map(found.flatMap((it) => (it.picture ? [[String(it._id), it.picture] as const] : [])));
+}
+
+/** A story's picture at `size`, and whose it is: one set on the story by
+    hand, else that of the first post it cites with one big enough. Each is
+    served from its own address — the story's, or the post's, which the CDN
+    already keeps — so nothing is resized twice. Null when there is none. */
+export function storyPicture(
+  story: Pick<StoryDoc, "day" | "slug" | "sources" | "cited" | "picture">,
+  posts: Map<string, Picture>,
+  size: SizeName,
+): { src: string; credit: { name: string; url: string } } | null {
+  if (story.picture) return story.picture.w >= SIZES[size].min ? { src: `${storyPath(story)}image/${size}`, credit: story.picture.credit } : null;
+  const cited = new Set(story.cited ?? []);
+  for (const s of story.sources) {
+    if (!s.itemId || !cited.has(s.url)) continue;
+    const src = pictureUrl({ id: String(s.itemId), picture: posts.get(String(s.itemId)) }, size);
+    if (src) return { src, credit: { name: s.host, url: s.url } };
+  }
+  return null;
+}
 
 /** A job as a worker sees it. */
 export const jobJson = (j: StoryDoc, origin: string) => ({

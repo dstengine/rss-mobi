@@ -6,12 +6,13 @@
 import Base from "../../layouts/Base.astro";
 import { policy } from "../../lib/policy.ts";
 import { cacheFor } from "../../lib/http.ts";
-import { listedStories, storyPath } from "../../lib/stories.ts";
+import { listedStories, sourcePictures, storyPath, storyPicture } from "../../lib/stories.ts";
 import { fmtDate } from "../../lib/views.ts";
 import { counted } from "../../lib/words.ts";
 import { site } from "../../site.config.ts";
 
 const list = await listedStories(50);
+const pictures = await sourcePictures(list);
 const decision = list.length ? policy({ type: "static" }) : policy({ type: "search" });
 Astro.response.headers.set("Cache-Control", cacheFor(300));
 
@@ -40,8 +41,18 @@ const jsonLd = {
   {
     list.length ? (
       <ul class="items">
-        {list.map((s) => (
+        {list.map((s) => {
+          const thumb = storyPicture(s, pictures, "thumb.webp")?.src;
+          return (
           <li>
+            {/* The picture repeats the headline's link, so it is left out of
+                the tab order and of what a screen reader reads — as in a
+                feed's list of posts. */}
+            {thumb && (
+              <a class="thumb" href={storyPath(s)} title={s.dek} tabindex="-1" aria-hidden="true">
+                <img src={thumb} width="84" height="84" alt="" loading="lazy" decoding="async" />
+              </a>
+            )}
             <a href={storyPath(s)} title={s.dek}>
               <strong>{s.headline}</strong>
             </a>
@@ -53,7 +64,8 @@ const jsonLd = {
             </p>
             <p>{s.dek}</p>
           </li>
-        ))}
+          );
+        })}
       </ul>
     ) : (
       <p class="muted">No stories yet.</p>

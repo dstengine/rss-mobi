@@ -132,6 +132,12 @@ on its document, the last day inclusive, in UTC. Until then it leads
 lists it in its place by date. Nothing sets it but a person, in the
 database, and it lifts by itself.
 
+A story shows the picture of the first post it cites that has one. A story
+whose sources were written in by hand has none to borrow, and can be given
+one: `picture: { url, w, h, credit: { name, url } }`, the original's
+address and size and whose it is, with the owner's leave to use it. It is
+served resized from `/news/<day>/<slug>/image/<size>`.
+
 ## Scheduled jobs
 
 Upstash QStash calls `/api/v1/cron/*` every 15 minutes with

@@ -16,7 +16,7 @@ import { hostKey } from "../src/lib/admin.ts";
 import { decodeParam } from "../src/lib/feeds/url.ts";
 import { lastDays, metricsOf, pageType } from "../src/lib/metrics.ts";
 import { cluster, sensitive, type Post } from "../src/lib/clusters.ts";
-import { check, pinFirst, storySlug, WORDS } from "../src/lib/stories.ts";
+import { check, pinFirst, storyPicture, storySlug, WORDS } from "../src/lib/stories.ts";
 import { ObjectId } from "mongodb";
 import { matches, sha256, newToken } from "../src/lib/tokens.ts";
 
@@ -330,6 +330,37 @@ describe("pinned stories", () => {
 
   test("with nothing pinned the list is the newest, as it was", () => {
     assert.deepEqual(pinFirst([a, b, c], [], 2).map((s) => s.n), [0, 1]);
+  });
+});
+
+describe("a story's picture", () => {
+  const [p1, p2, p3] = [new ObjectId(), new ObjectId(), new ObjectId()];
+  const source = (itemId: ObjectId | undefined, host: string) => ({ itemId, url: `https://${host}/post`, title: host, host, feedSlug: host, publishedAt: new Date(), excerpt: "" });
+  const story = {
+    day: "2026-10-06",
+    slug: "a-story",
+    sources: [source(p1, "uncited.example"), source(p2, "small.example"), source(p3, "big.example"), source(undefined, "by-hand.example")],
+    cited: ["https://small.example/post", "https://big.example/post", "https://by-hand.example/post"],
+  };
+  const posts = new Map([
+    [String(p1), { url: "https://uncited.example/a.jpg", w: 1600, h: 900 }],
+    [String(p2), { url: "https://small.example/b.jpg", w: 300, h: 200 }],
+    [String(p3), { url: "https://big.example/c.jpg", w: 1600, h: 900 }],
+  ]);
+
+  test("comes from the first cited post with one big enough, at the post's address", () => {
+    assert.deepEqual(storyPicture(story, posts, "card.webp"), { src: `/item/${p3}/image/card.webp`, credit: { name: "big.example", url: "https://big.example/post" } });
+    assert.equal(storyPicture(story, posts, "thumb.webp")?.src, `/item/${p2}/image/thumb.webp`, "a thumbnail needs no width");
+  });
+
+  test("one set by hand wins, from the story's own address", () => {
+    const credit = { name: "Maker", url: "https://maker.example/" };
+    const own = { ...story, picture: { url: "https://maker.example/p.png", w: 1672, h: 941, credit } };
+    assert.deepEqual(storyPicture(own, posts, "og.jpg"), { src: "/news/2026-10-06/a-story/image/og.jpg", credit });
+  });
+
+  test("none when no cited post has one", () => {
+    assert.equal(storyPicture(story, new Map(), "card.webp"), null);
   });
 });
 

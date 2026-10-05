@@ -238,4 +238,9 @@ export interface StoryDoc {
       stories come after it. Set by hand in the database; no worker sets
       it. Pages render per request, so the pin lifts when the day is over. */
   promotedUntil?: string;
+  /** A picture set by hand, for a story whose sources are no posts of ours
+      and so have none to lend it (stories.ts storyPicture). Served resized
+      from the story's own image/ address; `credit` is whose it is, named
+      under it on the story's page. Set in the database, as the pin is. */
+  picture?: { url: string; w: number; h: number; credit: { name: string; url: string } };
 }

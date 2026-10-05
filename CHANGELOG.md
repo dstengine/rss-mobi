@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Stories have pictures: on the front page's cards, as thumbnails on
+  /news/, at the top of a story's page with whose it is under it, and in
+  its shared card. A story takes the picture of the first post it cites
+  that has one, from that post's own resized address; one whose sources
+  are no posts of ours can have one set by hand (`picture`), served from
+  the story's own `image/` address.
+
 - The front page shows the news: four story cards, two by two, a pinned
   story first, and a link to /news/. The front page's sitemap date now
   counts the stories it shows.
