@@ -910,6 +910,19 @@ label {
 .story-card {
   display: block;
   height: 100%;
+  overflow: hidden;
+}
+
+/* Its picture runs edge to edge across the top of the card. */
+.story-card .pic {
+  display: block;
+  width: calc(100% + 28px);
+  max-width: none;
+  height: auto;
+  aspect-ratio: 720 / 378;
+  margin: -12px -14px 10px;
+  object-fit: cover;
+  background: var(--line);
 }
 
 .feed-card:hover,
@@ -1321,6 +1334,15 @@ details.report[open] > summary::before,
 }
 
 /* ------------------------------------------------------------------ post */
+
+.story-picture {
+  margin: 12px 0 0;
+}
+
+/* The figure carries the space above; the hero keeps the post page's. */
+.story-picture .hero {
+  margin-top: 0;
+}
 
 .post .hero {
   display: block;

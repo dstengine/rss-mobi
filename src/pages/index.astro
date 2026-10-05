@@ -5,12 +5,13 @@ import { site } from "../site.config.ts";
 import { policy } from "../lib/policy.ts";
 import { cacheFor } from "../lib/http.ts";
 import { recentFeeds, tagStats, listedCount } from "../lib/views.ts";
-import { listedStories, NEWS_ON_HOME } from "../lib/stories.ts";
+import { listedStories, NEWS_ON_HOME, sourcePictures, storyPicture } from "../lib/stories.ts";
 import { counted } from "../lib/words.ts";
 import Icon from "../components/Icon.astro";
 import StoryCard from "../components/StoryCard.astro";
 
 const [feeds, tags, total, news] = await Promise.all([recentFeeds(30), tagStats(24), listedCount(), listedStories(NEWS_ON_HOME)]);
+const newsPictures = await sourcePictures(news);
 const decision = policy({ type: "home" });
 Astro.response.headers.set("Cache-Control", cacheFor(300));
 
@@ -59,7 +60,7 @@ const jsonLd = {
         <h2>News</h2>
         <ul class="cards two">
           {news.map((s) => (
-            <StoryCard story={s} />
+            <StoryCard story={s} picture={storyPicture(s, newsPictures, "card.webp")?.src} />
           ))}
         </ul>
         <p class="small">

@@ -165,6 +165,31 @@ export async function fillPictures(deadline: number, batch = 150): Promise<{ loo
   return report;
 }
 
+const HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  // The publisher's picture, not ours to put in image search.
+  "X-Robots-Tag": "noindex",
+};
+
+/** The answer for a picture that is not there, cached for `seconds`. */
+export const noPicture = (seconds: number) =>
+  new Response("No such picture.\n", { status: 404, headers: { ...HEADERS, "Cache-Control": `public, max-age=0, s-maxage=${seconds}` } });
+
+/** The picture at `url`, resized to `size`. The CDN keeps it for a month,
+    so a picture is fetched and resized once per size, not once per visitor. */
+export async function pictureResponse(url: string, size: SizeName): Promise<Response> {
+  const bytes = await original(url);
+  if (!bytes) return noPicture(3_600);
+  try {
+    const { body, type } = await render(bytes, size);
+    return new Response(body, {
+      headers: { ...HEADERS, "Content-Type": type, "Cache-Control": "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=2592000" },
+    });
+  } catch {
+    return noPicture(3_600);
+  }
+}
+
 /** An original resized to `size`. */
 export async function render(bytes: Uint8Array, size: SizeName): Promise<{ body: Uint8Array; type: string }> {
   const s = SIZES[size];

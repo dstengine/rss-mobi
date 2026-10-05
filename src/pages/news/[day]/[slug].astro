@@ -6,7 +6,7 @@
 import Base from "../../../layouts/Base.astro";
 import { policy } from "../../../lib/policy.ts";
 import { cacheFor } from "../../../lib/http.ts";
-import { storyAt, storyPath } from "../../../lib/stories.ts";
+import { sourcePictures, storyAt, storyPath, storyPicture } from "../../../lib/stories.ts";
 import { clip } from "../../../lib/feeds/url.ts";
 import { fmtDate } from "../../../lib/views.ts";
 import { counted } from "../../../lib/words.ts";
@@ -29,6 +29,9 @@ const sites = new Set(sources.map((s) => s.host)).size;
 const tail = ` Written from ${counted(sites, "site")} in the rss.mobi RSS feeds directory.`;
 const description = `${clip(story.dek ?? "", 158 - tail.length)}${tail}`;
 const when = story.publishedAt ?? story.submittedAt ?? story.updatedAt;
+const pictures = await sourcePictures([story]);
+const hero = storyPicture(story, pictures, "card.webp");
+const og = storyPicture(story, pictures, "og.jpg");
 
 const jsonLd = [
   {
@@ -41,6 +44,7 @@ const jsonLd = [
     dateModified: new Date(story.updatedAt).toISOString(),
     wordCount: story.words,
     publisher: { "@type": "Organization", name: site.name, url: `${site.url}/` },
+    image: og ? `${site.url}${og.src}` : undefined,
     isBasedOn: sources.map((s) => s.url),
   },
   {
@@ -55,7 +59,7 @@ const jsonLd = [
 ];
 ---
 
-<Base title={clip(story.headline ?? "", 70)} description={description} robots={decision.robots} path={path} jsonLd={jsonLd} ogType="article">
+<Base title={clip(story.headline ?? "", 70)} description={description} robots={decision.robots} path={path} jsonLd={jsonLd} ogType="article" image={og ? { src: og.src, width: 1200, height: 630 } : undefined}>
   <article class="post story">
     {story.status !== "published" && <p class="notice">Draft in review — not published, and not listed anywhere.</p>}
     <p class="muted small"><a href="/news/" title="Stories written from the RSS feeds in the directory">News</a> /</p>
@@ -64,6 +68,16 @@ const jsonLd = [
     <p class="muted small">
       <time class="nowrap" datetime={new Date(when).toISOString()}>{fmtDate(when)}</time> · from <span class="nowrap">{counted(sites, "site")}</span>
     </p>
+    {
+      hero && (
+        <figure class="story-picture">
+          <img class="hero" src={hero.src} width="720" height="378" alt="" decoding="async" fetchpriority="high" />
+          <figcaption class="muted small">
+            Picture: <a href={hero.credit.url} rel="noopener" title={`Where the picture comes from, on ${new URL(hero.credit.url).host}`}>{hero.credit.name}</a>
+          </figcaption>
+        </figure>
+      )
+    }
     {
       story.sections?.map((sec) => (
         <section>

@@ -9,14 +9,17 @@ import type { StoryDoc } from "../lib/types.ts";
 
 interface Props {
   story: StoryDoc;
+  /** Its picture at card size (stories.ts storyPicture), when it has one. */
+  picture?: string | null;
 }
-const { story } = Astro.props;
+const { story, picture } = Astro.props;
 const sites = counted(new Set(story.sources.filter((x) => story.cited?.includes(x.url)).map((x) => x.host)).size, "site");
 const when = story.publishedAt ?? story.updatedAt;
 ---
 
 <li>
   <a class="story-card" href={storyPath(story)} title={`The whole story, with a link to each of the ${sites} it was written from`}>
+    {picture && <img class="pic" src={picture} width="720" height="378" alt="" loading="lazy" decoding="async" />}
     <span class="title">{story.headline}</span>
     <span class="meta"><time datetime={new Date(when).toISOString()}>{fmtDate(when)}</time> · from <span class="nowrap">{sites}</span></span>
     {story.dek && <span class="desc">{story.dek}</span>}
