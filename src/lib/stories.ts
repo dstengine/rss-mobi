@@ -313,6 +313,9 @@ export async function publishedStories(limit = 30, before?: Date): Promise<Story
     .toArray();
 }
 
+/** Story cards on the front page: two rows of two. */
+export const NEWS_ON_HOME = 4;
+
 /** `limit` stories with the pinned ones first, each once: `promoted` in
     its own order, then the rest of `newest` in its. */
 export function pinFirst<T extends { _id: ObjectId }>(newest: T[], promoted: T[], limit: number): T[] {

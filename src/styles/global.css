@@ -888,11 +888,8 @@ label {
   list-style: none;
 }
 
-.feed-card {
-  display: grid;
-  grid-template-columns: 40px 1fr;
-  gap: 12px;
-  align-items: start;
+.feed-card,
+.story-card {
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -902,24 +899,41 @@ label {
   text-decoration: none;
 }
 
-.feed-card:hover {
+.feed-card {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+/* A story has no icon; in a row of two, both cards are the row's height. */
+.story-card {
+  display: block;
+  height: 100%;
+}
+
+.feed-card:hover,
+.story-card:hover {
   border-color: var(--accent);
 }
 
-.feed-card .title {
+.feed-card .title,
+.story-card .title {
   display: block;
   font-weight: 600;
   line-height: 1.3;
 }
 
-.feed-card .meta {
+.feed-card .meta,
+.story-card .meta {
   display: block;
   color: var(--muted);
   font-size: 0.875rem;
   margin-top: 2px;
 }
 
-.feed-card .desc {
+.feed-card .desc,
+.story-card .desc {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;

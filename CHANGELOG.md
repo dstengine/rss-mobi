@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- The front page shows the news: four story cards, two by two, a pinned
+  story first, and a link to /news/. The front page's sitemap date now
+  counts the stories it shows.
 - A story can be pinned. `promotedUntil`, the last day of the pin, puts a
   published story first on /news/ and keeps it in /news/rss.xml however
   many stories follow; the API still lists it by date. It is set by hand
