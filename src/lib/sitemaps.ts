@@ -8,7 +8,7 @@ import { policy } from "./policy.ts";
 import { tag } from "./feeds/url.ts";
 import { newest, type Entry } from "./sitemap.ts";
 import { itemPath, recentFeeds, starterSets, tagStats } from "./views.ts";
-import { publishedStories, storyPath } from "./stories.ts";
+import { listedStories, NEWS_ON_HOME, publishedStories, storyPath } from "./stories.ts";
 import type { ItemDoc } from "./types.ts";
 import { copyDate, site } from "../site.config.ts";
 
@@ -19,12 +19,12 @@ const STATIC = ["/c/new/", "/submit/", "/about/", "/terms/"];
 const loc = (path: string) => `${site.url}${path}`;
 
 export async function pageEntries(): Promise<Entry[]> {
-  // The front page lists the thirty newest feeds, so it is as new as the
-  // newest of those — not of every feed in the directory.
-  const [listed, tags, sets, news] = await Promise.all([recentFeeds(30), tagStats(500), starterSets(), publishedStories(30)]);
+  // The front page lists the thirty newest feeds and a few stories, so it
+  // is as new as the newest of those — not of every feed in the directory.
+  const [listed, tags, sets, news, onHome] = await Promise.all([recentFeeds(30), tagStats(500), starterSets(), publishedStories(30), listedStories(NEWS_ON_HOME)]);
   const starters = sets.length >= 3 ? sets.flatMap((s) => s.feeds) : listed.slice(0, 8);
   return [
-    { loc: loc("/"), lastmod: newest([copyDate("/"), ...listed.map((f) => f.updatedAt)]) },
+    { loc: loc("/"), lastmod: newest([copyDate("/"), ...listed.map((f) => f.updatedAt), ...onHome.map((s) => s.updatedAt)]) },
     { loc: loc("/tags/"), lastmod: newest([copyDate("/tags/"), ...tags.map((t) => t.updatedAt)]) },
     // The reader starts with topic sets, or the eight newest feeds.
     { loc: loc("/reader/"), lastmod: newest([copyDate("/reader/"), ...starters.map((f) => f.updatedAt)]) },

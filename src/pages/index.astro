@@ -5,10 +5,12 @@ import { site } from "../site.config.ts";
 import { policy } from "../lib/policy.ts";
 import { cacheFor } from "../lib/http.ts";
 import { recentFeeds, tagStats, listedCount } from "../lib/views.ts";
+import { listedStories, NEWS_ON_HOME } from "../lib/stories.ts";
 import { counted } from "../lib/words.ts";
 import Icon from "../components/Icon.astro";
+import StoryCard from "../components/StoryCard.astro";
 
-const [feeds, tags, total] = await Promise.all([recentFeeds(30), tagStats(24), listedCount()]);
+const [feeds, tags, total, news] = await Promise.all([recentFeeds(30), tagStats(24), listedCount(), listedStories(NEWS_ON_HOME)]);
 const decision = policy({ type: "home" });
 Astro.response.headers.set("Cache-Control", cacheFor(300));
 
@@ -50,6 +52,22 @@ const jsonLd = {
     <a class="button secondary" href="/submit/" title="Submit an RSS feed to the directory"><Icon name="plus" /><span>Submit a feed</span></a>
     <a class="button secondary" href="/c/new/" title="Combine several RSS feeds into one feed of your own"><Icon name="combine" /><span>Combine feeds</span></a>
   </div>
+
+  {
+    news.length > 0 && (
+      <section>
+        <h2>News</h2>
+        <ul class="cards two">
+          {news.map((s) => (
+            <StoryCard story={s} />
+          ))}
+        </ul>
+        <p class="small">
+          <a href="/news/" title="Every story rss.mobi has written from the RSS feeds in its directory">All news</a>
+        </p>
+      </section>
+    )
+  }
 
   {
     tags.length > 0 && (

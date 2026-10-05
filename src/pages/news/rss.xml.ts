@@ -1,13 +1,14 @@
 // GET /news/rss.xml — the published stories as RSS 2.0: headline, dek and a
-// link to the story, never the whole text.
+// link to the story, never the whole text. A pinned story stays in it
+// until its pin lifts, however many came after it.
 import type { APIRoute } from "astro";
 import { cacheFor } from "../../lib/http.ts";
 import { toRss, xmlHeaders } from "../../lib/rss.ts";
-import { publishedStories, storyPath } from "../../lib/stories.ts";
+import { listedStories, storyPath } from "../../lib/stories.ts";
 import { site } from "../../site.config.ts";
 
 export const GET: APIRoute = async () => {
-  const list = await publishedStories(30);
+  const list = await listedStories(30);
   const xml = toRss({
     title: "News · rss.mobi",
     link: `${site.url}/news/`,

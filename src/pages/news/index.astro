@@ -1,16 +1,17 @@
 ---
-// /news/ — the stories rss.mobi has written and published, newest first.
+// /news/ — the stories rss.mobi has written and published, newest first,
+// after any that are pinned (`promotedUntil`).
 // Open to search once there is one to list; empty, it says so and stays
 // out of the index and the sitemap.
 import Base from "../../layouts/Base.astro";
 import { policy } from "../../lib/policy.ts";
 import { cacheFor } from "../../lib/http.ts";
-import { publishedStories, storyPath } from "../../lib/stories.ts";
+import { listedStories, storyPath } from "../../lib/stories.ts";
 import { fmtDate } from "../../lib/views.ts";
 import { counted } from "../../lib/words.ts";
 import { site } from "../../site.config.ts";
 
-const list = await publishedStories(50);
+const list = await listedStories(50);
 const decision = list.length ? policy({ type: "static" }) : policy({ type: "search" });
 Astro.response.headers.set("Cache-Control", cacheFor(300));
 

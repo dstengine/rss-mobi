@@ -16,7 +16,8 @@ import { hostKey } from "../src/lib/admin.ts";
 import { decodeParam } from "../src/lib/feeds/url.ts";
 import { lastDays, metricsOf, pageType } from "../src/lib/metrics.ts";
 import { cluster, sensitive, type Post } from "../src/lib/clusters.ts";
-import { check, storySlug, WORDS } from "../src/lib/stories.ts";
+import { check, pinFirst, storySlug, WORDS } from "../src/lib/stories.ts";
+import { ObjectId } from "mongodb";
 import { matches, sha256, newToken } from "../src/lib/tokens.ts";
 
 const DAY = 86_400_000;
@@ -313,6 +314,22 @@ describe("story checks", () => {
     assert.ok(!markup.ok && markup.problems.some((p) => p.startsWith("Plain text only")));
     const short = check(job, { ...good, sections: good.sections.map((s) => ({ ...s, paragraphs: s.paragraphs.slice(0, 1) })) });
     assert.ok(!short.ok && short.problems.some((p) => p.startsWith("Length")));
+  });
+});
+
+describe("pinned stories", () => {
+  const [a, b, c, d] = [0, 1, 2, 3].map((n) => ({ _id: new ObjectId(), n }));
+
+  test("a pin leads the list and is listed once", () => {
+    assert.deepEqual(pinFirst([a, b, c], [c], 3).map((s) => s.n), [2, 0, 1]);
+  });
+
+  test("a pin older than the cut still makes the list, at the cost of the oldest", () => {
+    assert.deepEqual(pinFirst([a, b, c], [d], 3).map((s) => s.n), [3, 0, 1]);
+  });
+
+  test("with nothing pinned the list is the newest, as it was", () => {
+    assert.deepEqual(pinFirst([a, b, c], [], 2).map((s) => s.n), [0, 1]);
   });
 });
 

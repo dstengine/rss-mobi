@@ -126,6 +126,12 @@ says so in Telegram. A rejected job keeps its posts, so its cluster is not
 queued again. `retro-stats` reports the week's jobs queued, stories
 written and published, and rejections by reason.
 
+A published story can be pinned until a date: `promotedUntil: "YYYY-MM-DD"`
+on its document, the last day inclusive, in UTC. Until then it leads
+/news/ and stays in /news/rss.xml however many stories follow it; the API
+lists it in its place by date. Nothing sets it but a person, in the
+database, and it lifts by itself.
+
 ## Scheduled jobs
 
 Upstash QStash calls `/api/v1/cron/*` every 15 minutes with

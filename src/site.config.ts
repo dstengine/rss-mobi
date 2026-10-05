@@ -59,7 +59,7 @@ export const site = {
     entries at all is dated by this alone. Edit a page's text, move its
     date — that is the whole rule, and seo-check cannot enforce it. */
 export const COPY_UPDATED: Record<string, string> = {
-  "/": "2026-09-25",
+  "/": "2026-10-05",
   "/tags/": "2026-09-23",
   "/tag/": "2026-09-25",
   "/feed/": "2026-09-23",
