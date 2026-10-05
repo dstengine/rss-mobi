@@ -187,7 +187,9 @@ export type StoryStatus = "queued" | "claimed" | "review" | "published" | "rejec
 /** A post the story is built from, copied when the job is made: the post
     itself expires in a month, the story does not. */
 export interface StorySource {
-  itemId: ObjectId;
+  /** The post in the directory it was copied from; absent for a source
+      written into a story by hand, which is no post of ours. */
+  itemId?: ObjectId;
   url: string;
   title: string;
   host: string;
@@ -231,4 +233,9 @@ export interface StoryDoc {
   updatedAt: Date;
   submittedAt?: Date;
   publishedAt?: Date;
+  /** Last day, inclusive (ISO "YYYY-MM-DD", UTC), on which a published
+      story is pinned: first on /news/, and in /news/rss.xml however many
+      stories come after it. Set by hand in the database; no worker sets
+      it. Pages render per request, so the pin lifts when the day is over. */
+  promotedUntil?: string;
 }

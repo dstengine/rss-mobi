@@ -313,6 +313,25 @@ export async function publishedStories(limit = 30, before?: Date): Promise<Story
     .toArray();
 }
 
+/** `limit` stories with the pinned ones first, each once: `promoted` in
+    its own order, then the rest of `newest` in its. */
+export function pinFirst<T extends { _id: ObjectId }>(newest: T[], promoted: T[], limit: number): T[] {
+  const pinned = new Set(promoted.map((s) => String(s._id)));
+  return [...promoted, ...newest.filter((s) => !pinned.has(String(s._id)))].slice(0, limit);
+}
+
+/** Published stories for a list page: those promoted as of `now` first
+    (`promotedUntil`), then the newest. The API keeps to `publishedStories`:
+    its pages are cut by date and cannot hold a story out of its place. */
+export async function listedStories(limit = 30, now = new Date()): Promise<StoryDoc[]> {
+  const today = now.toISOString().slice(0, 10);
+  const [newest, promoted] = await Promise.all([
+    publishedStories(limit),
+    (await stories()).find({ status: "published", promotedUntil: { $gte: today } }).sort({ publishedAt: -1 }).limit(limit).toArray(),
+  ]);
+  return pinFirst(newest, promoted, limit);
+}
+
 /** A published story as the API gives it: the whole text, and the
     sources it cites. */
 export const storyJson = (s: StoryDoc) => ({
