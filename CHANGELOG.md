@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The rate limiter falls back to the in-process stand-in when Redis
+  answers an error, and says so once a minute. On 24 Oct 2026 the Upstash
+  plan's monthly command quota ran out and every API read answered 500
+  while the pages, whose cache already fell back, kept serving.
 - The front page shows the news: four story cards, two by two, a pinned
   story first, and a link to /news/. The front page's sitemap date now
   counts the stories it shows.

@@ -43,7 +43,22 @@ export interface Limited {
 
 const limiters = new Map<string, Ratelimit>();
 
-/** `max` requests per `window` for `id` in bucket `name`. */
+/** One line a minute per subject, not one per request: a quota that is
+    spent stays spent for the rest of the month. */
+const complained = new Map<string, number>();
+function complain(what: string, e: unknown): void {
+  const now = Date.now();
+  if ((complained.get(what) ?? 0) > now - 60_000) return;
+  complained.set(what, now);
+  console.error(`cache: ${what} failed, using per-instance memory:`, e instanceof Error ? e.message : String(e));
+}
+
+/** `max` requests per `window` for `id` in bucket `name`. When Redis is
+    configured but answers with an error — the plan's monthly command quota
+    spent (24 Oct 2026: every API read answered 500 for that), the store
+    unreachable — the in-process stand-in takes over, so the request is
+    still answered. A limiter that is down must not take the API down with
+    it; the stand-in is per instance and generous, which is the lesser harm. */
 export async function rateLimit(name: string, id: string, max: number, window: Duration): Promise<Limited> {
   const r = redis();
   if (r) {
@@ -53,8 +68,12 @@ export async function rateLimit(name: string, id: string, max: number, window: D
       l = new Ratelimit({ redis: r, limiter: Ratelimit.slidingWindow(max, window), prefix: `rl:${name}` });
       limiters.set(k, l);
     }
-    const res = await l.limit(id);
-    return { ok: res.success, limit: res.limit, remaining: res.remaining, reset: res.reset };
+    try {
+      const res = await l.limit(id);
+      return { ok: res.success, limit: res.limit, remaining: res.remaining, reset: res.reset };
+    } catch (e) {
+      complain("rate limit", e);
+    }
   }
   const seconds = parseWindow(window);
   const key = `rl:${name}:${id}:${Math.floor(Date.now() / 1000 / seconds)}`;

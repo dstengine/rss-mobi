@@ -32,3 +32,14 @@ Observation → evidence → where it was applied. Newest first.
   `slugify` keeps the part before a separator and cuts between words.
 - **Excerpts often repeat the title.** Many feeds open their content with
   the post's heading. Applied: `withoutTitle()` in the parser.
+
+## 2026-10-24 — the limiter took the API down
+
+- **A dependency's quota is an outage.** Upstash's free plan allows 500 000
+  commands a month; they ran out on the 24th and every `/api/v1/*` read
+  answered 500 for the rest of the day, while the front page served: the
+  cache caught its Redis errors, the rate limiter did not. Applied:
+  `rateLimit()` falls back to the in-process stand-in and logs once a
+  minute (tests/cache.test.ts). Still true for `lock()` and `count()`:
+  they throw, and the jobs that use them stop, which is the right side to
+  fail on for a lock.
