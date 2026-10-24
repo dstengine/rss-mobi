@@ -117,12 +117,13 @@ it returns to review as last sent, never to the queue, and the sweep never
 counts it stale. A published story cannot be claimed: take it back to
 review first.
 
-Every morning at 05:05 UTC QStash calls `/api/v1/cron/stories`: it rejects
+Every morning at 05:05 UTC Vercel Cron calls `/api/v1/cron/stories`: it rejects
 jobs nobody wrote within 48 hours ("stale") and jobs whose 30-minute lease
 lapsed three times ("abandoned"), puts a job with a lapsed lease and
 lapses to spare back in the queue, returns a lapsed revision to review,
 then queues up to five new ones and
-says so in Telegram. A rejected job keeps its posts, so its cluster is not
+says so in Telegram. It runs once a UTC day: a second call the same day
+queues nothing, unless it asks with `?again=1`. A rejected job keeps its posts, so its cluster is not
 queued again. `retro-stats` reports the week's jobs queued, stories
 written and published, and rejections by reason.
 
@@ -134,13 +135,18 @@ database, and it lifts by itself.
 
 ## Scheduled jobs
 
-Upstash QStash calls `/api/v1/cron/*` every 15 minutes with
-`CRON_SECRET` ([ADR 0007](decisions/0007-cron-via-qstash.md)); see or
-recreate its schedules with
-`node --env-file=.env scripts/qstash-schedules.mjs [list]`.
-`.github/workflows/cron.yml` does the same as a fallback, while the
-repository variable `CRON_ENABLED` is `true`. The jobs take locks and do
-only what is due, so two callers do no harm.
+Vercel Cron calls `/api/v1/cron/*` on the schedules in `vercel.json`,
+as a GET with `CRON_SECRET` ([ADR 0008](decisions/0008-off-upstash.md)):
+`fetch` every 15 minutes, `index-check` at 7, 22, 37 and 52 past the hour,
+`metrics` at 00:41 and `stories` at 05:05 UTC. The project's Settings →
+Cron Jobs lists them, with each one's log. `.github/workflows/cron.yml`
+POSTs to `fetch` and `index-check` as a fallback, at 7, 22, 37 and 52 past
+the hour, while the repository variable `CRON_ENABLED` is `true`. Vercel
+retries no failed run and may deliver one twice, so every job is safe to
+repeat: `fetch` claims each feed, `index-check` and `metrics` take locks,
+`stories` runs once a UTC day. A run lock is a document in `locks` (`_id`
+the job, `exp` its end); one left by a run that died lapses at `exp` by
+itself.
 
 - `/api/v1/cron/fetch` polls the feeds whose turn has come, and those due
   in the next two minutes, eight at a time. A feed's pace is 15 minutes
@@ -155,9 +161,8 @@ only what is due, so two callers do no harm.
   scheduler runs. A feed that answers every request in full is not
   parsed again for the same bytes (`bodyHash`). While a feed is fetched it
   is claimed in MongoDB (`pollingUntil`, set and released by the poll's
-  own writes), not locked in Redis: the scheduler and a page asking for
-  the same feed at once get it once, and a poll costs the Redis plan
-  nothing (`claim()` in `src/lib/catalog.ts`).
+  own writes): the scheduler and a page asking for the same feed at once
+  get it once (`claim()` in `src/lib/catalog.ts`).
 - `/api/v1/cron/index-check` asks DataForSEO whether each post's original is
   in Google (`src/lib/indexcheck.ts`). A run collects the answers to earlier
   tasks, then files up to 100 new ones, oldest first, and tells IndexNow
@@ -187,8 +192,8 @@ stops it spending:
   `noindex`, and Telegram hears once that day.
 - **A refusal** — no money, a rate limit, bad credentials (HTTP 401/402/429,
   DataForSEO's 401xx/402xx) — pauses checks until 00:00 UTC, with one
-  message. To resume sooner, after fixing the cause, delete the Redis key
-  `n:serp:paused:<YYYY-MM-DD>`.
+  message. To resume sooner, after fixing the cause, delete the document
+  `serp:paused:<YYYY-MM-DD>` from the `counters` collection.
 - **The balance** is read once a day; under ten days of the ceiling, one
   message a day until it is topped up at https://app.dataforseo.com/.
 - **Every check** is logged in `index_checks` with its verdict and cost.

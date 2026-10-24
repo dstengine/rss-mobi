@@ -56,6 +56,12 @@ const INDEXES = {
   events: [[{ at: 1 }, { expireAfterSeconds: 180 * DAY }], [{ name: 1, at: -1 }]],
   metrics_daily: [[{ day: 1, metric: 1, variant: 1 }, { unique: true }]],
   reports: [[{ createdAt: -1 }]],
+  // The limiter's windows, the run locks and the quota counters
+  // (src/lib/cache.ts) carry their own end; these sweep what has ended.
+  // The code reads `exp` itself, so a document the sweep has not reached
+  // yet holds nothing.
+  locks: [[{ exp: 1 }, { expireAfterSeconds: 0 }]],
+  counters: [[{ exp: 1 }, { expireAfterSeconds: 0 }]],
 };
 
 const client = await new MongoClient(uri, { appName: "rss.mobi migrate" }).connect();

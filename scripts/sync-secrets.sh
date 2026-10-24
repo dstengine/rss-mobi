@@ -5,8 +5,6 @@
 #
 #   scripts/sync-secrets.sh            # add what is missing
 #   scripts/sync-secrets.sh --replace  # also overwrite what is there
-#
-# Upstash's KV_* variables are not here: the Vercel Marketplace sets them.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/lib/env.sh; load_env .env

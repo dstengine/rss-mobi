@@ -7,7 +7,6 @@
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { ObjectId } from "mongodb";
-import { installFakeRedis } from "./fixtures/fake-redis.ts";
 
 const URI = process.env.RSS_MOBI_TEST_MONGO;
 if (URI) {
@@ -15,9 +14,6 @@ if (URI) {
   process.env.MONGODB_DB = "rssmobi_test";
 }
 const skip = !URI && "RSS_MOBI_TEST_MONGO not set";
-// Redis is a stand-in that counts the commands sent: what a poll costs
-// there — nothing, since 25 Oct 2026 — is part of what is checked here.
-const fake = installFakeRedis();
 
 describe("with MongoDB", { skip }, async () => {
   const { client, feeds, items } = await import("../src/lib/db.ts");
@@ -37,6 +33,12 @@ describe("with MongoDB", { skip }, async () => {
   const storiesMade: ObjectId[] = [];
   const METRIC_DAY = "2001-02-03";
   const { parseFilters } = await import("../src/lib/filters.ts");
+  const { count, counter, lock, rateLimit, storeUp, unlock } = await import("../src/lib/cache.ts");
+  const { counters, locks } = await import("../src/lib/db.ts");
+  const { ipHash } = await import("../src/lib/tokens.ts");
+  // Every lock and counter made here is named after this run.
+  const RUN = `test:${new ObjectId()}`;
+  const storeKeys: string[] = [];
   const { linkTo } = await import("../src/lib/policy.ts");
   const created: ObjectId[] = [];
 
@@ -44,7 +46,8 @@ describe("with MongoDB", { skip }, async () => {
   const hostsBlocked: string[] = [];
 
   after(async () => {
-    fake.restore();
+    await (await locks()).deleteMany({ _id: { $regex: `^${RUN}:` } });
+    await (await counters()).deleteMany({ $or: [{ _id: { $regex: `^${RUN}:` } }, { _id: { $in: storeKeys } }] });
     if (keysMade.length) await (await apiKeys()).deleteMany({ _id: { $in: keysMade } });
     if (hostsBlocked.length) await (await blocklist()).deleteMany({ _id: { $in: hostsBlocked } });
     await (await events()).deleteMany({ at: { $gte: new Date(`${METRIC_DAY}T00:00:00Z`), $lt: new Date("2001-02-05T00:00:00Z") } });
@@ -198,11 +201,9 @@ describe("with MongoDB", { skip }, async () => {
     const early = await feed();
     const col = await feeds();
     await col.updateOne({ _id: early._id }, { $set: { nextFetchAt: new Date(Date.now() + 3_600_000) } });
-    fake.take();
     // Two pages asking at once: the claim lets one of them poll.
     const reports = await Promise.all([pollIfDue([due.slug, early.slug]), pollIfDue([due.slug])]);
     assert.equal(reports[0].polled + reports[1].polled, 1);
-    assert.deepEqual(fake.take(), [], "polling costs no Redis command");
     // .example never resolves, so the poll fails — and still takes its turn.
     const polled = await col.findOne({ _id: due._id });
     assert.equal(polled?.failCount, 1);
@@ -247,10 +248,8 @@ describe("with MongoDB", { skip }, async () => {
     await col.updateMany({ _id: { $in: created } }, { $set: { nextFetchAt: new Date(Date.now() + 3_600_000) } });
     await col.updateOne({ _id: held._id }, { $set: { nextFetchAt: new Date(), pollingUntil: new Date(Date.now() + 60_000) } });
     await col.updateOne({ _id: lapsed._id }, { $set: { nextFetchAt: new Date(), pollingUntil: new Date(Date.now() - 1_000) } });
-    fake.take();
     const report = await pollDue(Date.now() + 20_000);
     assert.ok(report.polled >= 1);
-    assert.deepEqual(fake.take(), [], "a run's polls cost no Redis command");
     const left = await col.findOne({ _id: held._id });
     assert.equal(left?.failCount, 0, "the held feed was left to the run that has it");
     assert.ok(left!.pollingUntil!.getTime() > Date.now(), "and its claim stands");
@@ -287,6 +286,54 @@ describe("with MongoDB", { skip }, async () => {
     assert.equal(list.find((f) => f.host === "same-site.example")?.slug, b.slug);
   });
 
+  describe("the shared store: locks, counters, limits", () => {
+    test("a lock is held until released or lapsed, and a release frees only this process's lock", async () => {
+      const k = `${RUN}:job`;
+      assert.equal(await lock(k, 60), true);
+      assert.equal(await lock(k, 60), false, "held: a second taker is refused");
+      await unlock(k);
+      assert.equal(await lock(k, 60), true, "free again");
+      // Lapsed, as if its run died: the next taker has it.
+      await (await locks()).updateOne({ _id: k }, { $set: { exp: new Date(Date.now() - 1_000) } });
+      assert.equal(await lock(k, 60), true, "a lapsed lock holds nothing");
+      // Another process's lock, taken after ours lapsed, survives our unlock.
+      await (await locks()).updateOne({ _id: k }, { $set: { by: "another-process" } });
+      await unlock(k);
+      assert.equal(await lock(k, 60), false, "still held by the other process");
+      const takers = await Promise.all(Array.from({ length: 8 }, () => lock(`${RUN}:race`, 60)));
+      assert.equal(takers.filter(Boolean).length, 1, "eight at once: one takes it");
+    });
+
+    test("a counter counts to its end and then starts again; first writers at once all count", async () => {
+      const k = `${RUN}:c`;
+      assert.equal(await count(k, 1, 60), 1);
+      assert.equal(await count(k, 2, 60), 3);
+      assert.equal(await counter(k), 3);
+      assert.equal(await counter(`${RUN}:never`), 0);
+      await (await counters()).updateOne({ _id: k }, { $set: { exp: new Date(Date.now() - 1_000) } });
+      assert.equal(await counter(k), 0, "an ended count reads as nothing");
+      assert.equal(await count(k, 1, 60), 1, "and starts again");
+      const totals = await Promise.all(Array.from({ length: 20 }, () => count(`${RUN}:race`, 1, 60)));
+      assert.deepEqual(totals.sort((x, y) => x - y), Array.from({ length: 20 }, (_, i) => i + 1));
+    });
+
+    test("a limit's window opens at the first request and its end is the reset", async () => {
+      const verdicts = [];
+      for (let i = 0; i < 3; i++) verdicts.push(await rateLimit("t", `${RUN}:ip`, 2, "1 m"));
+      assert.deepEqual(verdicts.map((v) => v.ok), [true, true, false]);
+      storeKeys.push(`rl:t:${RUN}:ip`);
+      const doc = await (await counters()).findOne({ _id: `rl:t:${RUN}:ip` });
+      assert.equal(doc?.n, 3);
+      assert.equal(verdicts[2].reset, doc!.exp.getTime());
+      assert.ok(doc!.exp.getTime() - Date.now() <= 60_000 && doc!.exp.getTime() > Date.now());
+    });
+
+    test("the store takes writes", async () => {
+      storeKeys.push("probe");
+      assert.equal(await storeUp(), true);
+    });
+  });
+
   describe("API keys", () => {
     const call = (token?: string, ip = "203.0.113.9") =>
       ({
@@ -294,9 +341,12 @@ describe("with MongoDB", { skip }, async () => {
         url: new URL("https://rss.mobi/api/v1/items"),
         clientAddress: ip,
       }) as any;
+    // Each key's limiter window, and the default address's.
+    storeKeys.push(`rl:api-read:${ipHash("203.0.113.9")}`);
     const make = async (scopes: string[], rate?: number) => {
       const made = await createKey("test-site", scopes, rate);
       keysMade.push(made.key._id);
+      storeKeys.push(`rl:key:${made.key.prefix}`);
       return made;
     };
 
@@ -307,17 +357,26 @@ describe("with MongoDB", { skip }, async () => {
       assert.equal(stored?.prefix, token.slice(4, 12));
       assert.ok(!JSON.stringify(stored).includes(token));
 
-      fake.take();
+      const keyWindow = `rl:key:${key.prefix}`;
+      const anonWindow = `rl:api-read:${ipHash("198.51.100.7")}`;
+      storeKeys.push(anonWindow);
       const a = await access(call(token));
       assert.ok(!(a instanceof Response) && a.key?.name === "test-site");
       await access(call(token));
       const over = await access(call(token));
       assert.ok(over instanceof Response && over.status === 429);
       assert.ok(Number(over.headers.get("retry-after")) >= 1);
+      // Refused, the key is held in process until its window ends.
+      assert.ok((await access(call(token))) instanceof Response);
       // Nobody's key: the anonymous allowance, untouched by the key's.
       const anon = await access(call(undefined, "198.51.100.7"));
       assert.ok(!(anon instanceof Response) && anon.key === null);
-      assert.deepEqual(fake.take(), ["evalsha", "evalsha", "evalsha", "evalsha"], "one Redis command a request, a key's or nobody's");
+      const windows = await (await counters()).find({ _id: { $in: [keyWindow, anonWindow] } }).toArray();
+      assert.deepEqual(
+        Object.fromEntries(windows.map((w) => [w._id, w.n])),
+        { [keyWindow]: 3, [anonWindow]: 1 },
+        "one write a request, a key's or nobody's; none once a key is refused",
+      );
     });
 
     test("a revoked or unknown key is refused, not read as anonymous", async () => {

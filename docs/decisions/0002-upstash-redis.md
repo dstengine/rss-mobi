@@ -1,6 +1,6 @@
 # 0002 — Upstash Redis for limits, locks and the short cache
 
-**Date:** 2026-09-23 · **Status:** accepted
+**Date:** 2026-09-23 · **Status:** superseded by [ADR 0008](0008-off-upstash.md)
 
 Serverless instances share no memory, so rate limits, job locks and quota
 counters need a store all of them can see, answering in single-digit
@@ -21,3 +21,7 @@ commands a poll it was some 24 000 commands a day, nearly all of the
 store's traffic. Redis keeps the limiter, the three run locks, the quota
 counters and the short cache: about 2 500 commands a day, a seventh of
 the plan (docs/learnings.md). The condition above stands.
+
+**2026-10-25, later:** superseded. The owner decided that rss.mobi uses no
+Upstash at all; the limiter, the run locks and the quota counters moved to
+MongoDB, the short cache to process memory ([ADR 0008](0008-off-upstash.md)).

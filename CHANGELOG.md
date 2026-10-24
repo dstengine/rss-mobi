@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- rss.mobi no longer uses Upstash. The rate limiter, the run locks and the
+  quota counters live in MongoDB, in `counters` and `locks`: one write an
+  operation, swept by TTL indexes (`npm run migrate` creates them). The
+  tag statistics are cached in process memory, behind the CDN headers the
+  pages already send. The four schedules are Vercel Cron Jobs in
+  `vercel.json`, which call the cron routes with GET; the GitHub Actions
+  workflow stays the fallback. The limiter's window now opens at a
+  client's first request instead of sliding. The daily story job runs once
+  a UTC day, because Vercel may deliver a run twice. The Upstash packages,
+  `scripts/qstash-schedules.mjs` and the Redis test stand-ins are gone;
+  `tests/cache.test.ts` and `tests/db.test.ts` check the new store
+  (ADR 0008).
 - The poller claims a feed in MongoDB instead of locking it in Redis: one
   `findOneAndUpdate` marks a feed that is still due and held by no other
   run (`pollingUntil`), and the poll's own update releases it. The
