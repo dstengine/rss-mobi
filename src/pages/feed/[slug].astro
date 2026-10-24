@@ -33,9 +33,19 @@ const path = `/feed/${feed.slug}/`;
 // title to everyone, crawlers included.
 const titleVariant = assign(EXPERIMENTS["feed-title-v1"], path);
 const title = titleVariant === "subscribe" ? `Subscribe to ${feed.title} — RSS feed` : `${feed.title} RSS feed`;
+// Whoever searches "<site> rss feed" wants the address, so the snippet
+// gives it first, then how alive the feed is. A part that does not fit is
+// dropped from the end; an address too long to show falls back to the
+// feed's own description.
+const ppwNow = feed.postsPerWeek ?? 0;
+const pace = ppwNow >= 1 ? `${Math.round(ppwNow)} ${Math.round(ppwNow) === 1 ? "post" : "posts"} a week` : "";
+const last = feed.lastPostAt ? `last on ${fmtDay(feed.lastPostAt)}` : "";
+const facts = [pace, last].filter(Boolean).join(", ");
+const parts = [`${feed.title} RSS feed URL: ${feed.url}.`, facts && `${facts[0].toUpperCase()}${facts.slice(1)}.`, "Follow it on your phone or copy it into any reader."].filter(Boolean);
+while (parts.length > 1 && parts.join(" ").length > 155) parts.splice(parts.length - 1, 1);
 const tail = " Subscribe in any reader, from the rss.mobi directory of RSS feeds.";
 const lead = feed.description ? clip(feed.description, 155 - tail.length) : `Latest posts from ${feed.host}.`;
-const description = `${/[.!?…]$/.test(lead) ? lead : `${lead}.`}${tail}`;
+const description = parts[0].length <= 155 && feed.url.length <= 90 ? parts.join(" ") : `${/[.!?…]$/.test(lead) ? lead : `${lead}.`}${tail}`;
 
 const enc = encodeURIComponent(feed.url);
 const readers = [
