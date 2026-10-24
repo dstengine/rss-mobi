@@ -1,11 +1,10 @@
 // The catalogue: submitting a feed, storing what it publishes, polling it.
-import { ObjectId, type AnyBulkWriteOperation, type Filter } from "mongodb";
+import { ObjectId, type AnyBulkWriteOperation, type Collection, type Filter } from "mongodb";
 import { blocklist, feeds, items } from "./db.ts";
 import { discover } from "./feeds/discover.ts";
 import { get, FetchError } from "./feeds/get.ts";
 import { parseFeed, itemKey, topic, ownName, NotAFeed, type ParsedFeed, type Site } from "./feeds/parse.ts";
 import { canonical, hostOf, slugify } from "./feeds/url.ts";
-import { lock, unlock } from "./cache.ts";
 import { noteActivity } from "./activity.ts";
 import { subscriberTotal } from "./followers.ts";
 import { alert, indexNow } from "./notify.ts";
@@ -32,6 +31,10 @@ const CONCURRENCY = 8;
     later falls a few seconds after the next run starts and waits a quarter
     of an hour more, every time. */
 const LOOKAHEAD = 2 * MINUTE;
+/** How long a run's claim on a feed holds while it fetches it (claim()).
+    A poll is over in seconds, well inside the function's minute; a run
+    that dies mid-poll leaves the feed to the next one after this. */
+const CLAIM = 2 * MINUTE;
 
 /** How long a feed waits for its next poll. A feed that posts several
     times a day is read every quarter hour, as the big readers read it: its
@@ -292,7 +295,7 @@ export async function pollDue(deadline: number, batch = 200): Promise<PollReport
     behind: past their own pace, however long the scheduler would let an
     unread feed wait. Pages and the API call it once they have answered,
     so a feed someone is reading is at most an hour behind its site —
-    however late the scheduler runs. The lock keeps a busy page from
+    however late the scheduler runs. The claim keeps a busy page from
     polling a feed twice. */
 export async function pollIfDue(slugs: string[], max = 8, budget = 20_000): Promise<PollReport> {
   const wanted = [...new Set(slugs)].slice(0, 200);
@@ -322,25 +325,45 @@ async function pollWhere(filter: Filter<FeedDoc>, deadline: number, batch: numbe
   // A few workers share the queue, most overdue first: one slow site
   // holds up one worker, not the run.
   const worker = async () => {
-    for (let feed = queue.shift(); feed && Date.now() <= deadline; feed = queue.shift()) {
-      if (!(await lock(`feed:${feed._id}`, 120))) continue;
-      try {
-        report.polled++;
-        const outcome = await pollOne(feed);
-        if (outcome === "unchanged") report.unchanged++;
-        else if (typeof outcome === "number") report.added += outcome;
-        else {
-          report.failed++;
-          if (outcome.disabled) report.disabled.push(feed.slug);
-        }
-      } finally {
-        await unlock(`feed:${feed._id}`);
+    for (let next = queue.shift(); next && Date.now() <= deadline; next = queue.shift()) {
+      const feed = await claim(col, next._id, filter);
+      if (!feed) continue;
+      report.polled++;
+      const outcome = await pollOne(feed);
+      if (outcome === "unchanged") report.unchanged++;
+      else if (typeof outcome === "number") report.added += outcome;
+      else {
+        report.failed++;
+        if (outcome.disabled) report.disabled.push(feed.slug);
       }
     }
   };
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker));
   if (report.disabled.length) await alert(`disabled after ${MAX_FAILS} failed fetches: ${report.disabled.join(", ")}`);
   return report;
+}
+
+/** Takes a queued feed for this run, or returns null when another run has
+    it: one atomic update that finds the feed still active, still due by
+    `due` and claimed by nobody, and marks it claimed for `CLAIM`. The
+    scheduler and a page polling at once read the same feed into both
+    their queues; the claim lets one of them have it, and since a poll
+    moves the feed's dates, the other then finds it not due rather than
+    polling it again. The poll's own update releases the claim (pollOne),
+    so a feed costs the poller nothing beyond the writes it made anyway —
+    and no Redis at all. The per-feed Redis lock this replaces was two
+    commands a poll, some 24 000 a day and nearly all of the store's
+    traffic, and ran the free plan's 500 000 a month out on 14 Oct 2026
+    (docs/learnings.md). What comes back is the feed as it is now, not as
+    the queue read it, so the conditional request carries the latest etag
+    and body hash. */
+async function claim(col: Collection<FeedDoc>, id: ObjectId, due: Filter<FeedDoc>): Promise<FeedDoc | null> {
+  const now = new Date();
+  return col.findOneAndUpdate(
+    { $and: [due, { _id: id, status: "active", pollingUntil: { $not: { $gt: now } } }] },
+    { $set: { pollingUntil: new Date(now.getTime() + CLAIM) } },
+    { returnDocument: "after" },
+  );
 }
 
 async function pollOne(feed: FeedDoc): Promise<number | "unchanged" | { disabled: boolean }> {
@@ -360,13 +383,13 @@ async function pollOne(feed: FeedDoc): Promise<number | "unchanged" | { disabled
       ...(bodyHash ? { bodyHash } : {}),
     };
     if (res.notModified || bodyHash === feed.bodyHash) {
-      await col.updateOne({ _id: feed._id }, { $set: common, $inc: { okCount: 1 }, $unset: { lastError: "" } });
+      await col.updateOne({ _id: feed._id }, { $set: common, $inc: { okCount: 1 }, $unset: { lastError: "", pollingUntil: "" } });
       await activity(feed);
       await announceIfIndexable(feed._id);
       return "unchanged";
     }
     const parsed = parseFeed(res.body, res.url);
-    await col.updateOne({ _id: feed._id }, { $set: common, $inc: { okCount: 1 }, $unset: { lastError: "" } });
+    await col.updateOne({ _id: feed._id }, { $set: common, $inc: { okCount: 1 }, $unset: { lastError: "", pollingUntil: "" } });
     const added = await store(feed, parsed);
     await activity(feed);
     await announceIfIndexable(feed._id);
@@ -386,6 +409,7 @@ async function pollOne(feed: FeedDoc): Promise<number | "unchanged" | { disabled
           freshBy: new Date(now.getTime() + wait),
           ...(disabled ? { status: "disabled" as const } : {}),
         },
+        $unset: { pollingUntil: "" },
       },
     );
     if (disabled) await (await items()).updateMany({ feedId: feed._id }, { $set: { visible: false } });

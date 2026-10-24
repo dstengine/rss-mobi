@@ -7,6 +7,7 @@
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { ObjectId } from "mongodb";
+import { installFakeRedis } from "./fixtures/fake-redis.ts";
 
 const URI = process.env.RSS_MOBI_TEST_MONGO;
 if (URI) {
@@ -14,6 +15,9 @@ if (URI) {
   process.env.MONGODB_DB = "rssmobi_test";
 }
 const skip = !URI && "RSS_MOBI_TEST_MONGO not set";
+// Redis is a stand-in that counts the commands sent: what a poll costs
+// there — nothing, since 25 Oct 2026 — is part of what is checked here.
+const fake = installFakeRedis();
 
 describe("with MongoDB", { skip }, async () => {
   const { client, feeds, items } = await import("../src/lib/db.ts");
@@ -40,6 +44,7 @@ describe("with MongoDB", { skip }, async () => {
   const hostsBlocked: string[] = [];
 
   after(async () => {
+    fake.restore();
     if (keysMade.length) await (await apiKeys()).deleteMany({ _id: { $in: keysMade } });
     if (hostsBlocked.length) await (await blocklist()).deleteMany({ _id: { $in: hostsBlocked } });
     await (await events()).deleteMany({ at: { $gte: new Date(`${METRIC_DAY}T00:00:00Z`), $lt: new Date("2001-02-05T00:00:00Z") } });
@@ -193,13 +198,16 @@ describe("with MongoDB", { skip }, async () => {
     const early = await feed();
     const col = await feeds();
     await col.updateOne({ _id: early._id }, { $set: { nextFetchAt: new Date(Date.now() + 3_600_000) } });
-    // Two pages asking at once: the lock lets one of them poll.
+    fake.take();
+    // Two pages asking at once: the claim lets one of them poll.
     const reports = await Promise.all([pollIfDue([due.slug, early.slug]), pollIfDue([due.slug])]);
     assert.equal(reports[0].polled + reports[1].polled, 1);
+    assert.deepEqual(fake.take(), [], "polling costs no Redis command");
     // .example never resolves, so the poll fails — and still takes its turn.
     const polled = await col.findOne({ _id: due._id });
     assert.equal(polled?.failCount, 1);
     assert.ok(polled!.nextFetchAt.getTime() > Date.now());
+    assert.equal(polled!.pollingUntil, undefined, "the poll's own update releases the claim");
     assert.equal((await col.findOne({ _id: other._id }))?.failCount, 0);
     assert.equal((await col.findOne({ _id: early._id }))?.failCount, 0);
     assert.equal((await pollIfDue([due.slug])).polled, 0);
@@ -230,6 +238,25 @@ describe("with MongoDB", { skip }, async () => {
     const report = await pollDue(Date.now() + 20_000);
     assert.ok(report.polled >= 1);
     assert.equal((await col.findOne({ _id: soon._id }))?.failCount, 1);
+  });
+
+  test("a feed another run is polling is left to it; a claim that lapsed does not hold it", async () => {
+    const held = await feed();
+    const lapsed = await feed();
+    const col = await feeds();
+    await col.updateMany({ _id: { $in: created } }, { $set: { nextFetchAt: new Date(Date.now() + 3_600_000) } });
+    await col.updateOne({ _id: held._id }, { $set: { nextFetchAt: new Date(), pollingUntil: new Date(Date.now() + 60_000) } });
+    await col.updateOne({ _id: lapsed._id }, { $set: { nextFetchAt: new Date(), pollingUntil: new Date(Date.now() - 1_000) } });
+    fake.take();
+    const report = await pollDue(Date.now() + 20_000);
+    assert.ok(report.polled >= 1);
+    assert.deepEqual(fake.take(), [], "a run's polls cost no Redis command");
+    const left = await col.findOne({ _id: held._id });
+    assert.equal(left?.failCount, 0, "the held feed was left to the run that has it");
+    assert.ok(left!.pollingUntil!.getTime() > Date.now(), "and its claim stands");
+    const taken = await col.findOne({ _id: lapsed._id });
+    assert.equal(taken?.failCount, 1, "a lapsed claim does not hold the feed");
+    assert.equal(taken?.pollingUntil, undefined);
   });
 
   test("a topic's list shows at most one post in ten from any one feed, and still fills up", async () => {
@@ -280,6 +307,7 @@ describe("with MongoDB", { skip }, async () => {
       assert.equal(stored?.prefix, token.slice(4, 12));
       assert.ok(!JSON.stringify(stored).includes(token));
 
+      fake.take();
       const a = await access(call(token));
       assert.ok(!(a instanceof Response) && a.key?.name === "test-site");
       await access(call(token));
@@ -289,6 +317,7 @@ describe("with MongoDB", { skip }, async () => {
       // Nobody's key: the anonymous allowance, untouched by the key's.
       const anon = await access(call(undefined, "198.51.100.7"));
       assert.ok(!(anon instanceof Response) && anon.key === null);
+      assert.deepEqual(fake.take(), ["evalsha", "evalsha", "evalsha", "evalsha"], "one Redis command a request, a key's or nobody's");
     });
 
     test("a revoked or unknown key is refused, not read as anonymous", async () => {

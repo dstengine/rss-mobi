@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- The poller claims a feed in MongoDB instead of locking it in Redis: one
+  `findOneAndUpdate` marks a feed that is still due and held by no other
+  run (`pollingUntil`), and the poll's own update releases it. The
+  per-feed Redis lock was two commands a poll, some 24 000 a day and
+  nearly all of the store's traffic — what ran the free plan's 500 000 a
+  month out on 14 Oct 2026. A poll now costs Redis nothing; what is left
+  (the limiter, the run locks, the quota counters, the short cache) is
+  about 2 500 commands a day, a seventh of the plan. A stand-in for
+  Upstash (`tests/fixtures/fake-redis.ts`) counts what each operation
+  costs (`tests/redis-commands.test.ts`).
 - Locks and counters fall back to the in-process stand-in when Redis
   answers an error, like the limiter, and the index check stops instead
   of spending against a counter one instance keeps. The quota had in fact
