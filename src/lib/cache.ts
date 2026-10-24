@@ -160,17 +160,18 @@ export async function counter(key: string): Promise<number> {
   return memGet<number>(`n:${key}`) ?? 0;
 }
 
-/** Whether the shared store answers: true with no Redis configured, as
-    local development and tests count in memory on purpose; false when
-    Redis is configured and a read fails. A job that spends money against
+/** Whether the shared store takes writes: true with no Redis configured,
+    as local development and tests count in memory on purpose; false when
+    Redis is configured and a write fails. A job that spends money against
     a daily budget asks this first, since a counter kept per instance
-    cannot hold a budget every instance shares. The probe is a read, so it
-    fails the way every other command does once the quota is spent. */
+    cannot hold a budget every instance shares. The probe writes because a
+    spent quota still answers reads: probed on 24 Oct 2026, GET and PING
+    passed while SET, INCRBY and DEL were refused. One command a run. */
 export async function redisUp(): Promise<boolean> {
   const r = redis();
   if (!r) return true;
   try {
-    await r.get("probe");
+    await r.set("probe", "1", { ex: 60 });
     return true;
   } catch (e) {
     complain("probe", e);

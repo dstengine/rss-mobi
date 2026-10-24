@@ -66,3 +66,6 @@ crons' status codes.
 - A counter that falls back to per-instance memory is fine for a pause
   flag and wrong for a budget in dollars; the index check now asks
   `redisUp()` and stops rather than spends blind.
+- A spent quota is not a dead store: on 24 Oct GET and PING still
+  answered while SET, INCRBY and DEL were refused, so a liveness probe
+  must do what the job does; `redisUp()` writes a probe key.
