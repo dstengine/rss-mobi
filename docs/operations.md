@@ -56,6 +56,29 @@ variable of that file and only its prefix — the eight characters after
 `rmk_` — is printed. The database keeps the hash, the prefix, the name and
 when it was last used.
 
+### Paid keys
+
+A key bought at `/api/` ($29, 30 days, `read:full`, 600 a minute) is
+Polar's licence key, `RSSMOBI-…`, not a row of ours (ADR 0010). It is
+checked on use against Polar's public endpoint and the verdict cached ten
+minutes, so a refund shows within ten minutes as a 401. The site needs
+`POLAR_ORGANIZATION_ID`, `POLAR_ENV` (`production` or `sandbox`) and
+`POLAR_CHECKOUT_URL`, all public; nothing else, and no webhook.
+
+The product, the benefit and the checkout link are made once by
+`scripts/polar-setup.mjs`, with an organisation access token from Polar
+in `.env` (`set-secret.mjs POLAR_ACCESS_TOKEN`; sandbox:
+`POLAR_SANDBOX_ACCESS_TOKEN`), first in the sandbox and then in production:
+
+```
+node --env-file=.env scripts/polar-setup.mjs --sandbox   # buy with card 4242 4242 4242 4242
+node --env-file=.env scripts/polar-setup.mjs
+```
+
+It prints the env lines to add. Refunds are issued from the order's page
+in Polar; payouts are requested there by hand (Finance), after the first
+account review. Polar asks that no test purchase be made with a real card.
+
 ## Taking things down
 
 Nothing is moderated before it is listed, so what gets past the filters

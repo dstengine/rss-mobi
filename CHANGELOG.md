@@ -43,6 +43,14 @@
   plan's monthly command quota ran out and every API read answered 500
   for ten days while the pages, whose cache already fell back, kept
   serving.
+- Paid API keys (ADR 0010). `/api/` describes the API, the free allowance
+  and a key — $29 for 30 days, `read:full`, 600 requests a minute — sold
+  through Polar. The key is Polar's licence key with our prefix, sent as
+  `Authorization: Bearer` like a `rmk_` key, checked on use against
+  Polar's public endpoint and cached ten minutes; Polar unreachable is a
+  503, never the anonymous allowance. `scripts/polar-setup.mjs` makes the
+  product, the benefit and the checkout link. The terms gain an "API keys"
+  section; the footer's API link goes to the page.
 - The front page shows the news: four story cards, two by two, a pinned
   story first, and a link to /news/. The front page's sitemap date now
   counts the stories it shows.

@@ -17,6 +17,9 @@ const SHAPES = {
   R2_SECRET_ACCESS_KEY: [/^[0-9a-f]{64}$/, "64 hex characters — the Secret Access Key"],
   DATAFORSEO_LOGIN: [/^\S+@\S+$/, "the email address you signed up with"],
   DATAFORSEO_PASSWORD: [/^\S{8,}$/, "the API password from the API Access page, not your account password"],
+  POLAR_ACCESS_TOKEN: [/^polar_(oat|pat)_[A-Za-z0-9_-]{20,}$/, "an organisation access token from Polar › Settings › Access tokens (polar_oat_…)"],
+  POLAR_SANDBOX_ACCESS_TOKEN: [/^polar_(oat|pat)_[A-Za-z0-9_-]{20,}$/, "an organisation access token made at sandbox.polar.sh (polar_oat_…)"],
+  ANTHROPIC_API_KEY: [/^sk-ant-[A-Za-z0-9_-]{40,}$/, "an API key from platform.claude.com › Settings › API keys (sk-ant-…)"],
 };
 
 const fail = (why) => {

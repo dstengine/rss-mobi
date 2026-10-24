@@ -11,7 +11,12 @@
 // A key is shown once, when it is made (scripts/api-key.mjs); only its
 // hash is stored. Its first eight characters after `rmk_` are its public
 // name — in logs, in the rate limiter, and to revoke it by.
+//
+// A key bought at /api/ is Polar's licence key, not ours (ADR 0010): it has
+// no row here and is checked on use, in src/lib/polar.ts. It reads with
+// read:full at the default rate.
 import { apiKeys } from "./db.ts";
+import { isPolarKey, polarLookup } from "./polar.ts";
 import { newToken, sha256 } from "./tokens.ts";
 import type { ApiKeyDoc } from "./types.ts";
 
@@ -21,6 +26,10 @@ export type Scope = (typeof SCOPES)[number];
 /** Requests a minute a key gets unless it is made with another figure. The
     anonymous allowance is 120. */
 export const RATE_DEFAULT = 600;
+
+/** Who a bearer token stands for: one of our keys (a database row), or one
+    sold through Polar — no row, so no `_id`, and a date it stops. */
+export type Caller = Omit<ApiKeyDoc, "_id"> & { _id?: ApiKeyDoc["_id"]; via?: "polar"; expiresAt?: Date };
 
 export const hasScope = (key: Pick<ApiKeyDoc, "scopes"> | null | undefined, scope: Scope) =>
   !!key && (key.scopes.includes(scope) || key.scopes.includes("admin"));
@@ -52,10 +61,12 @@ export async function listKeys(): Promise<Omit<ApiKeyDoc, "hash">[]> {
   return (await apiKeys()).find({}, { projection: { hash: 0 } }).sort({ createdAt: 1 }).toArray();
 }
 
-/** The key a presented token belongs to: the key, "invalid" for one that
-    is unknown or revoked, or null when no token was presented. */
-export async function lookup(token: string | null | undefined): Promise<ApiKeyDoc | "invalid" | null> {
+/** The caller a presented token belongs to: the key, "invalid" for one that
+    is unknown or revoked, "unavailable" when a bought key could not be
+    checked, or null when no token was presented. */
+export async function lookup(token: string | null | undefined): Promise<Caller | "invalid" | "unavailable" | null> {
   if (!token) return null;
+  if (isPolarKey(token)) return polarLookup(token);
   if (!/^rmk_[\w-]{20,64}$/.test(token)) return "invalid";
   const key = await (await apiKeys()).findOne({ hash: sha256(token) });
   return key && !key.revokedAt ? key : "invalid";

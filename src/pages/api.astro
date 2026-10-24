@@ -1,0 +1,120 @@
+---
+// /api/ — the RSS feeds API: what it answers, the free allowance, and the
+// key that buys more. Indexable, and one of the pages we name ourselves:
+// title, description and h1 carry the keyword (AGENTS.md). The key is
+// sold by Polar (ADR 0010); the page shows the checkout link when the
+// environment has one and says plainly when it has not — a page says only
+// what is true.
+import Base from "../layouts/Base.astro";
+import { site } from "../site.config.ts";
+import { policy } from "../lib/policy.ts";
+import { cacheFor } from "../lib/http.ts";
+import { env } from "../lib/env.ts";
+import { RATE_DEFAULT } from "../lib/keys.ts";
+import { listedCount } from "../lib/views.ts";
+import { counted } from "../lib/words.ts";
+
+const decision = policy({ type: "static" });
+Astro.response.headers.set("Cache-Control", cacheFor(3600));
+
+const total = await listedCount();
+const checkout = env("POLAR_CHECKOUT_URL");
+const PRICE = "$29";
+const DAYS = 30;
+const ANON = 120;
+
+const title = "RSS feeds API";
+const description = `The rss.mobi RSS feeds API: ${counted(total, "feed")}, their posts and topics as JSON, free at ${ANON} requests a minute without a key; a key for ${RATE_DEFAULT} a minute and every field, ${PRICE} for ${DAYS} days.`;
+
+const endpoints = [
+  { call: "GET /api/v1/feeds", text: "The directory, newest first.", params: ["tag", "q", "limit", "before"] },
+  { call: "GET /api/v1/feeds/<slug>", text: "One feed and its latest posts, by the last part of its page's address." },
+  { call: "GET /api/v1/items", text: "Posts across the directory, newest first; filters combine with AND, a list inside one is OR; the answer's next is the following page.", params: ["tag", "q", "exclude", "host", "feed", "lang", "since", "limit"] },
+  { call: "POST /api/v1/discover {url}", text: "Finds and reads a site's feed without saving it: the preview the submit form uses." },
+  { call: "POST /api/v1/lookup {urls}", text: "Which of up to 200 feed addresses the directory has, and which it has not." },
+  { call: "POST /api/v1/feeds {url, tags?}", text: "Submits a feed. It is live when the call returns; five an hour without a key." },
+  { call: "POST /api/v1/collections {title, feeds, filters?}", text: "Saves a set of feeds and filters; the answer carries its edit link, shown once." },
+];
+---
+
+<Base title={title} description={description} robots={decision.robots} path="/api/">
+  <div class="prose">
+    <h1>The RSS feeds API</h1>
+    <p class="lede">
+      Everything this directory of RSS feeds knows, as JSON: {counted(total, "feed")}, the posts they publish and the topics they are filed under.
+      No account, no key to read. The same data the <a href="/rss/" title="Make an RSS feed of any topic, keyword or site, or take the directory as OPML">RSS and OPML exports</a> carry.
+    </p>
+
+    <h2>Endpoints</h2>
+    <ul>
+      {
+        endpoints.map((e) => (
+          <li>
+            <code>{e.call}</code> — {e.text}
+            {e.params && (
+              <>
+                {" "}
+                Parameters: {e.params.map((p, i) => (
+                  <>
+                    <code>{p}</code>
+                    {i < e.params.length - 1 ? ", " : "."}
+                  </>
+                ))}
+              </>
+            )}
+          </li>
+        ))
+      }
+    </ul>
+    <p>
+      A POST takes JSON and needs <code>Content-Type: application/json</code>. Lists page by <code>limit</code>, 100 at most, and the <code>next</code> or <code>before</code> the answer gives. Every answer allows any origin (CORS), so a page may call it directly.
+    </p>
+
+    <h2>Free, without a key</h2>
+    <p>
+      {ANON} requests a minute per address. Anonymous answers are cached at the edge for two minutes, so a busy page costs the directory
+      nothing. If you show the data somewhere, a link back to the feed's page here is appreciated and not required. The code is open source
+      under the AGPL-3.0, at <a href="https://github.com/dstengine/rss-mobi" title="Source code of this RSS feeds directory, AGPL-3.0">github.com/dstengine/rss-mobi</a>.
+    </p>
+
+    <h2>A key: {PRICE} for {DAYS} days</h2>
+    <ul>
+      <li>{RATE_DEFAULT} requests a minute, the key's own allowance, whatever address it calls from.</li>
+      <li>Every field: on each post and feed, <code>index</code> — whether Google has the original, when and how often that was checked, and our page's robots line.</li>
+      <li>Fresh answers, never from the cache.</li>
+    </ul>
+    <p>
+      Send it with every call:
+    </p>
+    <pre><code>curl -H "Authorization: Bearer RSSMOBI-…" \
+  "https://rss.mobi/api/v1/items?tag=ai&limit=50"</code></pre>
+    {
+      checkout ? (
+        <p>
+          <a class="button" href={checkout} rel="nofollow noopener" title={`Pay ${PRICE} by card through Polar and receive an API key for ${DAYS} days`}>
+            Buy a key — {PRICE}
+          </a>
+        </p>
+      ) : (
+        <p>
+          Keys go on sale here within days. Until then, write to{" "}
+          <a href={`mailto:${site.contact}`} title="Ask for an API key by e-mail">{site.contact}</a> and one is made by hand.
+        </p>
+      )
+    }
+    <p>
+      The card is taken by Polar, the merchant of record, which issues the receipt and handles tax; the key is shown after payment and in the
+      receipt, and rss.mobi keeps nothing about you. A key may be refunded within 14 days on request; a refunded key stops working. A larger
+      allowance, or keys for several sites: write to <a href={`mailto:${site.contact}`} title="Ask about a larger API allowance">{site.contact}</a>.
+      The rules are in the <a href="/terms/" title="Terms for reading the RSS feeds API and for API keys">terms</a>.
+    </p>
+
+    <h2>Errors</h2>
+    <ul>
+      <li><code>401</code> — the key is unknown, expired or refunded. A made-up key spends the anonymous allowance, nothing more.</li>
+      <li><code>403</code> — the key lacks the scope the call needs.</li>
+      <li><code>429</code> — the allowance for this minute is used; <code>Retry-After</code> says when it returns.</li>
+      <li><code>503</code> — a bought key could not be checked just now; try again in a minute.</li>
+    </ul>
+  </div>
+</Base>
