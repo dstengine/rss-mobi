@@ -1,14 +1,15 @@
-// POST /api/v1/cron/index-check — collects the index checks that have come
-// back and files the next batch (src/lib/indexcheck.ts), then spends the
-// time left asking Search Console about the post pages we opened
-// (src/lib/pagecheck.ts). Called every 15 minutes by QStash, with GitHub
-// Actions as the fallback, with CRON_SECRET.
+// GET or POST /api/v1/cron/index-check — collects the index checks that
+// have come back and files the next batch (src/lib/indexcheck.ts), then
+// spends the time left asking Search Console about the post pages we
+// opened (src/lib/pagecheck.ts). Called every 15 minutes by Vercel Cron
+// (GET, vercel.json), with GitHub Actions as the fallback (POST), both
+// with CRON_SECRET.
 import type { APIRoute } from "astro";
 import { runIndexCheck } from "../../../../lib/indexcheck.ts";
 import { inspectOpenPages } from "../../../../lib/pagecheck.ts";
 import { error, isCron, json } from "../../../../lib/http.ts";
 
-export const POST: APIRoute = async (ctx) => {
+const run: APIRoute = async (ctx) => {
   if (!isCron(ctx)) return error(401, "Not for you.");
   const started = Date.now();
   // Stop starting new calls 15s before the function's 60s limit.
@@ -18,3 +19,6 @@ export const POST: APIRoute = async (ctx) => {
   const pages = await inspectOpenPages(started + 40_000);
   return json({ ...report, pages, ms: Date.now() - started });
 };
+
+export const GET = run;
+export const POST = run;

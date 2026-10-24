@@ -1,7 +1,10 @@
 name: cron
-# Runs rss.mobi's scheduled jobs; Vercel's own cron runs once a day on this
-# plan. See docs/decisions/0003-cron-via-github-actions.md. The log is
-# public, so it prints status codes and nothing else.
+# The fallback for rss.mobi's scheduled jobs: Vercel Cron calls them
+# (vercel.json, docs/decisions/0008-off-upstash.md), and this calls fetch
+# and index-check off the quarter hours in case it does not. The jobs only
+# do what is due, so a second caller adds nothing. See also
+# docs/decisions/0003-cron-via-github-actions.md. The log is public, so it
+# prints status codes and nothing else.
 on:
   schedule:
     # Off the quarter hours: GitHub delays and drops scheduled runs at the

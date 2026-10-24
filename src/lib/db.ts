@@ -23,6 +23,14 @@ export function client(): Promise<MongoClient> {
   return g.__rssMongo;
 }
 
+/** Whether a database is configured, or a test has put a client in place.
+    The limiter, the locks and the counters (src/lib/cache.ts) keep to
+    process memory without one, so local development and most tests need
+    no server. */
+export function hasStore(): boolean {
+  return g.__rssMongo !== undefined || env("MONGODB_CONNECTION_STRING") !== undefined;
+}
+
 export async function db(): Promise<Db> {
   return (await client()).db(env("MONGODB_DB") ?? "rssmobi");
 }
@@ -42,3 +50,9 @@ export const reports = c<Document>("reports");
 export const events = c<Document>("events");
 export const metricsDaily = c<Document>("metrics_daily");
 export const experiments = c<Document>("experiments");
+/** Run locks: the key is the id, `exp` ends the lock, `by` names the
+    process holding it. A TTL index sweeps lapsed ones. */
+export const locks = c<{ _id: string; exp: Date; by: string }>("locks");
+/** Counters with a lifetime: rate-limit windows, daily quotas and flags.
+    `exp` ends the count; a TTL index sweeps lapsed ones. */
+export const counters = c<{ _id: string; n: number; exp: Date }>("counters");

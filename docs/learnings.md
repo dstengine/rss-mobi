@@ -2,6 +2,23 @@
 
 Observation → evidence → where it was applied. Newest first.
 
+## 2026-10-25 — leaving Upstash
+
+- **A free second store is still a second quota to watch.** Evidence:
+  once the poll lock left Redis, the store held some 2 500 commands a
+  day, a seventh of its free plan, and it had still taken the API, the
+  poller and every cron down for ten days on 14 Oct with nothing watching
+  it. Applied: the owner dropped Upstash. The limiter, the run locks and
+  the quota counters live in MongoDB, which every request reaches anyway,
+  and the jobs run on Vercel Cron (ADR 0008).
+- **A scheduler that may deliver twice needs jobs that may run twice.**
+  Evidence: Vercel documents cron delivery as best effort, a run missed or
+  delivered more than once, and a failed one never retried; the daily
+  story job queued five more jobs on every call. Applied: `stories` runs
+  once a UTC day, behind a `stories:<day>` lock that is never released;
+  `fetch` already claimed each feed, `index-check` and `metrics` already
+  locked.
+
 ## 2026-10-25 — where the Redis commands went
 
 - **One small lock, taken for every item, is the whole bill.** Evidence:
@@ -20,7 +37,9 @@ Observation → evidence → where it was applied. Newest first.
   the bill. Applied: `tests/fixtures/fake-redis.ts` stands in for Upstash
   and records every command it is sent; `tests/redis-commands.test.ts`
   states the cost of each operation in `src/lib/cache.ts`, and
-  `tests/db.test.ts` that a poll costs none.
+  `tests/db.test.ts` that a poll costs none. Both stand-ins went with
+  Upstash on 25 Oct 2026; `tests/cache.test.ts` now counts the store
+  calls each operation makes.
 
 Commands a day, before and after, as per-run counts times runs a day. A
 fetch run polled some 64 feeds; the schedulers run 192 times a day

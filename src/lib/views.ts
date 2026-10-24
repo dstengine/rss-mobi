@@ -227,7 +227,7 @@ export interface TagStat {
 }
 
 /** Every tag in use, with how many feeds from how many sites carry it.
-    Cached for five minutes: this runs on the front page. */
+    Kept in memory for five minutes: this runs on the front page. */
 export async function tagStats(limit = 200): Promise<TagStat[]> {
   const rows = await cached(`tags:${limit}`, 300, async () =>
     (await feeds())
@@ -241,7 +241,7 @@ export async function tagStats(limit = 200): Promise<TagStat[]> {
       ])
       .toArray(),
   );
-  // Redis hands dates back as strings.
+  // Copies: the rows are the cached value itself, shared by every caller.
   return rows.map((r) => ({ ...r, updatedAt: new Date(r.updatedAt) }));
 }
 

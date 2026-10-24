@@ -21,7 +21,7 @@
 // queue as `skipped`, with `indexSkipped: "queue"` to find them by.
 import type { ObjectId } from "mongodb";
 import { indexChecks, items, spend } from "./db.ts";
-import { count, counter, lock, redisUp, unlock } from "./cache.ts";
+import { count, counter, lock, storeUp, unlock } from "./cache.ts";
 import { alert as telegram, indexNow } from "./notify.ts";
 import { BudgetExceeded, LIMITS, headroom, reserve, settle, utcDay, type Ledger } from "./budget.ts";
 import { CHECK_USD, MAX_TASKS, SerpStop, dataForSeo, keywordFor, listed, type Collected, type Posted, type SerpApi } from "./serp.ts";
@@ -196,7 +196,7 @@ export async function runIndexCheck(deadline: number, deps: Partial<Deps> = {}):
   // A SERP check costs money against a daily budget every instance must
   // see; the stand-in counter is per instance, so without the shared
   // store the run stops rather than spends blind.
-  if (!(await redisUp())) return { ...report, stopped: "Redis is unavailable: the daily SERP budget needs a shared counter" };
+  if (!(await storeUp())) return { ...report, stopped: "The shared store refuses writes: the daily SERP budget needs a shared counter" };
   if (!(await lock("index-check", 90))) return { ...report, stopped: "another run is in progress" };
   const day = utcDay(d.now());
   try {

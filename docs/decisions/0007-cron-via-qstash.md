@@ -1,6 +1,6 @@
 # 0007 — Scheduled jobs move to QStash; GitHub stays as a fallback
 
-**Date:** 2026-09-24 · **Status:** accepted · **Supersedes part of ADR 0003**
+**Date:** 2026-09-24 · **Status:** superseded by [ADR 0008](0008-off-upstash.md) · **Supersedes part of ADR 0003**
 
 ADR 0003 said to reopen if GitHub's schedule drifted past 30 minutes
 regularly. In its first day, `*/15` ran four times in eighteen hours —
@@ -22,3 +22,9 @@ nothing but a safety net.
 
 **Reopen if:** QStash's free plan changes, a third job pushes the count
 near 1,000 a day, or the project moves to Vercel Pro and its own cron.
+
+**2026-10-25:** superseded. The team has been on Vercel Pro since 21 Oct,
+one of the conditions above, and the owner decided that rss.mobi uses no
+Upstash at all. The four schedules moved to Vercel Cron Jobs in
+`vercel.json`, and `scripts/qstash-schedules.mjs` was removed
+([ADR 0008](0008-off-upstash.md)).

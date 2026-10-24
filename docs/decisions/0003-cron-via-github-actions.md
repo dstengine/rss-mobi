@@ -25,3 +25,7 @@ scheduler repository, or run hourly), the project moves to Vercel Pro
 (per-minute cron), GitHub drift exceeds 30 minutes regularly, or GitHub
 objects to the schedule — then QStash, which comes with the Upstash
 account, is the next candidate.
+
+**2026-10-25:** the project is on Vercel Pro, and Vercel Cron Jobs call the
+jobs ([ADR 0008](0008-off-upstash.md)), as QStash did before them
+(ADR 0007). This workflow stays as the fallback, unchanged.

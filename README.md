@@ -8,7 +8,7 @@ follow it in Feedly, Inoreader, NetNewsWire or any other reader — or in
 the site's own reader, which keeps its list on the phone. Several feeds
 can be combined into one collection with its own RSS feed and OPML file.
 
-Astro (server output) on Vercel, MongoDB, Upstash Redis. Feeds are parsed
+Astro (server output) on Vercel, MongoDB, Vercel Cron Jobs. Feeds are parsed
 from RSS 2.0, RSS 1.0 (RDF), Atom and JSON Feed.
 
 - What changed: [`CHANGELOG.md`](CHANGELOG.md)
