@@ -46,6 +46,10 @@ export interface FeedDoc {
   freshBy?: Date;
   /** When a page, our copy or the reader last showed it; hourly at most. */
   readAt?: Date;
+  /** Set while a run polls the feed, to when its claim lapses: that run
+      has the feed, and another finds it taken (catalog.ts claim()). The
+      poll's own update removes it. */
+  pollingUntil?: Date;
   /** The last body read, hashed: a site that answers every request in
       full is not parsed again for the same bytes. */
   bodyHash?: string;

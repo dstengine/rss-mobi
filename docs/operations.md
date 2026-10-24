@@ -153,7 +153,11 @@ only what is due, so two callers do no harm.
   their pace once they have answered (`src/lib/after.ts`), so a feed
   people read is never more than its pace behind, however late the
   scheduler runs. A feed that answers every request in full is not
-  parsed again for the same bytes (`bodyHash`).
+  parsed again for the same bytes (`bodyHash`). While a feed is fetched it
+  is claimed in MongoDB (`pollingUntil`, set and released by the poll's
+  own writes), not locked in Redis: the scheduler and a page asking for
+  the same feed at once get it once, and a poll costs the Redis plan
+  nothing (`claim()` in `src/lib/catalog.ts`).
 - `/api/v1/cron/index-check` asks DataForSEO whether each post's original is
   in Google (`src/lib/indexcheck.ts`). A run collects the answers to earlier
   tasks, then files up to 100 new ones, oldest first, and tells IndexNow
