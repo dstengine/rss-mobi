@@ -43,3 +43,26 @@ Observation → evidence → where it was applied. Newest first.
   minute (tests/cache.test.ts). Still true for `lock()` and `count()`:
   they throw, and the jobs that use them stop, which is the right side to
   fail on for a lock.
+
+## 2026-10-24 — the lock took the poller down
+
+The limiter's fix above (PR #42) answered the symptom that was seen, the
+API's 500s, and missed the one that was not: `lock()` threw on the same
+Redis error, so `/api/v1/cron/fetch` and every other cron had answered
+500 since 14 Oct 2026, not 24 Oct. Nobody noticed for ten days because
+the pages kept serving from their fallback cache and nothing watched the
+crons' status codes.
+
+- Date an outage from the data, not from when it was noticed: items per
+  day by ObjectId time (`_id` carries its creation second) and the feeds'
+  greatest `lastFetchAt` gave 14 Oct 17:45 UTC in one query each.
+- QStash is the cron and GitHub Actions only the fallback, so QStash's
+  event log is the cron log: `GET https://qstash.upstash.io/v2/events`
+  with `QSTASH_TOKEN` lists each delivery with its status code, and
+  `/v2/dlq` keeps the failures.
+- When one call site is fixed for a dependency's failure, grep for every
+  other call into the same module before closing the incident: `lock`,
+  `count` and `counter` went to the same store as `rateLimit`.
+- A counter that falls back to per-instance memory is fine for a pause
+  flag and wrong for a budget in dollars; the index check now asks
+  `redisUp()` and stops rather than spends blind.

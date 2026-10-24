@@ -2,10 +2,16 @@
 
 ## Unreleased
 
+- Locks and counters fall back to the in-process stand-in when Redis
+  answers an error, like the limiter, and the index check stops instead
+  of spending against a counter one instance keeps. The quota had in fact
+  run out on 14 Oct 2026: the per-feed lock's error stopped the poller and
+  every cron for ten days, which the limiter's fix below did not touch.
 - The rate limiter falls back to the in-process stand-in when Redis
-  answers an error, and says so once a minute. On 24 Oct 2026 the Upstash
+  answers an error, and says so once a minute. On 14 Oct 2026 the Upstash
   plan's monthly command quota ran out and every API read answered 500
-  while the pages, whose cache already fell back, kept serving.
+  for ten days while the pages, whose cache already fell back, kept
+  serving.
 - The front page shows the news: four story cards, two by two, a pinned
   story first, and a link to /news/. The front page's sitemap date now
   counts the stories it shows.
