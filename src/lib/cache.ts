@@ -90,30 +90,58 @@ function parseWindow(w: string): number {
 
 /* ----------------------------------------------------------------- locks */
 
-/** Takes `key` for `ttlSec` seconds; false if someone else holds it. */
+/** Takes `key` for `ttlSec` seconds; false if someone else holds it. When
+    Redis is configured but answers an error, the in-process stand-in holds
+    the lock instead: per instance, so two instances may run one job at
+    once, which is the lesser harm. On 14 Oct 2026 the plan's quota ran out
+    and the per-feed lock's error stopped the poller and every cron for ten
+    days while the pages served. */
 export async function lock(key: string, ttlSec: number): Promise<boolean> {
   const r = redis();
-  if (r) return (await r.set(`lock:${key}`, "1", { nx: true, ex: ttlSec })) === "OK";
+  if (r) {
+    try {
+      return (await r.set(`lock:${key}`, "1", { nx: true, ex: ttlSec })) === "OK";
+    } catch (e) {
+      complain("lock", e);
+    }
+  }
   if (memGet(`lock:${key}`)) return false;
   memSet(`lock:${key}`, 1, ttlSec);
   return true;
 }
 
+/** Releases `key` wherever it was taken: the stand-in's copy goes first,
+    so a lock taken in memory while Redis was down is not left behind. */
 export async function unlock(key: string): Promise<void> {
+  mem.delete(`lock:${key}`);
   const r = redis();
-  if (r) await r.del(`lock:${key}`);
-  else mem.delete(`lock:${key}`);
+  if (!r) return;
+  try {
+    await r.del(`lock:${key}`);
+  } catch (e) {
+    complain("unlock", e);
+  }
 }
 
 /* -------------------------------------------------------------- counters */
 
-/** Adds `by` to a counter that expires after `ttlSec`; returns the total. */
+/** Adds `by` to a counter that expires after `ttlSec`; returns the total.
+    With Redis answering errors the stand-in counts instead, per instance:
+    fine for a pause flag or a sample cap, wrong for a budget in dollars,
+    which is what `redisUp()` is for. */
 export async function count(key: string, by = 1, ttlSec = 2 * 86400): Promise<number> {
   const r = redis();
   if (r) {
-    const n = await r.incrby(`n:${key}`, by);
-    if (n === by) await r.expire(`n:${key}`, ttlSec);
-    return n;
+    let n: number | undefined;
+    try {
+      n = await r.incrby(`n:${key}`, by);
+    } catch (e) {
+      complain("count", e);
+    }
+    if (n !== undefined) {
+      if (n === by) await r.expire(`n:${key}`, ttlSec).catch((e) => complain("count", e));
+      return n;
+    }
   }
   const n = (memGet<number>(`n:${key}`) ?? 0) + by;
   memSet(`n:${key}`, n, ttlSec);
@@ -122,8 +150,32 @@ export async function count(key: string, by = 1, ttlSec = 2 * 86400): Promise<nu
 
 export async function counter(key: string): Promise<number> {
   const r = redis();
-  if (r) return Number((await r.get(`n:${key}`)) ?? 0);
+  if (r) {
+    try {
+      return Number((await r.get(`n:${key}`)) ?? 0);
+    } catch (e) {
+      complain("count", e);
+    }
+  }
   return memGet<number>(`n:${key}`) ?? 0;
+}
+
+/** Whether the shared store answers: true with no Redis configured, as
+    local development and tests count in memory on purpose; false when
+    Redis is configured and a read fails. A job that spends money against
+    a daily budget asks this first, since a counter kept per instance
+    cannot hold a budget every instance shares. The probe is a read, so it
+    fails the way every other command does once the quota is spent. */
+export async function redisUp(): Promise<boolean> {
+  const r = redis();
+  if (!r) return true;
+  try {
+    await r.get("probe");
+    return true;
+  } catch (e) {
+    complain("probe", e);
+    return false;
+  }
 }
 
 /* ---------------------------------------------------------- short cache */
