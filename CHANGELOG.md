@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Visits are counted, not only page views: every page sends `visit` once
+  per tab, labelled by where the reader came from — `search`, `ai`,
+  `direct` or `other`, from the referrer's host (`src/lib/visits.ts`) —
+  and the nightly roll-up keeps a row for each. A flag in sessionStorage
+  stops a reload or the next page from counting again; a referrer on
+  rss.mobi itself never counts. No identifier, no cookie, nothing that
+  leaves the browser but the word; the terms say so. Google Analytics
+  stays out, because the terms promise no cookies and no trackers
+  (ADR 0009).
 - rss.mobi no longer uses Upstash. The rate limiter, the run locks and the
   quota counters live in MongoDB, in `counters` and `locks`: one write an
   operation, swept by TTL indexes (`npm run migrate` creates them). The
