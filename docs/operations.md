@@ -175,7 +175,10 @@ itself.
   days of events into `metrics_daily` (`src/lib/metrics.ts`): a row per
   day, metric and variant — each event name, views per page type, some
   events by label, and each experiment variant as
-  `<experiment>=<variant>`. A day rolled up again gets the same rows, so a
+  `<experiment>=<variant>`. Visits are `visit`, with `visit:search`,
+  `visit:ai`, `visit:direct` and `visit:other` by source (ADR 0009); a
+  visit is the first page a tab opens, so `view` ÷ `visit` is pages per
+  visit. A day rolled up again gets the same rows, so a
   missed run is caught up by the next; `?day=YYYY-MM-DD` backfills one.
   `retro-stats` and experiment readouts (`readout()`) read these rows,
   not the raw events, which expire after 180 days.

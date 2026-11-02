@@ -8,6 +8,9 @@ import { body, limitIp } from "../../../lib/http.ts";
 
 const NAMES = new Set([
   "view",
+  // The first page a tab opens, labelled by where the reader came from
+  // (src/lib/visits.ts): visits a month, which page views overstate.
+  "visit",
   "outbound",
   "report",
   "subscribe_copy",

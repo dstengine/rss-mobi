@@ -22,6 +22,7 @@ const DAY = 86_400_000;
     whatever a stranger posts — counts toward the event alone, so nobody
     can make a row per value. */
 const LABELS: Record<string, RegExp> = {
+  visit: /^(search|ai|direct|other)$/,
   subscribe_open: /^(Feedly|Inoreader|NetNewsWire|rss\.mobi)$/,
   submit_error: /^\d{3}$/,
   collection_add_url: /^(new|existing)$/,

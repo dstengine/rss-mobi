@@ -15,6 +15,7 @@ import { hasScope, mint } from "../src/lib/keys.ts";
 import { hostKey } from "../src/lib/admin.ts";
 import { decodeParam } from "../src/lib/feeds/url.ts";
 import { lastDays, metricsOf, pageType } from "../src/lib/metrics.ts";
+import { SOURCES, sourceOf } from "../src/lib/visits.ts";
 import { cluster, sensitive, type Post } from "../src/lib/clusters.ts";
 import { check, pinFirst, storySlug, WORDS } from "../src/lib/stories.ts";
 import { ObjectId } from "mongodb";
@@ -231,6 +232,27 @@ describe("metrics", () => {
     assert.deepEqual(metricsOf({ name: "outbound", label: "example.com" }), ["outbound"]);
     assert.deepEqual(metricsOf({ name: "reader_start", label: "empty" }), ["reader_start", "reader_start:empty"]);
     assert.deepEqual(metricsOf({ name: "reader_follow", label: "first" }), ["reader_follow", "reader_follow:first"]);
+    assert.deepEqual(SOURCES.map((s) => metricsOf({ name: "visit", label: s })[1]), ["visit:search", "visit:ai", "visit:direct", "visit:other"]);
+    assert.deepEqual(metricsOf({ name: "visit", label: "example.com" }), ["visit"]);
+  });
+
+  test("a visit's source is one of four words, from the referrer's host", () => {
+    const at = (referrer: string) => sourceOf(referrer, "rss.mobi");
+    assert.equal(at(""), "direct");
+    assert.equal(at("https://www.google.com/"), "search");
+    assert.equal(at("https://www.google.co.uk/"), "search");
+    assert.equal(at("android-app://com.google.android.googlequicksearchbox/"), "search");
+    assert.equal(at("https://duckduckgo.com/"), "search");
+    assert.equal(at("https://search.brave.com/"), "search");
+    assert.equal(at("https://chatgpt.com/"), "ai");
+    assert.equal(at("https://gemini.google.com/"), "ai");
+    assert.equal(at("https://www.perplexity.ai/"), "ai");
+    assert.equal(at("https://news.ycombinator.com/item?id=1"), "other");
+    assert.equal(at("https://googleblog.example/"), "other");
+    assert.equal(at("not a url"), "other");
+    // The site itself: the same visit, going on.
+    assert.equal(at("https://rss.mobi/feed/x/"), null);
+    assert.equal(sourceOf("https://RSS.mobi/", "rss.mobi"), null);
   });
 
   test("the last whole days, oldest first", () => {
