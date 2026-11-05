@@ -14,7 +14,7 @@ import { copyDate, site } from "../site.config.ts";
 
 export const FEEDS_PER_FILE = 5_000;
 export const ITEMS_PER_FILE = 10_000;
-const STATIC = ["/c/new/", "/submit/", "/about/", "/terms/"];
+const STATIC = ["/c/new/", "/submit/", "/about/", "/terms/", "/api/"];
 
 const loc = (path: string) => `${site.url}${path}`;
 

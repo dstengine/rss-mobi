@@ -69,6 +69,28 @@ under 150 a day at today's traffic. It pays once the API sees some 5 000
 requests a day, when the limiter and the rest together reach the
 8 000-a-day mark that 250 000 a month allows.
 
+## 2026-10-24 — paid keys
+
+- **Polar can pay an individual in Armenia; the proof is Stripe's own
+  endpoint, not Polar's list.** Evidence:
+  `docs.stripe.com/_endpoint/get-requirement-selections-for-platform-country?platformCountry=US`
+  has `country_map.AM` with account types express/custom, agreement
+  `recipient`, capability `transfers` and entity type `individual`;
+  Stripe's bank-account page: Armenia takes SWIFT/BIC + account number,
+  "only available for Cross-border payouts accounts", currency AMD.
+  Applied: ADR 0010; the payout account should be in AMD unless the bank
+  confirms a USD wire.
+- **A licence key can be checked without a secret.** Evidence: Polar's
+  `POST /v1/customer-portal/license-keys/validate` takes `key` and
+  `organization_id` and "doesn't require authentication"; 404 covers
+  unknown, revoked and expired. Applied: `src/lib/polar.ts` holds no
+  token; Vercel gets three public variables.
+- **Polar's timeline is longer than a fortnight.** Evidence: a 7-day
+  settlement delay for organisations made after 12 May 2026, a first
+  account review of up to 14 days, payouts processed 24 h after the
+  request and 4–7 business days in transit. Applied: the rail test's
+  money date moved from 7 to 28 Nov 2026 (owner's decision pending).
+
 ## 2026-10-04 — story worker
 
 - **A submit that cannot be undone needs a way back.** Evidence: a story

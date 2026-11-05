@@ -4,9 +4,8 @@ import { after } from "./after.ts";
 import { apiKeys } from "./db.ts";
 import { env } from "./env.ts";
 import { rateLimit } from "./cache.ts";
-import { hasScope, lookup, type Scope } from "./keys.ts";
+import { hasScope, lookup, type Caller, type Scope } from "./keys.ts";
 import { ipHash } from "./tokens.ts";
-import type { ApiKeyDoc } from "./types.ts";
 
 /** CDN caching: fresh for `sMaxAge`, served stale while revalidating for a
     day. Browsers do not cache (max-age=0), so a reader who reloads gets
@@ -50,9 +49,13 @@ const tooMany = (reset: number, message: string) =>
   json({ error: message }, { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((reset - Date.now()) / 1000))) } });
 
 const INVALID = () => error(401, "This API key is not valid, or has been revoked.");
+/** A bought key that could not be checked (src/lib/polar.ts): said, not
+    silently read as anonymous. */
+const UNAVAILABLE = () => error(503, "This API key could not be checked just now. Try again in a minute.");
 
 /** Notes when a key was last used, at most once a minute per key. */
-function touch(key: ApiKeyDoc) {
+function touch(key: Caller) {
+  if (!key._id) return; // a bought key has no row of ours to note it on
   const now = new Date();
   if (key.lastUsedAt && now.getTime() - key.lastUsedAt.getTime() < 60_000) return;
   after("key", async () => (await apiKeys()).updateOne({ _id: key._id }, { $set: { lastUsedAt: now } }));
@@ -67,8 +70,9 @@ function touch(key: ApiKeyDoc) {
 export async function access(
   ctx: APIContext,
   anon: { bucket: string; max: number; window: `${number} ${"s" | "m" | "h" | "d"}` } = { bucket: "api-read", max: 120, window: "1 m" },
-): Promise<{ key: ApiKeyDoc | null } | Response> {
+): Promise<{ key: Caller | null } | Response> {
   const found = await lookup(bearer(ctx));
+  if (found === "unavailable") return UNAVAILABLE();
   // A made-up key spends the anonymous allowance, or guessing keys would
   // be the one way to call without a limit.
   if (found === "invalid") return (await limitIp(ctx, anon.bucket, anon.max, anon.window)) ?? INVALID();
@@ -81,8 +85,9 @@ export async function access(
 
 /** A valid key with `scope` (admin holds every scope), within its rate;
     otherwise the Response to send back. */
-export async function requireScope(ctx: APIContext, scope: Scope): Promise<ApiKeyDoc | Response> {
+export async function requireScope(ctx: APIContext, scope: Scope): Promise<Caller | Response> {
   const found = await lookup(bearer(ctx));
+  if (found === "unavailable") return UNAVAILABLE();
   if (found === "invalid") return (await limitIp(ctx, "api-read", 120, "1 m")) ?? INVALID();
   if (!found) return (await limitIp(ctx, "api-read", 120, "1 m")) ?? error(401, "An API key is required: Authorization: Bearer rmk_…");
   if (!hasScope(found, scope)) return error(403, `This key lacks the ${scope} scope.`);
@@ -94,7 +99,7 @@ export async function requireScope(ctx: APIContext, scope: Scope): Promise<ApiKe
 
 /** Caching for a read: shared by the CDN when nobody's key is in it, never
     when one is. */
-export const readCache = (key: ApiKeyDoc | null, sMaxAge: number) => (key ? NO_STORE : cacheFor(sMaxAge));
+export const readCache = (key: Caller | null, sMaxAge: number) => (key ? NO_STORE : cacheFor(sMaxAge));
 
 /** The scheduler's shared secret; constant-time compare. */
 export function isCron(ctx: APIContext): boolean {

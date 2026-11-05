@@ -16,7 +16,7 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
 >
   <div class="prose">
     <h1>Terms of the RSS feeds directory</h1>
-    <p class="muted small">Last changed <span class="nowrap">24 September 2026</span>.</p>
+    <p class="muted small">Last changed <span class="nowrap">6 November 2026</span>.</p>
 
     <h2>Submitting a feed</h2>
     <p>
@@ -43,6 +43,17 @@ Astro.response.headers.set("Cache-Control", cacheFor(3600));
     <p>
       A publisher who does not want to be listed, or wants its copy limited to excerpts, can say so from the feed's page (<strong>Report a
       problem → I own this site</strong>), and whoever submitted the feed can do either with their edit link.{site.contact && <> Anything else: <a href={`mailto:${site.contact}`} title="Complaints and removal requests for the RSS feeds directory">{site.contact}</a>.</>}
+    </p>
+
+    <h2>API keys</h2>
+    <p>
+      Anyone may read the <a href="/api/" title="The RSS feeds API: endpoints, the free allowance and keys">API</a> without a key, at 120
+      requests a minute per address. A key bought on that page is sold by Polar Software Inc. as the merchant of record: Polar takes the
+      payment, issues the receipt, handles tax and shows the key after payment. rss.mobi sees no card and keeps nothing about the buyer; a
+      key is checked with Polar when it is used, and a hash of it is remembered for ten minutes. A key is good for 30 days from purchase,
+      for 600 requests a minute and every field the API has. It may be refunded within 14 days of purchase on request, through Polar or
+      by writing to the address below; a refunded key stops working. One key serves one site or application and is not for resale.
+      Keys made by hand, for the sites of the network or on request by e-mail, follow the same rules.
     </p>
 
     <h2>No warranty</h2>
