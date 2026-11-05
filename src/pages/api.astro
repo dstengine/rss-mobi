@@ -24,7 +24,7 @@ const DAYS = 30;
 const ANON = 120;
 
 const title = "RSS feeds API";
-const description = `The rss.mobi RSS feeds API: ${counted(total, "feed")}, their posts and topics as JSON, free at ${ANON} requests a minute without a key; a key for ${RATE_DEFAULT} a minute and every field, ${PRICE} for ${DAYS} days.`;
+const description = `RSS feeds API: ${counted(total, "feed")}, their posts and topics as JSON. Free at ${ANON} requests a minute, no key; a key gives ${RATE_DEFAULT} a minute and every field, ${PRICE} for ${DAYS} days.`;
 
 const endpoints = [
   { call: "GET /api/v1/feeds", text: "The directory, newest first.", params: ["tag", "q", "limit", "before"] },
@@ -90,23 +90,29 @@ const endpoints = [
   "https://rss.mobi/api/v1/items?tag=ai&limit=50"</code></pre>
     {
       checkout ? (
-        <p>
-          <a class="button" href={checkout} rel="nofollow noopener" title={`Pay ${PRICE} by card through Polar and receive an API key for ${DAYS} days`}>
-            Buy a key — {PRICE}
-          </a>
-        </p>
+        <>
+          <p>
+            <a class="button" href={checkout} rel="nofollow noopener" title={`Pay ${PRICE} by card through Polar and receive an API key for ${DAYS} days`}>
+              Buy a key — {PRICE}
+            </a>
+          </p>
+          <p>
+            The card is taken by Polar, the merchant of record, which issues the receipt and handles tax; the key is shown after payment and in
+            the receipt, and rss.mobi keeps nothing about you. A key may be refunded within 14 days on request; a refunded key stops working.
+          </p>
+        </>
       ) : (
         <p>
-          Keys go on sale here within days. Until then, write to{" "}
-          <a href={`mailto:${site.contact}`} title="Ask for an API key by e-mail">{site.contact}</a> and one is made by hand.
+          Card payment is not open here yet. Until it is, write to{" "}
+          <a href={`mailto:${site.contact}`} title="Ask for an RSS feeds API key by e-mail">{site.contact}</a> and a key is made by hand, with
+          the same allowance and on the same terms.
         </p>
       )
     }
     <p>
-      The card is taken by Polar, the merchant of record, which issues the receipt and handles tax; the key is shown after payment and in the
-      receipt, and rss.mobi keeps nothing about you. A key may be refunded within 14 days on request; a refunded key stops working. A larger
-      allowance, or keys for several sites: write to <a href={`mailto:${site.contact}`} title="Ask about a larger API allowance">{site.contact}</a>.
-      The rules are in the <a href="/terms/" title="Terms for reading the RSS feeds API and for API keys">terms</a>.
+      A larger allowance, or keys for several sites: write to{" "}
+      <a href={`mailto:${site.contact}`} title="Ask about a larger RSS feeds API allowance">{site.contact}</a>. The rules are in the{" "}
+      <a href="/terms/" title="Terms for reading the RSS feeds API and for API keys">terms</a>.
     </p>
 
     <h2>Errors</h2>
