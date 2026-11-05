@@ -12,7 +12,15 @@
     "https://www.techradar.com/rss",
     "https://www.theregister.com/headlines.atom",
     "https://venturebeat.com/feed/",
-    "https://hnrss.org/frontpage"
+    "https://hnrss.org/frontpage",
+    "https://thenextweb.com/",
+    "https://www.tomshardware.com/",
+    "https://slashdot.org/",
+    "https://www.howtogeek.com/",
+    "https://lifehacker.com/",
+    "https://www.404media.co/",
+    "https://www.makeuseof.com/",
+    "https://www.techmeme.com/"
   ],
   "ai": [
     "https://openai.com/news/rss.xml",
@@ -28,7 +36,10 @@
     "https://lilianweng.github.io/index.xml",
     "https://www.interconnects.ai/feed",
     "https://aws.amazon.com/blogs/machine-learning/feed/",
-    "https://venturebeat.com/category/ai/feed/"
+    "https://venturebeat.com/category/ai/feed/",
+    "https://www.latent.space/",
+    "https://garymarcus.substack.com/",
+    "https://www.aisnakeoil.com/"
   ],
   "programming": [
     "https://github.blog/feed/",
@@ -45,7 +56,11 @@
     "https://nodejs.org/en/feed/blog.xml",
     "https://overreacted.io/rss.xml",
     "https://lobste.rs/rss",
-    "https://www.freecodecamp.org/news/rss/"
+    "https://www.freecodecamp.org/news/rss/",
+    "https://www.infoq.com/",
+    "https://thenewstack.io/",
+    "https://blog.cloudflare.com/",
+    "https://www.jeffgeerling.com/"
   ],
   "web-development": [
     "https://css-tricks.com/feed/",
@@ -73,7 +88,9 @@
     "https://www.core77.com",
     "https://sidebar.io/feed.xml",
     "https://www.swiss-miss.com/feed",
-    "https://www.thisiscolossal.com/feed/"
+    "https://www.thisiscolossal.com/feed/",
+    "https://design-milk.com/",
+    "https://www.creativeboom.com/"
   ],
   "science": [
     "https://www.sciencedaily.com/rss/all.xml",
@@ -86,7 +103,9 @@
     "https://www.sciencenews.org/feed",
     "https://www.science.org/rss/news_current.xml",
     "https://nautil.us/feed/",
-    "https://arstechnica.com/science/feed/"
+    "https://arstechnica.com/science/feed/",
+    "https://www.sciencealert.com/",
+    "https://www.popsci.com/"
   ],
   "space": [
     "https://www.nasa.gov/feed/",
@@ -123,7 +142,8 @@
     "https://tomtunguz.com/index.xml",
     "https://stratechery.com/feed/",
     "https://techcrunch.com/category/startups/feed/",
-    "https://hnrss.org/frontpage"
+    "https://hnrss.org/frontpage",
+    "https://news.crunchbase.com/"
   ],
   "marketing": [
     "https://moz.com/posts/rss/blog",
@@ -135,7 +155,9 @@
     "https://www.marketingdive.com/feeds/news/",
     "https://sproutsocial.com/insights/feed/",
     "https://copyblogger.com/feed/",
-    "https://seths.blog/feed/"
+    "https://seths.blog/feed/",
+    "https://www.adweek.com/",
+    "https://www.socialmediatoday.com/"
   ],
   "seo": [
     "https://moz.com/posts/rss/blog",
@@ -144,7 +166,6 @@
     "https://ahrefs.com/blog/feed/",
     "https://backlinko.com/feed",
     "https://www.seroundtable.com",
-    "https://developers.google.com/search/blog",
     "https://www.semrush.com/blog/feed/",
     "https://neilpatel.com/feed/"
   ],
@@ -159,7 +180,8 @@
     "https://www.calculatedriskblog.com/feeds/posts/default",
     "https://www.financialsamurai.com/feed/",
     "https://www.investopedia.com",
-    "https://feeds.bloomberg.com/markets/news.rss"
+    "https://feeds.bloomberg.com/markets/news.rss",
+    "https://www.kiplinger.com/"
   ],
   "crypto": [
     "https://www.coindesk.com/arc/outboundfeeds/rss/",
@@ -172,7 +194,11 @@
     "https://www.newsbtc.com/feed/",
     "https://bitcoinist.com/feed/",
     "https://thedefiant.io",
-    "https://vitalik.eth.limo/feed.xml"
+    "https://vitalik.eth.limo/feed.xml",
+    "https://cryptonews.com/",
+    "https://u.today/",
+    "https://dailyhodl.com/",
+    "https://cryptopotato.com/"
   ],
   "real-estate": [
     "https://www.inman.com/feed/",
@@ -211,7 +237,9 @@
     "https://www.gamesindustry.biz/feed",
     "https://www.nintendolife.com/feeds/latest",
     "https://blog.playstation.com/feed/",
-    "https://news.xbox.com/en-us/feed/"
+    "https://news.xbox.com/en-us/feed/",
+    "https://www.vg247.com/",
+    "https://www.thegamer.com/"
   ],
   "movies": [
     "https://www.slashfilm.com/feed/",
@@ -223,7 +251,13 @@
     "https://collider.com/feed/",
     "https://screenrant.com/feed/",
     "https://www.empireonline.com",
-    "https://www.theguardian.com/film/rss"
+    "https://www.theguardian.com/film/rss",
+    "https://www.thewrap.com/",
+    "https://www.cinemablend.com/",
+    "https://www.denofgeek.com/",
+    "https://bloody-disgusting.com/",
+    "https://movieweb.com/",
+    "https://www.awardsdaily.com/"
   ],
   "music": [
     "https://pitchfork.com/rss/news/",
@@ -236,7 +270,11 @@
     "https://www.musicradar.com",
     "https://www.npr.org/rss/rss.php?id=1039",
     "https://www.clashmusic.com/feed/",
-    "https://www.theguardian.com/music/rss"
+    "https://www.theguardian.com/music/rss",
+    "https://loudwire.com/",
+    "https://www.pastemagazine.com/",
+    "https://thequietus.com/",
+    "https://www.udiscovermusic.com/"
   ],
   "books": [
     "https://lithub.com/feed/",
@@ -248,7 +286,9 @@
     "https://www.nybooks.com/feed/",
     "https://reactormag.com/feed/",
     "https://www.theguardian.com/books/rss",
-    "https://www.kirkusreviews.com"
+    "https://www.kirkusreviews.com",
+    "https://themillions.com/",
+    "https://www.nybooks.com/"
   ],
   "food": [
     "https://www.seriouseats.com",
@@ -262,7 +302,10 @@
     "https://www.davidlebovitz.com/feed/",
     "https://pinchofyum.com/feed",
     "https://www.loveandlemons.com/feed/",
-    "https://www.recipetineats.com/feed/"
+    "https://www.recipetineats.com/feed/",
+    "https://www.eater.com/",
+    "https://pinchofyum.com/",
+    "https://www.halfbakedharvest.com/"
   ],
   "travel": [
     "https://www.nomadicmatt.com/feed/",
@@ -276,7 +319,8 @@
     "https://expertvagabond.com/feed/",
     "https://www.theplanetd.com/feed/",
     "https://viewfromthewing.com/feed/",
-    "https://skift.com/feed/"
+    "https://skift.com/feed/",
+    "https://www.afar.com/"
   ],
   "health": [
     "https://www.statnews.com/feed/",
@@ -313,7 +357,8 @@
     "https://www.highsnobiety.com/feed/",
     "https://www.gq.com/feed/rss",
     "https://www.thecut.com",
-    "https://www.permanentstyle.com/feed"
+    "https://www.permanentstyle.com/feed",
+    "https://www.whowhatwear.com/"
   ],
   "parenting": [
     "https://www.scarymommy.com",
@@ -361,7 +406,8 @@
     "https://www.theringer.com/rss/index.xml",
     "https://www.sbnation.com/rss/index.xml",
     "https://www.si.com",
-    "https://bleacherreport.com"
+    "https://bleacherreport.com",
+    "https://profootballtalk.nbcsports.com/"
   ],
   "news": [
     "https://feeds.bbci.co.uk/news/rss.xml",
@@ -375,7 +421,11 @@
     "https://time.com/feed/",
     "https://www.theatlantic.com/feed/all/",
     "https://www.vox.com/rss/index.xml",
-    "https://www.propublica.org/feeds/propublica/main"
+    "https://www.propublica.org/feeds/propublica/main",
+    "https://www.nbcnews.com/",
+    "https://www.latimes.com/",
+    "https://www.newsweek.com/",
+    "https://www.semafor.com/"
   ],
   "world-news": [
     "https://feeds.bbci.co.uk/news/world/rss.xml",
@@ -387,7 +437,8 @@
     "https://www.euronews.com/rss",
     "https://www.scmp.com/rss/91/feed",
     "https://feeds.npr.org/1004/rss.xml",
-    "https://www.cbc.ca/webfeed/rss/rss-world"
+    "https://www.cbc.ca/webfeed/rss/rss-world",
+    "https://restofworld.org/"
   ],
   "apple": [
     "https://daringfireball.net/feeds/main",
@@ -399,7 +450,8 @@
     "https://512pixels.net/feed/",
     "https://www.apple.com/newsroom/rss-feed.rss",
     "https://mjtsai.com/blog/feed/",
-    "https://tidbits.com/feed/"
+    "https://tidbits.com/feed/",
+    "https://www.macworld.com/"
   ],
   "android": [
     "https://www.androidpolice.com/feed/",
@@ -410,7 +462,8 @@
     "https://www.xda-developers.com/feed/",
     "https://www.droid-life.com/feed/",
     "https://www.gsmarena.com/rss-news-reviews.php3",
-    "https://www.phonearena.com"
+    "https://www.phonearena.com",
+    "https://www.sammobile.com/"
   ],
   "linux": [
     "https://lwn.net/headlines/rss",
@@ -421,7 +474,9 @@
     "https://ubuntu.com/blog/feed",
     "https://blog.linuxmint.com/?feed=rss2",
     "https://9to5linux.com/feed/",
-    "https://www.gamingonlinux.com/article_rss.php"
+    "https://www.gamingonlinux.com/article_rss.php",
+    "https://distrowatch.com/",
+    "https://www.linuxtoday.com/"
   ],
   "security": [
     "https://krebsonsecurity.com/feed/",
@@ -433,7 +488,11 @@
     "https://googleprojectzero.blogspot.com/feeds/posts/default",
     "https://www.troyhunt.com/rss/",
     "https://isc.sans.edu/rssfeed.xml",
-    "https://therecord.media/feed"
+    "https://therecord.media/feed",
+    "https://securityaffairs.com/",
+    "https://www.helpnetsecurity.com/",
+    "https://grahamcluley.com/",
+    "https://cyberscoop.com/"
   ],
   "data-science": [
     "https://www.kdnuggets.com/feed",
@@ -445,7 +504,8 @@
     "https://www.dataquest.io/blog/feed/",
     "https://eugeneyan.com/rss/",
     "https://simplystatistics.org/index.xml",
-    "https://pudding.cool"
+    "https://pudding.cool",
+    "https://www.analyticsvidhya.com/"
   ],
   "podcasts": [
     "https://feeds.npr.org/510289/podcast.xml",
@@ -503,6 +563,8 @@
     "https://poorlydrawnlines.com/feed/",
     "https://pbfcomics.com/feed/",
     "https://www.phdcomics.com/gradfeed.php",
-    "https://explosm.net"
+    "https://explosm.net",
+    "https://existentialcomics.com/",
+    "https://www.qwantz.com/"
   ]
 }
